@@ -1,24 +1,25 @@
 {
   "schema_version": "2.0",
   "meta": {
-    "generated_at": "2026-02-16T08:58:35.356Z",
+    "generated_at": "2026-02-24T16:18:17.739Z",
     "slug": "sickn33-nextjs-best-practices",
-    "source_url": "https://github.com/sickn33/antigravity-awesome-skills/tree/main/skills/nextjs-best-practices/",
+    "source_url": "https://github.com/sickn33/antigravity-awesome-skills/tree/main/skills/nextjs-best-practices",
     "source_ref": "main",
     "model": "claude",
     "analysis_version": "3.0.0",
     "source_type": "community",
-    "content_hash": "e700316f422259ad0a25285eff4cd7a6e275a487eed8483d569e660ac53b3957",
-    "tree_hash": "2c1005828e8a83560ac8479aec1ddd82d1f4bd119dd2b731bfe7b683ab373eed"
+    "content_hash": "65d361010b6584fc08faab6abf6892fdc1615ae816fccfa6d4b71587e7b839e6",
+    "tree_hash": "6e6c62a4285f5ed92bf35b741894b8d566b971c4710ca9295e7d32439800195b"
   },
   "skill": {
     "name": "nextjs-best-practices",
     "description": "Next.js App Router principles. Server Components, data fetching, routing patterns.",
-    "summary": "Guide for Next.js App Router development patterns including Server Components, data fetching, routing, and performance optimization.",
+    "summary": "Essential patterns and best practices for building modern Next.js applications with the App Router architecture.",
     "icon": "📦",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "author": "sickn33",
     "license": "MIT",
+    "category": "coding",
     "tags": [
       "nextjs",
       "react",
@@ -37,178 +38,134 @@
     "risk_level": "safe",
     "is_blocked": false,
     "safe_to_publish": true,
-    "summary": "Security evaluation complete. All static findings are false positives. The skill contains only markdown documentation about Next.js best practices. Code examples (e.g., page.tsx, revalidate: 60) are displayed in markdown code fences, not executed as shell commands. No cryptographic algorithms, network calls, or file operations are present. This is a safe reference guide for Next.js development.",
+    "summary": "This skill is documentation-only content describing Next.js App Router best practices. Static analysis flagged 18 patterns (external_commands, weak cryptographic algorithms), but all are FALSE POSITIVES. The SKILL.md file contains only educational markdown content with code examples - no executable code, no shell commands, no cryptographic operations. Safe for publication.",
     "risk_factor_evidence": [],
     "critical_findings": [],
     "high_findings": [],
     "medium_findings": [],
     "low_findings": [],
-    "dangerous_patterns": [
-      {
-        "title": "False Positive: Markdown Code Examples",
-        "description": "Static scanner flagged markdown code fences as shell commands. Examples like `page.tsx`, `revalidate: 60`, `'use server'` are Next.js code syntax displayed in markdown, not executable commands.",
-        "locations": [
-          {
-            "file": "SKILL.md",
-            "line_start": 17,
-            "line_end": 28
-          },
-          {
-            "file": "SKILL.md",
-            "line_start": 65,
-            "line_end": 77
-          },
-          {
-            "file": "SKILL.md",
-            "line_start": 150,
-            "line_end": 152
-          }
-        ],
-        "confidence": 0.95,
-        "confidence_reasoning": "The flagged patterns are markdown code blocks showing Next.js file names and API syntax, not shell or Ruby execution commands"
-      },
-      {
-        "title": "False Positive: Weak Cryptographic Algorithm",
-        "description": "Static scanner incorrectly flagged lines as cryptographic algorithms. No encryption or hashing code exists in this documentation file.",
-        "locations": [
-          {
-            "file": "SKILL.md",
-            "line_start": 3,
-            "line_end": 3
-          },
-          {
-            "file": "SKILL.md",
-            "line_start": 95,
-            "line_end": 95
-          },
-          {
-            "file": "SKILL.md",
-            "line_start": 130,
-            "line_end": 130
-          }
-        ],
-        "confidence": 0.98,
-        "confidence_reasoning": "Lines contain only YAML frontmatter, status code guidance, and SEO description length recommendations - no cryptographic code"
-      }
-    ],
+    "dangerous_patterns": [],
     "files_scanned": 1,
-    "total_lines": 204,
+    "total_lines": 209,
     "audit_model": "claude",
-    "audited_at": "2026-02-16T08:58:35.356Z",
-    "risk_factors": []
+    "audited_at": "2026-02-24T16:18:17.739Z"
   },
   "content": {
-    "user_title": "Apply Next.js Best Practices with Claude",
-    "value_statement": "Developers struggle to keep up with Next.js App Router patterns and often use outdated approaches. This skill provides comprehensive best practices for Server Components, data fetching, routing, and performance optimization.",
+    "user_title": "Master Next.js App Router Best Practices",
+    "value_statement": "Build production-ready Next.js applications with confidence. Learn Server Components, data fetching strategies, and routing patterns that scale.",
     "seo_keywords": [
-      "Next.js best practices",
-      "Next.js App Router guide",
-      "Claude Code Next.js",
-      "Codex Next.js development",
-      "Server Components Next.js",
-      "Next.js data fetching patterns",
-      "Next.js routing conventions",
-      "React server components tutorial",
-      "Next.js performance optimization",
-      "Claude AI web development"
+      "Next.js",
+      "App Router",
+      "Server Components",
+      "React",
+      "Claude",
+      "Codex",
+      "Claude Code",
+      "web development",
+      "frontend",
+      "data fetching"
     ],
     "actual_capabilities": [
-      "Determine when to use Server vs Client Components in Next.js applications",
-      "Apply correct data fetching patterns including caching and revalidation strategies",
-      "Structure Next.js projects using App Router conventions and route groups",
-      "Implement proper error handling with error.tsx and not-found.tsx boundaries",
-      "Optimize images and bundles for better Next.js application performance",
-      "Use Server Actions correctly for form submissions and data mutations"
+      "Explain Server Component vs Client Component decision criteria",
+      "Provide data fetching patterns with proper caching strategies",
+      "Guide routing conventions including route groups and parallel routes",
+      "Recommend API route best practices with validation",
+      "Optimize performance with image and bundle strategies",
+      "Implement Server Actions for form mutations"
     ],
     "limitations": [
-      "This skill provides guidance but does not write complete application code",
-      "It does not cover database setup or ORM integration patterns",
-      "It does not include testing strategies or deployment configurations",
-      "Authentication and authorization patterns are not covered in detail"
+      "Does not generate runnable code - provides guidance only",
+      "Focused on Next.js 13+ App Router, not Pages Router",
+      "Assumes TypeScript usage for examples",
+      "Does not cover deployment or hosting configuration"
     ],
     "use_cases": [
       {
-        "title": "New Next.js Project Setup",
-        "description": "A developer starting a new Next.js project wants to follow best practices from the beginning. They use the skill to understand the correct component architecture.",
-        "target_user": "Frontend developers new to Next.js App Router"
+        "title": "Migrating from Pages to App Router",
+        "description": "Transition existing Next.js projects to App Router architecture with proper Server Component patterns.",
+        "target_user": "Mid-level React developers upgrading legacy Next.js applications"
       },
       {
-        "title": "Refactoring Legacy Code",
-        "description": "A team migrating from Pages Router to App Router needs guidance on converting client-side fetches to Server Components.",
-        "target_user": "Full-stack developers performing Next.js migrations"
+        "title": "Building New Next.js Applications",
+        "description": "Start new projects with correct folder structure, caching strategies, and component architecture from day one.",
+        "target_user": "Full-stack developers creating production Next.js applications"
       },
       {
-        "title": "Performance Review",
-        "description": "A developer auditing an existing Next.js application uses the skill to identify anti-patterns and optimization opportunities.",
-        "target_user": "Senior developers and tech leads reviewing code quality"
+        "title": "Code Review and Optimization",
+        "description": "Audit existing codebases for anti-patterns like unnecessary Client Components or missing loading states.",
+        "target_user": "Tech leads reviewing team code for Next.js best practices"
       }
     ],
     "prompt_templates": [
       {
-        "title": "Component Decision Guide",
-        "prompt": "Should I use a Server Component or Client Component for a [component description] that [describe functionality]? Explain the trade-offs.",
-        "scenario": "Determining component type for specific functionality"
+        "title": "Component Type Decision",
+        "prompt": "I have a component that displays user profile data and has a follow button. Should this be a Server Component or Client Component? Explain the reasoning.",
+        "scenario": "Beginner - Understanding when to use each component type"
       },
       {
-        "title": "Data Fetching Pattern",
-        "prompt": "What is the best way to fetch [data type] from [data source] in Next.js? I need [describe freshness requirements].",
-        "scenario": "Choosing appropriate data fetching strategy"
+        "title": "Data Fetching Strategy",
+        "prompt": "What is the recommended fetch pattern for displaying product listings that should update every 5 minutes? Show the implementation.",
+        "scenario": "Intermediate - Implementing ISR with revalidate"
       },
       {
-        "title": "Route Structure",
-        "prompt": "How should I organize routes for [describe application sections]? Should I use route groups? Show the file structure.",
-        "scenario": "Planning application route architecture"
+        "title": "Route Organization",
+        "prompt": "How do I organize a dashboard with multiple sections (analytics, settings, users) that share a common layout but should not affect the URL structure?",
+        "scenario": "Intermediate - Using route groups effectively"
       },
       {
-        "title": "Performance Optimization",
-        "prompt": "My Next.js page with [describe content] is loading slowly. What optimization techniques from best practices should I apply?",
-        "scenario": "Improving page load performance"
+        "title": "Full Feature Implementation",
+        "prompt": "Create a comment form using Server Actions. Include input validation with Zod, optimistic UI updates, and error handling. Show both the Server Component and Client Component code.",
+        "scenario": "Advanced - Combining Server Actions, validation, and Client interactivity"
       }
     ],
     "output_examples": [
       {
-        "input": "Should I make this component a Server or Client Component? It displays user profile data and has a button to toggle a theme.",
-        "output": "Split the component: Create a Server Component to fetch and display the user profile data, then pass that data to a Client Component for the interactive theme toggle button. This keeps data fetching on the server (efficient) while keeping interactivity on the client."
+        "input": "Should I use useState in a Server Component?",
+        "output": "No. Server Components cannot use useState, useEffect, or event handlers. These hooks require browser JavaScript. If you need state, mark the component with 'use client' or extract the interactive parts into a separate Client Component."
       },
       {
-        "input": "How should I cache API responses that change every hour?",
-        "output": "Use ISR (Incremental Static Regeneration) with revalidate: 3600 (seconds). This caches the response for one hour, then regenerates on the next request after expiry. For on-demand updates, use revalidatePath or revalidateTag when your data source updates."
+        "input": "How do I cache API responses in Next.js?",
+        "output": "Use the fetch options: fetch(url, { next: { revalidate: 60 } }) caches for 60 seconds. For static content, omit revalidate for build-time caching. Use 'no-store' to disable caching entirely."
+      },
+      {
+        "input": "What is the purpose of loading.tsx?",
+        "output": "loading.tsx provides automatic loading states during navigation and data fetching. It renders while the new segment loads, improving perceived performance. Place it alongside page.tsx in any route segment."
       }
     ],
     "best_practices": [
-      "Start with Server Components by default - only add 'use client' when you need interactivity like useState, useEffect, or event handlers",
-      "Fetch data in Server Components to leverage server-side caching and reduce client bundle size",
-      "Use loading.tsx and error.tsx files to provide good UX during data loading and graceful error handling"
+      "Start with Server Components by default, add Client Components only when interactivity is required",
+      "Use route groups with parentheses to organize routes without affecting the URL path",
+      "Implement loading.tsx and error.tsx for every major route segment to handle pending and error states"
     ],
     "anti_patterns": [
-      "Adding 'use client' to every component - this defeats the performance benefits of Server Components and increases bundle size",
-      "Fetching data in Client Components with useEffect - this creates unnecessary client-side requests and loading states",
-      "Skipping loading.tsx and error.tsx - users see blank screens or raw error messages instead of proper UX"
+      "Adding 'use client' to every component - this defeats the purpose of Server Components and increases bundle size",
+      "Fetching data in Client Components instead of Server Components - causes waterfall requests and slower loads",
+      "Skipping proper error boundaries - unhandled errors crash the entire application instead of showing fallback UI"
     ],
     "faq": [
       {
-        "question": "What is the default component type in Next.js App Router?",
-        "answer": "Server Components are the default. You do not need any directive - components are server-side by default. Add 'use client' only when you need client-side features."
+        "question": "When should I use Server Components vs Client Components?",
+        "answer": "Use Server Components by default for data fetching, layout, and static content. Use Client Components only when you need useState, useEffect, event handlers, or browser APIs. Split large components to keep Client portions minimal."
       },
       {
-        "question": "When should I use Client Components?",
-        "answer": "Use Client Components when you need React hooks (useState, useEffect), event handlers (onClick, onChange), browser APIs, or third-party libraries that depend on client-side rendering."
+        "question": "How does caching work in the App Router?",
+        "answer": "Next.js caches fetch requests by default. Use revalidate for time-based revalidation (ISR), revalidatePath or revalidateTag for on-demand updates, and no-store to disable caching. Each route segment can also have its own caching configuration."
       },
       {
-        "question": "How does data caching work in Next.js?",
-        "answer": "fetch requests are cached by default. Use 'no-store' for dynamic data that changes on every request. Use 'revalidate' for time-based ISR. Use revalidatePath or revalidateTag for on-demand cache invalidation."
+        "question": "What are Server Actions and when should I use them?",
+        "answer": "Server Actions are async functions marked with 'use server' that run on the server. Use them for form submissions, data mutations, and triggering revalidation. Always validate inputs and handle errors properly."
       },
       {
-        "question": "What are route groups in Next.js?",
-        "answer": "Route groups use (folderName) syntax to organize routes without affecting the URL. They let you apply different layouts to route sections while keeping a clean URL structure."
+        "question": "How do I handle authentication in App Router?",
+        "answer": "Check authentication in Server Components before rendering protected content. Use middleware for route-level protection. For Client Components, fetch auth status from a Server Component or use a client-side auth provider."
       },
       {
-        "question": "How do I handle errors in Next.js App Router?",
-        "answer": "Create error.tsx (error.ts in API routes) to catch errors and display a recovery UI. Use not-found.tsx for 404 pages. Both are automatically wrapped by error boundaries."
+        "question": "What is the difference between layout.tsx and template.tsx?",
+        "answer": "layout.tsx persists across navigation and maintains state. template.tsx creates a new instance on each navigation, remounting children. Use layout for persistent UI like navigation, template when you need reset behavior."
       },
       {
-        "question": "Can I use Server Actions with Client Components?",
-        "answer": "Yes. Define Server Actions in a file with 'use server', then import and call them from Client Components. The action runs on the server while the component remains interactive."
+        "question": "Can I use API routes with the App Router?",
+        "answer": "Yes. Create route.ts files in the app directory with GET, POST, PUT, PATCH, DELETE handlers. Use Route Handlers for API endpoints. Consider Edge runtime for better performance on simple endpoints."
       }
     ]
   },
@@ -217,7 +174,7 @@
       "name": "SKILL.md",
       "type": "file",
       "path": "SKILL.md",
-      "lines": 204
+      "lines": 209
     }
   ]
 }

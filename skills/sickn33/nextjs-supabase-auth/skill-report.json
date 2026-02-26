@@ -1,30 +1,31 @@
 {
   "schema_version": "2.0",
   "meta": {
-    "generated_at": "2026-02-18T08:56:09.838Z",
+    "generated_at": "2026-02-24T16:21:08.787Z",
     "slug": "sickn33-nextjs-supabase-auth",
-    "source_url": "https://github.com/sickn33/antigravity-awesome-skills/tree/main/skills/nextjs-supabase-auth/",
+    "source_url": "https://github.com/sickn33/antigravity-awesome-skills/tree/main/skills/nextjs-supabase-auth",
     "source_ref": "main",
     "model": "claude",
     "analysis_version": "3.0.0",
     "source_type": "community",
-    "content_hash": "83395a60e82795c073331e10fd70460be418159ed0a429e8f30f67565853ca3e",
-    "tree_hash": "d6ee4fa8edf528812630ed09750a27e7ff8c6a44e7a964a11b98f94eb46646bf"
+    "content_hash": "0d3f827977bf7292cd915748628f4568af37b24fb7805dc873cf8c41b233e08c",
+    "tree_hash": "849699883bff56f092ba421a72973b2804a008232756238fdd48ae4ab219a694"
   },
   "skill": {
     "name": "nextjs-supabase-auth",
-    "description": "Expert integration of Supabase Auth with Next.js App Router. Use when: supabase auth next, authentication next.js, login supabase, auth middleware, protected route.",
-    "summary": "Expert integration of Supabase Auth with Next.js App Router",
-    "icon": "🔐",
-    "version": "1.0.0",
+    "description": "Expert integration of Supabase Auth with Next.js App Router for secure authentication flows.",
+    "summary": "Comprehensive guidance for implementing Supabase authentication in Next.js applications using modern App Router patterns and best practices.",
+    "icon": "📦",
+    "version": "1.0.1",
     "author": "sickn33",
     "license": "MIT",
+    "category": "devops",
     "tags": [
-      "nextjs",
       "supabase",
+      "nextjs",
       "authentication",
       "app-router",
-      "security"
+      "ssr"
     ],
     "supported_tools": [
       "claude",
@@ -37,132 +38,143 @@
     "risk_level": "safe",
     "is_blocked": false,
     "safe_to_publish": true,
-    "summary": "Static analysis flagged backticks in Markdown and references to 'auth' as security concerns. Both are false positives. The skill is a documentation file containing only Markdown text describing Supabase Auth integration patterns. No executable code, no network calls, no file system access, and no actual security vulnerabilities present.",
+    "summary": "Static analysis flagged markdown backticks as shell commands (false positive). Line 57 uses backticks for inline code formatting in documentation, not command execution. No actual external commands, cryptographic operations, or dangerous patterns exist. Skill provides documentation and patterns only - no executable code with security risks.",
+    "risk_factor_evidence": [],
     "critical_findings": [],
     "high_findings": [],
     "medium_findings": [],
     "low_findings": [],
     "dangerous_patterns": [],
     "files_scanned": 1,
-    "total_lines": 57,
+    "total_lines": 61,
     "audit_model": "claude",
-    "audited_at": "2026-02-18T08:56:09.838Z",
-    "risk_factors": [],
-    "risk_factor_evidence": []
+    "audited_at": "2026-02-24T16:21:08.787Z"
   },
   "content": {
-    "user_title": "Add Supabase Auth to Next.js App Router",
-    "value_statement": "This skill provides expert guidance for integrating Supabase authentication with Next.js App Router. It helps developers implement secure login flows, protect routes with middleware, and properly handle sessions in server and client components.",
+    "user_title": "Implement Supabase Auth in Next.js App Router",
+    "value_statement": "Building authentication in Next.js requires understanding server and client boundaries. This skill provides proven patterns for secure Supabase Auth integration with App Router architecture.",
     "seo_keywords": [
-      "Claude Code Supabase Auth",
-      "Next.js Supabase authentication",
-      "Supabase Auth Next.js App Router",
-      "Codex Next.js auth integration",
-      "Claude authentication middleware",
-      "Supabase session management Next.js",
-      "Next.js protected routes Supabase",
-      "Server Components authentication",
-      "Supabase OAuth callback handling",
-      "Next.js auth best practices"
+      "Claude",
+      "Codex",
+      "Claude Code",
+      "Supabase Auth",
+      "Next.js authentication",
+      "App Router auth",
+      "SSR authentication",
+      "Next.js middleware",
+      "Supabase SSR",
+      "protected routes"
     ],
     "actual_capabilities": [
-      "Set up Supabase client with @supabase/ssr for App Router",
-      "Implement authentication middleware for protected routes",
-      "Handle OAuth callback routes and session exchange",
-      "Create auth flow using Server Actions",
-      "Manage cookie-based session lifecycle",
-      "Avoid common auth state management mistakes"
+      "Configure Supabase client for server and client contexts with @supabase/ssr",
+      "Implement auth middleware for protected route handling and session refresh",
+      "Create OAuth callback routes that exchange code for sessions securely",
+      "Handle authentication in Server Actions without exposing tokens to client",
+      "Set up cookie-based session management following Next.js conventions",
+      "Identify and avoid common anti-patterns in Next.js auth implementations"
     ],
     "limitations": [
-      "Does not include executable code or templates",
-      "Requires existing Next.js App Router project",
-      "Requires Supabase project with auth configured",
-      "Does not cover legacy Pages Router patterns"
+      "Provides guidance and patterns only - does not execute authentication code directly",
+      "Requires existing Next.js App Router project and Supabase backend setup",
+      "Focuses on @supabase/ssr package - may not cover older @supabase/supabase-js patterns",
+      "Does not handle custom auth providers outside of Supabase ecosystem"
     ],
     "use_cases": [
       {
-        "title": "Building a new Next.js app with user authentication",
-        "description": "Add secure login and session management to a new Next.js App Router project using Supabase as the auth provider.",
-        "target_user": "Full-stack developers building web applications"
+        "title": "Full-Stack Developer Building SaaS Application",
+        "description": "Implement secure user authentication with email and OAuth providers for a Next.js SaaS product using Supabase as the backend.",
+        "target_user": "Full-stack developer"
       },
       {
-        "title": "Protecting routes with middleware",
-        "description": "Implement route protection that checks authentication status and refreshes sessions before granting access.",
-        "target_user": "Next.js developers needing route security"
+        "title": "Team Migrating from Pages Router to App Router",
+        "description": "Refactor existing Supabase auth implementation to work with Next.js App Router server components and middleware architecture.",
+        "target_user": "Development team"
       },
       {
-        "title": "Migrating from Pages Router to App Router",
-        "description": "Understand the differences in auth patterns between Pages Router and App Router when using Supabase.",
-        "target_user": "Developers migrating existing Next.js projects"
+        "title": "Developer Adding Auth to Existing App",
+        "description": "Integrate authentication into an existing Next.js application with Supabase backend, following security best practices from the start.",
+        "target_user": "Solo developer"
       }
     ],
     "prompt_templates": [
       {
-        "title": "Basic Supabase setup",
-        "prompt": "How do I set up Supabase Auth in a Next.js App Router project?",
-        "scenario": "Getting started with Supabase authentication"
+        "title": "Basic Supabase Client Setup",
+        "prompt": "Help me set up Supabase client configuration for a Next.js App Router project. I need separate clients for server components, client components, and middleware using @supabase/ssr.",
+        "scenario": "Initial project setup"
       },
       {
-        "title": "Middleware protection",
-        "prompt": "Create middleware to protect routes and refresh sessions with Supabase",
-        "scenario": "Securing routes with auth middleware"
+        "title": "Protected Route Implementation",
+        "prompt": "Create middleware that protects routes under /dashboard and redirects unauthenticated users to /login. Include session refresh logic for expired tokens.",
+        "scenario": "Route protection"
       },
       {
-        "title": "OAuth callback handling",
-        "prompt": "How do I handle OAuth callback and exchange the code for a session in Next.js?",
-        "scenario": "Setting up social login flow"
+        "title": "OAuth Callback Handler",
+        "prompt": "Build an OAuth callback route handler that exchanges the authorization code for a Supabase session and redirects users to the appropriate page after successful authentication.",
+        "scenario": "OAuth integration"
       },
       {
-        "title": "Server Action auth",
-        "prompt": "Use Supabase with Server Actions for login, logout, and registration",
-        "scenario": "Implementing form-based authentication"
+        "title": "Complete Auth Flow with Server Actions",
+        "prompt": "Implement a complete authentication flow using Server Actions for login, signup, and logout. Include proper error handling, form validation, and secure token management without exposing credentials to the client.",
+        "scenario": "Full authentication system"
       }
     ],
     "output_examples": [
       {
-        "input": "How do I set up Supabase Auth in Next.js App Router?",
-        "output": "Use @supabase/ssr package. Install it with npm install @supabase/ssr. Create a utils/supabase/server.ts file for server-side client and utils/supabase/client.ts for client-side client. Configure environment variables NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY."
+        "input": "Set up Supabase auth middleware for Next.js App Router",
+        "output": [
+          "Create middleware.ts in project root",
+          "Import createServerClient from @supabase/ssr",
+          "Configure client with SUPABASE_URL and SUPABASE_ANON_KEY from env",
+          "Add matcher for routes that need auth protection",
+          "Handle token refresh when sessions expire",
+          "Redirect to login page when auth check fails on protected routes"
+        ]
       },
       {
-        "input": "Create auth middleware for protected routes",
-        "output": "Import createServerClient from @supabase/ssr. In middleware, use supabase.auth.getUser() to verify tokens. Return redirect to /login if no valid session. Refresh tokens before expiration."
+        "input": "How do I handle auth in Server Components?",
+        "output": [
+          "Use createServerClient to instantiate Supabase client",
+          "Call getUser() to validate current session",
+          "Pass user data as props to child components",
+          "Avoid calling getSession() directly in Server Components",
+          "Let middleware handle session validation for protected routes"
+        ]
       }
     ],
     "best_practices": [
-      "Use @supabase/ssr package instead of @supabase/auth-helpers-nextjs for App Router",
-      "Handle tokens in middleware for protected routes, not in client components",
-      "Use Server Actions for auth operations to keep sensitive logic on the server",
-      "Never expose auth tokens to client unnecessarily - rely on HttpOnly cookies"
+      "Use @supabase/ssr package specifically designed for Next.js App Router server/client boundaries",
+      "Handle authentication in middleware to protect routes before rendering and manage session refresh transparently",
+      "Store tokens in cookies automatically managed by @supabase/ssr rather than manually handling token storage"
     ],
     "anti_patterns": [
-      "Do not use getSession in Server Components - use getUser instead",
-      "Do not manage auth state in Client Components without a session listener",
-      "Do not store tokens manually in localStorage - use Supabase's cookie-based sessions"
+      "Calling getSession() directly in Server Components instead of using middleware for route protection",
+      "Managing auth state in client components without implementing proper auth state change listeners",
+      "Manually storing or handling JWT tokens when @supabase/ssr provides automatic cookie-based session management"
     ],
     "faq": [
       {
-        "question": "What package should I use for Supabase Auth in Next.js App Router?",
-        "answer": "Use @supabase/ssr. It is the official package designed for App Router and handles cookie-based sessions properly."
+        "question": "What is the difference between @supabase/ssr and @supabase/supabase-js?",
+        "answer": "@supabase/ssr is specifically designed for Next.js App Router with built-in cookie handling and server/client boundary support. @supabase/supabase-js is the core client library but requires manual cookie and session management for SSR scenarios."
       },
       {
-        "question": "How do I protect routes in Next.js App Router?",
-        "answer": "Use middleware. Import createServerClient and check for valid sessions using getUser(). Redirect to login page if no session exists."
+        "question": "How do I protect API routes with Supabase Auth?",
+        "answer": "Create a middleware.ts file at your project root that checks authentication for specified route patterns. Use the createServerClient to validate sessions and redirect or return 401 for unauthenticated requests."
       },
       {
-        "question": "Can I use Supabase Auth with Server Components?",
-        "answer": "Yes. Use the server client from @supabase/ssr. Call getUser() or getSession() in Server Components to check auth status."
+        "question": "Can I use this skill with the Pages Router instead of App Router?",
+        "answer": "This skill focuses on App Router patterns. For Pages Router, you would use different patterns with getServerSideProps and different cookie handling approaches."
       },
       {
-        "question": "How do sessions work with Supabase in Next.js?",
-        "answer": "Supabase uses cookie-based sessions. The middleware handles cookie rotation, refreshing tokens before they expire automatically."
+        "question": "How do I handle OAuth providers like Google or GitHub?",
+        "answer": "Configure OAuth providers in your Supabase dashboard, then create callback route handlers that exchange the authorization code for a session using Supabase's OAuth flow. The skill covers this pattern in detail."
       },
       {
-        "question": "What is the difference between getSession and getUser?",
-        "answer": "getSession returns the session including raw tokens (avoid in browsers). getUser validates the token with Supabase and returns user data (recommended)."
+        "question": "Where should I store Supabase credentials?",
+        "answer": "Store SUPABASE_URL and SUPABASE_ANON_KEY in your environment variables. Never commit these to version control. Use .env.local for local development and your hosting platform's secret management for production."
       },
       {
-        "question": "How do I handle OAuth callbacks?",
-        "answer": "Create a route handler at /auth/callback. Exchange the code from URL params for a session using supabase.auth.exchangeCodeForSession(). Then redirect to the protected area."
+        "question": "How do I handle logout properly?",
+        "answer": "Use Supabase's signOut() method to invalidate the session server-side, then clear any local state and redirect to the login or home page. Server Actions provide a clean pattern for this operation."
       }
     ]
   },
@@ -171,7 +183,7 @@
       "name": "SKILL.md",
       "type": "file",
       "path": "SKILL.md",
-      "lines": 57
+      "lines": 61
     }
   ]
 }
