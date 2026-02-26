@@ -1,7 +1,7 @@
 ---
 name: hig-components-search
 version: 1.0.0
-description: "Apple HIG guidance for search fields, page controls, and path controls. Helps implement search UX, pagination, and navigation following Apple's design standards."
+description: "Apple HIG guidance for search fields, page controls, and path controls including search scopes, pagination, and breadcrumb navigation."
 risk: unknown
 source: community
 ---

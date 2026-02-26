@@ -1,6 +1,6 @@
 ---
 name: imagen
-description: "AI image generation skill using Google Gemini. Creates images from text prompts for frontend UIs, documentation, diagrams, icons, and visual concepts."
+description: Generates images using Google Gemini's image generation model for frontend UIs, documentation, and visual concept creation
 source: "https://github.com/sanjay3290/ai-skills/tree/main/skills/imagen"
 risk: safe
 ---
