@@ -1,7 +1,7 @@
 {
   "schema_version": "2.0",
   "meta": {
-    "generated_at": "2026-02-27T08:52:04.225Z",
+    "generated_at": "2026-02-26T08:58:00.970Z",
     "slug": "inference-sh-9-agent-browser",
     "source_url": "https://github.com/inference-sh-9/skills/tree/main/skills/agentic-browser/",
     "source_ref": "main",
@@ -13,19 +13,19 @@
   },
   "skill": {
     "name": "agent-browser",
-    "description": "Browser automation for AI agents via inference.sh. Navigate web pages, interact with elements using @e refs, take screenshots, record video. Capabilities: web scraping, form filling, clicking, typing, drag-drop, file upload, JavaScript execution. Use for: web automation, data extraction, testing, agent browsing, research.",
-    "summary": "Browser automation skill that enables AI agents to navigate and interact with web pages through a simple element reference system.",
-    "icon": "🌐",
+    "description": "Browser automation for AI agents via inference.sh. Navigate web pages, interact with elements using @e refs, take screenshots, record video.",
+    "summary": "Automate web browsers through a remote Playwright service with element reference system for reliable interaction.",
+    "icon": "📦",
     "version": "1.0.0",
     "author": "inference-sh-9",
     "license": "MIT",
-    "category": "productivity",
+    "category": "devops",
     "tags": [
       "browser-automation",
       "web-scraping",
       "playwright",
       "testing",
-      "automation"
+      "data-extraction"
     ],
     "supported_tools": [
       "claude",
@@ -39,42 +39,28 @@
     ]
   },
   "security_audit": {
-    "risk_level": "safe",
+    "risk_level": "low",
     "is_blocked": false,
     "safe_to_publish": true,
-    "summary": "All 609 static analysis findings are false positives from documentation and template files. The skill contains only legitimate bash scripts demonstrating browser automation workflows. External command patterns are CLI examples showing proper infsh usage. Network findings are example URLs in documentation. No malicious code, credential exfiltration, or unauthorized data transmission detected. The skill is a well-documented browser automation tool with no security concerns.",
-    "critical_findings": [],
-    "high_findings": [],
-    "medium_findings": [],
-    "low_findings": [],
-    "dangerous_patterns": [],
-    "files_scanned": 10,
-    "total_lines": 2312,
-    "audit_model": "claude",
-    "audited_at": "2026-02-27T08:52:04.225Z",
-    "risk_factors": [
-      "external_commands",
-      "network",
-      "filesystem"
-    ],
+    "summary": "Static analysis detected 609 patterns but evaluation confirms these are FALSE POSITIVES. External command patterns are legitimate CLI calls to inference.sh service. Hardcoded URLs are official service endpoints. Path traversal patterns are markdown documentation links. Browser credential references describe session state storage (cookies, localStorage), not file access. No malicious intent or security vulnerabilities detected. The skill is a legitimate browser automation tool with expected remote service communication.",
     "risk_factor_evidence": [
       {
         "factor": "external_commands",
         "evidence": [
           {
             "file": "SKILL.md",
-            "line_start": 9,
-            "line_end": 23
+            "line_start": 17,
+            "line_end": 17
           },
           {
-            "file": "templates/authenticated-session.sh",
-            "line_start": 30,
-            "line_end": 43
+            "file": "SKILL.md",
+            "line_start": 20,
+            "line_end": 20
           },
           {
-            "file": "templates/form-automation.sh",
-            "line_start": 28,
-            "line_end": 33
+            "file": "SKILL.md",
+            "line_start": 36,
+            "line_end": 38
           }
         ]
       },
@@ -84,12 +70,17 @@
           {
             "file": "SKILL.md",
             "line_start": 9,
-            "line_end": 11
+            "line_end": 9
           },
           {
-            "file": "references/commands.md",
+            "file": "SKILL.md",
+            "line_start": 17,
+            "line_end": 17
+          },
+          {
+            "file": "SKILL.md",
             "line_start": 23,
-            "line_end": 26
+            "line_end": 23
           }
         ]
       },
@@ -97,142 +88,147 @@
         "factor": "filesystem",
         "evidence": [
           {
-            "file": "templates/authenticated-session.sh",
-            "line_start": 28,
-            "line_end": 31
-          },
-          {
-            "file": "templates/capture-workflow.sh",
-            "line_start": 28,
-            "line_end": 28
+            "file": "SKILL.md",
+            "line_start": 5,
+            "line_end": 5
           }
         ]
       }
-    ]
+    ],
+    "critical_findings": [],
+    "high_findings": [],
+    "medium_findings": [],
+    "low_findings": [
+      {
+        "title": "Documentation references curl pipe to shell",
+        "description": "Install documentation mentions 'curl | sh' pattern which is generally discouraged for security. However, this is documentation only, not executable skill code, and points to official inference.sh CLI.",
+        "locations": [
+          {
+            "file": "SKILL.md",
+            "line_start": 17,
+            "line_end": 17
+          }
+        ]
+      }
+    ],
+    "dangerous_patterns": [],
+    "files_scanned": 10,
+    "total_lines": 2312,
+    "audit_model": "claude",
+    "audited_at": "2026-02-26T08:58:00.970Z"
   },
   "content": {
-    "user_title": "Automate Web Browsing with AI Agents",
-    "value_statement": "This skill enables AI agents to navigate and interact with web pages automatically. It provides a simple element reference system for clicking links, filling forms, and extracting data from any website.",
+    "user_title": "Automate web browsers with AI agent control",
+    "value_statement": "Browser automation tasks require complex scripting and fragile selectors. This skill provides a simple element reference system (@e refs) that lets AI agents reliably navigate, interact with, and extract data from any website through a remote Playwright service.",
     "seo_keywords": [
-      "browser automation",
-      "web scraping",
-      "Claude Code",
-      "Claude AI",
-      "Playwright automation",
-      "web testing",
-      "form automation",
-      "data extraction",
+      "Claude browser automation",
+      "Codex web scraping",
+      "Claude Code Playwright",
+      "AI web automation",
+      "browser agent",
+      "web extraction",
+      "automated testing",
       "headless browser",
-      "agent browsing"
+      "inference.sh skills",
+      "AI browser control"
     ],
     "actual_capabilities": [
-      "Navigate to any URL and retrieve page content with element references",
-      "Click buttons, links, and interactive elements using @e reference system",
-      "Fill text inputs, select dropdowns, check boxes, and upload files",
-      "Take screenshots of viewport or full pages for debugging",
-      "Record browser sessions as video for documentation",
-      "Execute custom JavaScript code on web pages",
-      "Manage persistent browser sessions for authenticated workflows",
-      "Configure proxy settings for geo-location testing",
-      "Drag and drop elements for complex interactions"
+      "Navigate to any URL and capture page state with element references",
+      "Interact with page elements using @e ref system (click, fill, drag, upload)",
+      "Take viewport or full-page screenshots of web pages",
+      "Record video of browser sessions for debugging or documentation",
+      "Execute custom JavaScript code on loaded pages",
+      "Support proxy configuration for geo-testing and routing"
     ],
     "limitations": [
+      "Requires active internet connection to inference.sh remote service",
       "Element references are invalidated after page navigation and require re-snapshot",
-      "Cannot interact with elements that are hidden or outside viewport",
-      "Does not support browser extensions or custom profiles",
-      "Requires the inference.sh CLI tool to be installed and authenticated",
-      "Session timeouts may occur with long-running automation tasks",
-      "Dynamic content loaded after initial page load may require explicit waits"
+      "Cannot access local browser extensions or stored browser credentials directly",
+      "Video recording increases session resource usage and returns file only on close"
     ],
     "use_cases": [
       {
-        "title": "Automated Form Testing",
-        "description": "QA testers can fill and submit web forms repeatedly to validate functionality and catch regression bugs.",
-        "target_user": "QA Engineer"
+        "title": "Web scraping and data extraction",
+        "description": "Extract structured data from websites, forms, and dynamic content that requires JavaScript rendering.",
+        "target_user": "Data analysts and researchers gathering information from web sources"
       },
       {
-        "title": "Data Extraction from Websites",
-        "description": "Researchers can navigate to data sources and extract structured information from multiple pages using element references.",
-        "target_user": "Data Researcher"
+        "title": "Automated form submission and testing",
+        "description": "Fill and submit forms, test user flows, and verify application behavior across different scenarios.",
+        "target_user": "QA engineers and developers testing web applications"
       },
       {
-        "title": "Authenticated Workflow Automation",
-        "description": "Marketing teams can automate repetitive tasks in web applications that require login, such as content publishing or lead management.",
-        "target_user": "Marketing Coordinator"
+        "title": "Authenticated workflow automation",
+        "description": "Login to protected sites and perform actions that require authentication, maintaining session state across multiple steps.",
+        "target_user": "Operations teams automating routine web-based tasks"
       }
     ],
     "prompt_templates": [
       {
-        "title": "Navigate and Extract",
-        "prompt": "Navigate to https://example.com, take a screenshot, and extract all links from the page using @e refs.",
-        "scenario": "Basic web scraping to collect URLs from a landing page"
+        "title": "Basic page navigation",
+        "prompt": "Open https://example.com and show me what interactive elements are available on the page.",
+        "scenario": "Beginner - Get started with browser automation"
       },
       {
-        "title": "Form Automation",
-        "prompt": "Open https://example.com/contact, identify the form fields, fill in name as 'John Doe' and email as 'john@example.com', then submit the form and verify success.",
-        "scenario": "Automating contact form submission with validation"
+        "title": "Form completion workflow",
+        "prompt": "Navigate to the contact form, fill in name with 'John Doe', email with 'john@example.com', message with 'Hello', then submit and confirm the submission succeeded.",
+        "scenario": "Intermediate - Complete a multi-step form interaction"
       },
       {
-        "title": "Authenticated Session",
-        "prompt": "Login to https://app.example.com with credentials from environment, navigate to dashboard, take a screenshot, and extract the user profile data.",
-        "scenario": "Accessing authenticated pages to retrieve user-specific data"
+        "title": "Data extraction with screenshots",
+        "prompt": "Go to the pricing page, extract all plan names and prices, take a full-page screenshot, and save the data in a structured format.",
+        "scenario": "Intermediate - Combine data extraction with visual capture"
       },
       {
-        "title": "Multi-Step Workflow with Video",
-        "prompt": "Start a video recording session, navigate through the checkout process on https://shop.example.com (add item, view cart, checkout), close session to save the video.",
-        "scenario": "Documenting a multi-step user journey for demonstration"
+        "title": "Authenticated session with video recording",
+        "prompt": "Start a recorded session, login to the dashboard using environment variable credentials, navigate to the reports section, extract the summary data, and close to retrieve the video.",
+        "scenario": "Advanced - Full authenticated workflow with recording"
       }
     ],
     "output_examples": [
       {
-        "input": "Navigate to https://example.com and list all interactive elements",
-        "output": "Successfully navigated to https://example.com. Found 5 interactive elements: @e1 [a] 'More information', @e2 [input] placeholder='Search', @e3 [button] 'Submit', @e4 [select] 'Choose option', @e5 [checkbox] name='agree'. Screenshot saved."
+        "input": "Open https://example.com and show available elements",
+        "output": "Page loaded successfully. Available elements: @e1 [h1] \"Example Domain\", @e2 [p] \"This domain is for use in illustrative examples...\", @e3 [a] \"More information...\" href=\"https://iana.org/domains/example\". Screenshot captured."
       },
       {
-        "input": "Fill the login form with test credentials and submit",
-        "output": "Filled username field (@e1) with 'testuser@example.com' and password field (@e2) with '********'. Clicked submit button (@e3). Waiting 3 seconds for redirect. Current URL: https://example.com/dashboard. Login successful."
-      },
-      {
-        "input": "Extract all article titles from the blog page",
-        "output": "Executed JavaScript to query article titles. Found 12 articles: 'Introduction to Browser Automation', '10 Tips for Web Scraping', 'Understanding Element References', 'Advanced Playwright Techniques', and 8 more."
+        "input": "Fill @e1 with \"test@example.com\" and click @e2",
+        "output": "Successfully filled element @e1 with provided text. Click action completed on @e2. Page navigated to dashboard. New elements available: @e1 [h2] \"Welcome\", @e2 [nav] \"Menu\"..."
       }
     ],
     "best_practices": [
-      "Always re-snapshot after navigation or DOM changes to get fresh element references",
-      "Use the --session flag to maintain browser state across multiple commands",
-      "Implement cleanup handlers in scripts to ensure sessions close properly",
-      "Start with discovery mode to identify element refs before writing automation"
+      "Always call snapshot after any navigation action to refresh element references",
+      "Use environment variables for credentials and sensitive data, never hardcode passwords",
+      "Close sessions promptly after completing tasks to release server resources"
     ],
     "anti_patterns": [
-      "Do not use stale @e refs after page navigation as they will no longer match elements",
-      "Avoid hardcoding credentials in scripts - use environment variables instead",
-      "Do not skip snapshot calls after dynamic content loads or form submissions",
-      "Never store session IDs in version control as they contain temporary authentication tokens"
+      "Using element references after navigation without re-snapshotting - refs become stale",
+      "Logging or echoing sensitive credential values in automation scripts",
+      "Leaving sessions open after task completion, causing resource leaks"
     ],
     "faq": [
       {
-        "question": "What does the @e ref system mean?",
-        "answer": "The @e ref system provides unique identifiers for each interactive element on a page. For example, @e1 might refer to the first button, @e2 to the first input field. These refs make it easy to reference elements without complex CSS selectors."
+        "question": "How do element references (@e refs) work?",
+        "answer": "Each page snapshot assigns sequential @e1, @e2, @e3... references to interactive elements. Use these refs in interact commands. References expire after navigation - always re-snapshot to get fresh refs."
       },
       {
-        "question": "Why do my element references stop working?",
-        "answer": "Element references are invalidated whenever the page navigates or the DOM changes significantly. Always call the snapshot function after navigation to get fresh references for the new page state."
+        "question": "Can this skill login to password-protected sites?",
+        "answer": "Yes. Use environment variables for credentials, fill the login form using element refs, click submit, wait for navigation, then verify login succeeded by checking the URL or page content."
       },
       {
-        "question": "Can I use this skill to scrape JavaScript-heavy websites?",
-        "answer": "Yes, the underlying Playwright engine fully executes JavaScript, so dynamic content loaded via client-side rendering will be accessible. Use the 'wait' action to allow time for content to load."
+        "question": "What happens if a session times out?",
+        "answer": "Sessions may expire after extended inactivity. Handle this by catching 'session not found' errors and starting a fresh session. Always close sessions when done to prevent leaks."
       },
       {
-        "question": "How do I handle login forms and authentication?",
-        "answer": "Use the authenticated session template pattern: navigate to login, fill credentials with the fill action, click submit, wait for redirect, then continue with authenticated actions. Session state persists across commands."
-      },
-      {
-        "question": "What happens if an element is not found?",
-        "answer": "If an @e ref no longer exists on the page, the interact command will fail with an error. Always snapshot after navigation changes and verify element refs before attempting interactions."
+        "question": "How does video recording work?",
+        "answer": "Enable record_video in the open function. Video is buffered during the session and returned as a file when you call close. Use for debugging or documenting automation workflows."
       },
       {
         "question": "Can I run multiple browser sessions in parallel?",
-        "answer": "Yes, each session has a unique session_id. You can start multiple sessions with --session new and manage them independently by passing the correct session_id to each command."
+        "answer": "Yes. Start each session with --session new and store the returned session_id. Each session is isolated with its own cookies and state. Close each session when complete."
+      },
+      {
+        "question": "Do I need to install anything locally?",
+        "answer": "You need the inference.sh CLI (infsh) to run commands. The install script detects your OS and downloads the appropriate binary. Browser automation runs on remote servers."
       }
     ]
   },
