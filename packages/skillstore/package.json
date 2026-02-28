@@ -41,6 +41,11 @@
 	],
 	"author": "",
 	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/aiskillstore/marketplace",
+		"directory": "packages/skillstore"
+	},
 	"dependencies": {
 		"citty": "^0.1.6",
 		"consola": "^3.2.3",
