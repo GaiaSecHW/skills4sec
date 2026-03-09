@@ -1,7 +1,7 @@
 {
   "schema_version": "2.0",
   "meta": {
-    "generated_at": "2026-03-08T08:13:39.988Z",
+    "generated_at": "2026-03-09T08:22:39.481Z",
     "slug": "toolshell-qwen-image-pro",
     "source_url": "https://github.com/toolshell/skills/tree/main/tools/image/qwen-image-2-pro/",
     "source_ref": "main",
@@ -14,18 +14,17 @@
   "skill": {
     "name": "qwen-image-pro",
     "description": "Generate images with Alibaba Qwen-Image-2.0-Pro via inference.sh CLI. Professional text rendering, fine-grained realism, enhanced semantic adherence. Ideal for posters, banners, and text-heavy designs. Triggers: qwen image pro, qwen-image-pro, qwen 2 pro, alibaba image pro, dashscope pro, professional text rendering",
-    "summary": "Generate images with Alibaba Qwen-Image-2.0-Pro via inference.sh CLI. Professional text rendering, f...",
-    "icon": "📦",
+    "summary": "Generate professional images with Alibaba Qwen-Image-2.0-Pro model. Specializes in text rendering and complex designs.",
+    "icon": "🖼️",
     "version": "1.0.0",
     "author": "toolshell",
     "license": "MIT",
-    "category": "design",
     "tags": [
-      "image generation",
-      "AI art",
-      "Qwen",
-      "text-to-image",
-      "professional design"
+      "image-generation",
+      "qwen",
+      "alibaba",
+      "text-rendering",
+      "design"
     ],
     "supported_tools": [
       "claude",
@@ -41,7 +40,7 @@
     "risk_level": "safe",
     "is_blocked": false,
     "safe_to_publish": true,
-    "summary": "Security audit completed. Static findings related to external_commands and network are false positives - the skill contains documentation with example CLI commands and legitimate service URLs. The reported 'weak cryptographic algorithm' and 'system reconnaissance' patterns are also false positives from scanner misinterpretation. This is a legitimate image generation skill using the allowed inference.sh CLI tool.",
+    "summary": "Security review complete. All static findings are false positives. The skill consists of documentation and example code showing users how to invoke the infsh CLI tool. No actual executable code with security implications was found. Network access is limited to the inference.sh API endpoint for image generation, which is the intended functionality.",
     "risk_factor_evidence": [
       {
         "factor": "external_commands",
@@ -53,198 +52,8 @@
           },
           {
             "file": "SKILL.md",
-            "line_start": 15,
-            "line_end": 15
-          },
-          {
-            "file": "SKILL.md",
             "line_start": 17,
             "line_end": 21
-          },
-          {
-            "file": "SKILL.md",
-            "line_start": 21,
-            "line_end": 35
-          },
-          {
-            "file": "SKILL.md",
-            "line_start": 35,
-            "line_end": 39
-          },
-          {
-            "file": "SKILL.md",
-            "line_start": 39,
-            "line_end": 43
-          },
-          {
-            "file": "SKILL.md",
-            "line_start": 43,
-            "line_end": 50
-          },
-          {
-            "file": "SKILL.md",
-            "line_start": 50,
-            "line_end": 54
-          },
-          {
-            "file": "SKILL.md",
-            "line_start": 54,
-            "line_end": 62
-          },
-          {
-            "file": "SKILL.md",
-            "line_start": 62,
-            "line_end": 66
-          },
-          {
-            "file": "SKILL.md",
-            "line_start": 66,
-            "line_end": 71
-          },
-          {
-            "file": "SKILL.md",
-            "line_start": 71,
-            "line_end": 75
-          },
-          {
-            "file": "SKILL.md",
-            "line_start": 75,
-            "line_end": 84
-          },
-          {
-            "file": "SKILL.md",
-            "line_start": 84,
-            "line_end": 88
-          },
-          {
-            "file": "SKILL.md",
-            "line_start": 88,
-            "line_end": 93
-          },
-          {
-            "file": "SKILL.md",
-            "line_start": 93,
-            "line_end": 99
-          },
-          {
-            "file": "SKILL.md",
-            "line_start": 99,
-            "line_end": 100
-          },
-          {
-            "file": "SKILL.md",
-            "line_start": 100,
-            "line_end": 101
-          },
-          {
-            "file": "SKILL.md",
-            "line_start": 101,
-            "line_end": 102
-          },
-          {
-            "file": "SKILL.md",
-            "line_start": 102,
-            "line_end": 103
-          },
-          {
-            "file": "SKILL.md",
-            "line_start": 103,
-            "line_end": 104
-          },
-          {
-            "file": "SKILL.md",
-            "line_start": 104,
-            "line_end": 105
-          },
-          {
-            "file": "SKILL.md",
-            "line_start": 105,
-            "line_end": 106
-          },
-          {
-            "file": "SKILL.md",
-            "line_start": 106,
-            "line_end": 107
-          },
-          {
-            "file": "SKILL.md",
-            "line_start": 107,
-            "line_end": 115
-          },
-          {
-            "file": "SKILL.md",
-            "line_start": 115,
-            "line_end": 116
-          },
-          {
-            "file": "SKILL.md",
-            "line_start": 116,
-            "line_end": 122
-          },
-          {
-            "file": "SKILL.md",
-            "line_start": 122,
-            "line_end": 124
-          },
-          {
-            "file": "SKILL.md",
-            "line_start": 124,
-            "line_end": 125
-          },
-          {
-            "file": "SKILL.md",
-            "line_start": 125,
-            "line_end": 128
-          },
-          {
-            "file": "SKILL.md",
-            "line_start": 128,
-            "line_end": 133
-          },
-          {
-            "file": "SKILL.md",
-            "line_start": 133,
-            "line_end": 137
-          },
-          {
-            "file": "SKILL.md",
-            "line_start": 137,
-            "line_end": 141
-          },
-          {
-            "file": "SKILL.md",
-            "line_start": 141,
-            "line_end": 145
-          },
-          {
-            "file": "SKILL.md",
-            "line_start": 145,
-            "line_end": 152
-          },
-          {
-            "file": "SKILL.md",
-            "line_start": 152,
-            "line_end": 156
-          },
-          {
-            "file": "SKILL.md",
-            "line_start": 156,
-            "line_end": 184
-          },
-          {
-            "file": "SKILL.md",
-            "line_start": 184,
-            "line_end": 188
-          },
-          {
-            "file": "SKILL.md",
-            "line_start": 188,
-            "line_end": 197
-          },
-          {
-            "file": "SKILL.md",
-            "line_start": 197,
-            "line_end": 199
           }
         ]
       },
@@ -264,156 +73,199 @@
           {
             "file": "SKILL.md",
             "line_start": 79,
-            "line_end": 79
-          },
-          {
-            "file": "SKILL.md",
-            "line_start": 80,
             "line_end": 80
-          },
-          {
-            "file": "SKILL.md",
-            "line_start": 203,
-            "line_end": 203
-          },
-          {
-            "file": "SKILL.md",
-            "line_start": 204,
-            "line_end": 204
-          },
-          {
-            "file": "SKILL.md",
-            "line_start": 205,
-            "line_end": 205
           }
         ]
       }
     ],
     "critical_findings": [],
     "high_findings": [],
-    "medium_findings": [],
+    "medium_findings": [
+      {
+        "title": "Static Pattern Detection - External Commands",
+        "description": "Scanner detected backtick execution patterns at multiple lines in SKILL.md. These are markdown code examples showing CLI usage, not actual executable code. The skill contains only documentation and example invocations of the infsh CLI tool.",
+        "locations": [
+          {
+            "file": "SKILL.md",
+            "line_start": 15,
+            "line_end": 197
+          }
+        ],
+        "verdict": "FALSE_POSITIVE",
+        "confidence": 0.95,
+        "confidence_reasoning": "All detected patterns are markdown code blocks showing example CLI commands that users would run in their terminal. No actual shell execution occurs within the skill itself."
+      },
+      {
+        "title": "Static Pattern Detection - Network URLs",
+        "description": "Scanner detected hardcoded URLs at various lines. These are documentation links to inference.sh website and example URLs in code samples.",
+        "locations": [
+          {
+            "file": "SKILL.md",
+            "line_start": 9,
+            "line_end": 11
+          },
+          {
+            "file": "SKILL.md",
+            "line_start": 79,
+            "line_end": 80
+          },
+          {
+            "file": "SKILL.md",
+            "line_start": 203,
+            "line_end": 205
+          }
+        ],
+        "verdict": "FALSE_POSITIVE",
+        "confidence": 0.95,
+        "confidence_reasoning": "URLs are documentation links and example data in code samples, not network calls made by the skill."
+      },
+      {
+        "title": "Static Pattern Detection - Weak Cryptographic Algorithm",
+        "description": "Scanner reported 'weak cryptographic algorithm' at various lines. Review shows these are false positives triggered by keywords like 'pro', table definitions, and plain text.",
+        "locations": [
+          {
+            "file": "SKILL.md",
+            "line_start": 3,
+            "line_end": 3
+          },
+          {
+            "file": "SKILL.md",
+            "line_start": 9,
+            "line_end": 9
+          },
+          {
+            "file": "SKILL.md",
+            "line_start": 29,
+            "line_end": 29
+          }
+        ],
+        "verdict": "FALSE_POSITIVE",
+        "confidence": 0.98,
+        "confidence_reasoning": "No cryptographic code exists in this file. The detection is a false positive triggered by plain text content matching incorrect patterns."
+      }
+    ],
     "low_findings": [],
     "dangerous_patterns": [],
     "files_scanned": 1,
     "total_lines": 206,
     "audit_model": "claude",
-    "audited_at": "2026-03-08T08:13:39.988Z"
+    "audited_at": "2026-03-09T08:22:39.481Z",
+    "risk_factors": [
+      "external_commands",
+      "network"
+    ]
   },
   "content": {
-    "user_title": "Generate Professional Images with Qwen-Image-2.0-Pro",
-    "value_statement": "Create stunning AI-generated images with advanced text rendering and semantic accuracy. Perfect for marketing materials, posters, and designs requiring precise text placement.",
+    "user_title": "Generate Professional Images with Qwen",
+    "value_statement": "Create stunning images with Alibaba Qwen-Image-2.0-Pro model. This skill provides professional text rendering, fine-grained realism, and enhanced semantic adherence for posters, banners, and text-heavy designs.",
     "seo_keywords": [
-      "Claude",
-      "Codex",
-      "Claude Code",
-      "image generation",
-      "AI art generator",
-      "Qwen image",
+      "Claude image generation",
+      "Codex AI art",
+      "Claude Code skill",
+      "Qwen image generation",
+      "Alibaba AI",
       "text-to-image",
       "professional design",
-      "AI image creation",
-      "poster generator"
+      "image creation",
+      "poster design",
+      "AI art tool"
     ],
     "actual_capabilities": [
-      "Generate images from text prompts with Qwen-Image-2.0-Pro model",
-      "Create professional text-rendered designs with precise font control",
-      "Produce multiple image variations in a single request",
-      "Perform image editing with style transfer using reference images",
-      "Generate reproducible images using seed values"
+      "Generate images with Qwen-Image-2.0-Pro model via inference.sh CLI",
+      "Create professional text rendering with multi-line and paragraph-level detail",
+      "Produce fine-grained realistic images with better textures",
+      "Generate multiple image variations (1-6 images per request)",
+      "Perform image editing with reference images for style transfer"
     ],
     "limitations": [
-      "Requires inference.sh CLI and API authentication",
-      "Total pixel count must be between 512x512 and 2048x2048",
-      "Maximum 6 images per request",
-      "Prompt limited to 800 characters"
+      "Requires inference.sh CLI (infsh) to be installed",
+      "Requires valid inference.sh account and authentication",
+      "Image dimension constraints: 512x512 to 2048x2048 pixels",
+      "Prompt limited to 800 characters maximum"
     ],
     "use_cases": [
       {
-        "title": "Marketing Material Creation",
-        "description": "Generate professional marketing banners and posters with precise text rendering for advertising campaigns",
+        "title": "Create Text-Heavy Marketing Materials",
+        "description": "Generate posters, banners, and promotional materials with precise text rendering. Specify exact text, fonts, colors, and layout for professional results.",
         "target_user": "Marketing professionals and designers"
       },
       {
-        "title": "Social Media Content",
-        "description": "Create eye-catching social media posts with custom text and graphics",
-        "target_user": "Social media managers and content creators"
+        "title": "Generate Product Imagery",
+        "description": "Create realistic product photos and promotional graphics with strong semantic adherence to complex prompts.",
+        "target_user": "E-commerce businesses and advertisers"
       },
       {
-        "title": "Product Visualization",
-        "description": "Generate product mockups and lifestyle imagery for e-commerce",
-        "target_user": "E-commerce businesses and product designers"
+        "title": "Prototype Design Concepts",
+        "description": "Quickly generate visual concepts and mockups for logos, icons, and creative artwork.",
+        "target_user": "Developers and creative professionals"
       }
     ],
     "prompt_templates": [
       {
-        "title": "Basic Image Generation",
-        "prompt": "Generate an image with the following prompt: [YOUR PROMPT DESCRIPTION]",
-        "scenario": "Simple text-to-image generation"
+        "title": "Simple Text Image",
+        "prompt": "Generate an image with the text \"[YOUR TEXT]\" in bold [COLOR] font on a [BACKGROUND DESCRIPTION] background.",
+        "scenario": "Basic text rendering task"
       },
       {
-        "title": "Text-Heavy Poster",
-        "prompt": "Create a poster with title \"[TITLE]\" in [STYLE] font at the top. Below, add subtitle \"[SUBTITLE]\" in [COLOR] color. Background: [DESCRIPTION]. Style: [STYLE TYPE].",
-        "scenario": "Creating promotional posters with specific text"
+        "title": "Marketing Poster",
+        "prompt": "Create a professional marketing poster for [PRODUCT NAME]. Include the main title \"[TITLE]\" in large bold font at the top. Add subtitle \"[SUBTITLE]\" below. Use [STYLE] style with [COLOR PALETTE] colors.",
+        "scenario": "Creating promotional materials"
       },
       {
-        "title": "Marketing Banner",
-        "prompt": "Create a professional marketing banner. Main text: \"[MAIN TEXT]\" in [STYLE]. Secondary text: \"[SECONDARY TEXT]\" below. Background: [DESCRIPTION]. Dimensions: [WIDTH]x[HEIGHT]. Use negative prompt: [NEGATIVE PROMPT]",
-        "scenario": "Generating ads with precise dimensions and text"
+        "title": "Product Photography",
+        "prompt": "Professional product photography of [PRODUCT DESCRIPTION]. The product should be centered on a [BACKGROUND]. Lighting should be [LIGHTING STYLE]. Include the text \"[BRAND NAME]\" subtly in the corner.",
+        "scenario": "E-commerce product images"
       },
       {
-        "title": "Multiple Variations",
-        "prompt": "Generate [NUMBER] variations of: [PROMPT]. Each should have different composition but maintain the core elements.",
-        "scenario": "Creating multiple design options"
+        "title": "Image Style Transfer",
+        "prompt": "Using Image 1 as reference, apply the style to create [DESCRIPTION]. The composition should feature [ELEMENTS]. Output [NUMBER] variations.",
+        "scenario": "Multi-image editing and variations"
       }
     ],
     "output_examples": [
       {
-        "input": "Poster with title \"Grand Opening\" in bold red serif font at top center. Below, the date \"March 15, 2024\" in smaller black text. Background: elegant gold and white gradient.",
-        "output": "A professionally designed poster with 'Grand Opening' in bold red serif typography at the top, date displayed below in black, set against an elegant gold-to-white gradient background."
+        "input": "Poster with title \"Summer Sale\" in large red bold font at top center. Below, \"50% Off\" in yellow. White gradient background. Modern clean design.",
+        "output": "A professionally designed poster with bold red \"Summer Sale\" text at the top, yellow \"50% Off\" subtitle below, on an elegant white gradient background with modern styling."
       },
       {
-        "input": "Minimalist logo design for a coffee shop called 'Bean & Brew'",
-        "output": "Four unique minimalist coffee shop logo variations featuring the name 'Bean & Brew' with simple, elegant designs suitable for branding."
-      },
-      {
-        "input": "Professional marketing banner for summer sale. Large text 'SUMMER SALE' in white on gradient sunset background. '50% OFF' in yellow below. Clean, modern design.",
-        "output": "A vibrant 1920x1080 marketing banner with 'SUMMER SALE' prominently displayed in white on a gradient sunset background, '50% OFF' in yellow below, with clean modern typography."
+        "input": "Minimalist coffee shop logo with text \"Bean & Brew\" in dark brown serif font on cream background",
+        "output": "A clean, minimalist logo design featuring elegant dark brown serif typography \"Bean & Brew\" on a warm cream colored background."
       }
     ],
     "best_practices": [
-      "Use quotes around exact text you want rendered and specify font details like color, style, and size",
-      "Set prompt_extend to false for precise control over the generated image",
-      "Include negative prompts to avoid common issues like blurry text or low quality"
+      "Use quotes around exact text you want rendered: \"Your Text Here\"",
+      "Disable prompt_extend for precise control: set prompt_extend: false",
+      "Specify font details including color, style, size, and position for text elements"
     ],
     "anti_patterns": [
       "Avoid overly long prompts that exceed 800 characters",
-      "Do not exceed pixel dimensions outside 512x512 to 2048x2048 range",
-      "Avoid requesting more than 6 images in a single request"
+      "Do not generate images outside the 512x512 to 2048x2048 pixel range",
+      "Avoid vague text descriptions - be specific about font, color, and placement"
     ],
     "faq": [
       {
-        "question": "What is Qwen-Image-2.0-Pro?",
-        "answer": "Qwen-Image-2.0-Pro is Alibaba's professional image generation model known for superior text rendering and semantic accuracy."
+        "question": "How do I install the inference.sh CLI?",
+        "answer": "Run: npx skills add inference-sh/skills@agent-tools. This will install the infsh CLI tool required for this skill."
       },
       {
-        "question": "Do I need an API key?",
-        "answer": "Yes, you need to authenticate with inference.sh CLI using 'infsh login' before using this skill."
+        "question": "Do I need an account to use this skill?",
+        "answer": "Yes, you need to run infsh login and authenticate with your inference.sh account before generating images."
       },
       {
         "question": "What image sizes are supported?",
-        "answer": "Images can range from 512x512 to 2048x2048 pixels, with total pixel count between these values."
+        "answer": "Images must be between 512x512 and 2048x2048 pixels. Common sizes include 1024x1024, 1920x1080, and 1024x1536."
       },
       {
         "question": "Can I generate multiple images at once?",
-        "answer": "Yes, you can generate up to 6 images in a single request using the num_images parameter."
+        "answer": "Yes, use the num_images parameter to generate 1 to 6 images in a single request."
       },
       {
-        "question": "How does prompt_extend work?",
-        "answer": "When enabled (default), the model rewrites your prompt for better results. Set to false for precise control."
+        "question": "How do I get reproducible results?",
+        "answer": "Set the seed parameter to a specific integer value (0-2147483647) to reproduce the same image generation."
       },
       {
-        "question": "Can I create reproducible images?",
-        "answer": "Yes, use the seed parameter with a specific value to generate reproducible images."
+        "question": "What is prompt_extend?",
+        "answer": "When enabled (default), the model rewrites your prompt for better results. Set to false for precise control over the exact output."
       }
     ]
   },
