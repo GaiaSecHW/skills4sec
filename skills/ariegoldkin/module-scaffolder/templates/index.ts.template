@@ -1,4 +1,0 @@
-// Barrel exports for {{DIRECTORY_NAME}}
-// Export all components/hooks/utils from this directory
-
-export * from "./{{EXPORT_NAME}}";

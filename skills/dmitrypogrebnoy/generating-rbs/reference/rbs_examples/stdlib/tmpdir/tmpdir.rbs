@@ -1,7 +1,0 @@
-%a{annotate:rdoc:skip}
-class Dir
-  def self.tmpdir: () -> String
-
-  def self.mktmpdir: (?string | [ string, string ] | nil, ?path?, ?max_try: Integer?) -> String
-                   | [X] (?string | [string, string ] | nil, ?path?, ?max_try: Integer?) { (String) -> X } -> X
-end

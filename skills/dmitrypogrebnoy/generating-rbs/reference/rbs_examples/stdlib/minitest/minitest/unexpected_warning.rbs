@@ -1,3 +1,0 @@
-class Minitest::UnexpectedWarning < ::Minitest::Assertion
-  def result_label: () -> "Warning"
-end

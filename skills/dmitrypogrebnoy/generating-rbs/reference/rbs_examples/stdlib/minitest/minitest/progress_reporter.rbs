@@ -1,4 +1,0 @@
-class Minitest::ProgressReporter < ::Minitest::Reporter
-  def prerecord: (untyped klass, untyped name) -> (nil | untyped)
-  def record: (untyped result) -> untyped
-end

@@ -1,5 +1,0 @@
-class Gem::RequestSet
-end
-
-class Gem::RequestSet::GemDependencyAPI
-end

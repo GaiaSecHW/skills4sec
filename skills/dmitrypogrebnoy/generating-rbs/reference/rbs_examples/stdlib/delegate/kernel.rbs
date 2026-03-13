@@ -1,4 +1,0 @@
-%a{annotate:rdoc:skip}
-class Object
-  def DelegateClass: (Class) -> Class
-end
