@@ -1,5 +1,0 @@
-%a{annotate:rdoc:skip}
-module Zlib
-  class StreamError < Zlib::Error
-  end
-end
