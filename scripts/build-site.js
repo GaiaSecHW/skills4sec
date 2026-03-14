@@ -19,6 +19,7 @@ const path = require('path');
 const ROOT          = path.resolve(__dirname, '..');
 const SKILLS_DIR    = path.join(ROOT, 'skills');
 const HARNESSES_DIR = path.join(ROOT, 'harnesses');
+const AGENTS_DIR    = path.join(ROOT, 'agents');
 const DOCS_DIR      = path.join(ROOT, 'docs');
 const DATA_DIR      = path.join(DOCS_DIR, 'data');
 
@@ -161,7 +162,54 @@ function collectHarnesses() {
   return harnesses;
 }
 
-/* ── 3. Write docs/data/skills.json ─────────────────── */
+/* ── 3. Collect agents ───────────────────────────────── */
+function collectAgents() {
+  const agents = [];
+  if (!fs.existsSync(AGENTS_DIR)) {
+    console.warn('  ⚠ agents/ directory not found');
+    return agents;
+  }
+
+  for (const entry of fs.readdirSync(AGENTS_DIR).sort()) {
+    const dir = path.join(AGENTS_DIR, entry);
+    if (!fs.statSync(dir).isDirectory()) continue;
+
+    const configPath = path.join(dir, 'config.json');
+    if (!fs.existsSync(configPath)) {
+      console.warn(`  ⚠ No config.json in agents/${entry}, skipping`);
+      continue;
+    }
+
+    const config = readJson(configPath);
+    if (!config || !config.name) {
+      console.warn(`  ⚠ agents/${entry}/config.json missing name, skipping`);
+      continue;
+    }
+
+    const agentMdPath = path.join(dir, 'AGENT.md');
+    const agentMd = fs.existsSync(agentMdPath)
+      ? fs.readFileSync(agentMdPath, 'utf8')
+      : '';
+
+    agents.push({
+      slug:        config.slug        || entry,
+      name:        config.name,
+      icon:        config.icon        || '🤖',
+      description: config.description || '',
+      author:      config.author      || 'unknown',
+      version:     config.version     || '1.0.0',
+      tags:        config.tags        || [],
+      skill:       config.skill       || null,
+      mcp:         config.mcp         || [],
+      agent_md:    agentMd,
+    });
+  }
+
+  agents.sort((a, b) => a.name.localeCompare(b.name));
+  return agents;
+}
+
+/* ── 4. Write docs/data/skills.json ─────────────────── */
 function writeSkillsJson(skills) {
   ensureDir(DATA_DIR);
   const dest = path.join(DATA_DIR, 'skills.json');
@@ -170,7 +218,7 @@ function writeSkillsJson(skills) {
   skills.forEach(s => console.log(`   · ${s.slug} [${s.risk_level}]`));
 }
 
-/* ── 4. Write docs/data/harnesses.json ──────────────── */
+/* ── 5. Write docs/data/harnesses.json ──────────────── */
 function writeHarnessesJson(harnesses) {
   ensureDir(DATA_DIR);
   const dest = path.join(DATA_DIR, 'harnesses.json');
@@ -179,7 +227,16 @@ function writeHarnessesJson(harnesses) {
   harnesses.forEach(h => console.log(`   · ${h.slug} [${h.env_type}]`));
 }
 
-/* ── 5. Ensure .nojekyll ─────────────────────────────── */
+/* ── 6. Write docs/data/agents.json ─────────────────── */
+function writeAgentsJson(agents) {
+  ensureDir(DATA_DIR);
+  const dest = path.join(DATA_DIR, 'agents.json');
+  fs.writeFileSync(dest, JSON.stringify(agents, null, 2), 'utf8');
+  console.log(`✓ docs/data/agents.json — ${agents.length} agent(s)`);
+  agents.forEach(a => console.log(`   · ${a.slug}`));
+}
+
+/* ── 7. Ensure .nojekyll ─────────────────────────────── */
 function ensureNojekyll() {
   const dest = path.join(DOCS_DIR, '.nojekyll');
   if (!fs.existsSync(dest)) {
@@ -194,8 +251,10 @@ function ensureNojekyll() {
   ensureDir(DOCS_DIR);
   const skills    = collectSkills();
   const harnesses = collectHarnesses();
+  const agents    = collectAgents();
   writeSkillsJson(skills);
   writeHarnessesJson(harnesses);
+  writeAgentsJson(agents);
   ensureNojekyll();
   console.log('\nDone.');
 })();

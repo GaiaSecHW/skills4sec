@@ -9,6 +9,7 @@
   /* ===================== DATA ===================== */
   let SKILLS    = [];
   let HARNESSES = [];
+  let AGENTS    = [];
 
   /* ===================== ROUTER ===================== */
   function getRoute() {
@@ -18,6 +19,8 @@
     if (hash.startsWith('skill/')) return { page: 'detail', slug: hash.slice(6) };
     if (hash === 'harnesses' || hash.startsWith('harnesses?')) return { page: 'harnesses' };
     if (hash.startsWith('harness/')) return { page: 'harness-detail', slug: hash.slice(8) };
+    if (hash === 'agents' || hash.startsWith('agents?')) return { page: 'agents' };
+    if (hash.startsWith('agent/')) return { page: 'agent-detail', slug: hash.slice(6) };
     if (hash === 'submit') return { page: 'submit' };
     return { page: 'home' };
   }
@@ -36,7 +39,7 @@
 
   window.addEventListener('hashchange', render);
   window.addEventListener('load', function () {
-    Promise.all([loadSkills(), loadHarnesses()]).then(render);
+    Promise.all([loadSkills(), loadHarnesses(), loadAgents()]).then(render);
   });
 
   /* ===================== DATA LOADING ===================== */
@@ -56,6 +59,15 @@
       HARNESSES = await res.json();
     } catch (e) {
       HARNESSES = [];
+    }
+  }
+
+  async function loadAgents() {
+    try {
+      const res = await fetch('data/agents.json');
+      AGENTS = await res.json();
+    } catch (e) {
+      AGENTS = [];
     }
   }
 
@@ -83,6 +95,13 @@
     } else if (route.page === 'harness-detail') {
       const h = HARNESSES.find(x => x.slug === route.slug);
       main.innerHTML = h ? renderHarnessDetailPage(h) : renderNotFound('harness');
+    } else if (route.page === 'agents') {
+      main.innerHTML = renderAgentsPage();
+      bindAgentsEvents();
+    } else if (route.page === 'agent-detail') {
+      const a = AGENTS.find(x => x.slug === route.slug);
+      main.innerHTML = a ? renderAgentDetailPage(a) : renderNotFound('agent');
+      if (a) bindDetailEvents();
     } else if (route.page === 'submit') {
       main.innerHTML = renderSubmitPage();
       bindSubmitEvents();
@@ -96,6 +115,7 @@
     const navMap = {
       home: 'home', browse: 'browse', detail: 'browse',
       harnesses: 'harnesses', 'harness-detail': 'harnesses',
+      agents: 'agents', 'agent-detail': 'agents',
       submit: 'submit',
     };
     const nav = navMap[page];
@@ -201,6 +221,34 @@
 </a>`;
   }
 
+  function skillTypeBadge(skill) {
+    if (!skill) return '';
+    const type = skill.type || '';
+    const safeClass = /^[a-z0-9-]+$/.test(type) ? type : 'unknown';
+    return `<span class="skill-type-badge skill-type-badge-${safeClass}">${escHtml(type.toUpperCase())}</span>`;
+  }
+
+  function agentCard(agent) {
+    return `
+<a class="skill-card page-enter" data-href="#agent/${escHtml(agent.slug)}">
+  <div class="skill-card-header">
+    <div class="skill-icon">${agent.icon || '🤖'}</div>
+    <div style="flex:1;min-width:0">
+      <div class="skill-name-row">
+        <span class="skill-name text-sm font-semibold line-clamp-1">${escHtml(agent.name)}</span>
+        ${skillTypeBadge(agent.skill)}
+      </div>
+      <p class="skill-short-desc line-clamp-1">${escHtml(agent.description || '')}</p>
+      <p class="skill-author text-xs">by ${escHtml(agent.author || 'unknown')}</p>
+    </div>
+  </div>
+  <p class="skill-desc line-clamp-2">${escHtml(agent.description || '')}</p>
+  <div class="skill-card-footer">
+    <div class="skill-card-tools">${(agent.tags || []).slice(0, 3).map(t => `<span class="tool-badge">${escHtml(t)}</span>`).join('')}</div>
+  </div>
+</a>`;
+  }
+
   /* ===================== HOME PAGE ===================== */
   function renderHomePage() {
     // FIX: deduplicate — show featured (first 4), popular = remaining; skip popular if no extras
@@ -233,6 +281,7 @@
       <div class="hero-cta-btns">
         <a class="hero-cta-btn" data-href="#browse">⚡ 浏览技能</a>
         <a class="hero-cta-btn hero-cta-btn-alt" data-href="#harnesses">🖥 浏览环境</a>
+        <a class="hero-cta-btn hero-cta-btn-alt" data-href="#agents">🤖 浏览智能体</a>
         <a class="hero-cta-btn hero-cta-btn-ghost" data-href="#submit">+ 提交技能</a>
       </div>
     </div>
@@ -283,6 +332,21 @@
       </a>
     </div>
     <div class="skills-grid cols-4">${HARNESSES.slice(0, 4).map(h => harnessCard(h)).join('')}</div>
+  </section>` : ''}
+
+  ${AGENTS.length ? `
+  <section class="section" style="padding:3rem 0 2rem">
+    <div class="section-header">
+      <div>
+        <h2>精选智能体</h2>
+        <p>开箱即用的 AI 智能体，内置系统提示词与工具配置</p>
+      </div>
+      <a class="section-link" data-href="#agents">
+        查看全部
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14m-7-7 7 7-7 7"/></svg>
+      </a>
+    </div>
+    <div class="skills-grid cols-4">${AGENTS.slice(0, 4).map(a => agentCard(a)).join('')}</div>
   </section>` : ''}
 
   <section class="${featured.length ? 'section ' : ''}" style="padding:3rem 0 2rem">
@@ -754,6 +818,150 @@
 </div>`;
   }
 
+  /* ===================== AGENTS BROWSE PAGE ===================== */
+  function renderAgentsPage() {
+    const skillTypes = ['github', 'npx'];
+    const typeLabels = { github: '🐙 GitHub', npx: '📦 NPX' };
+    const typeItems = skillTypes.map(t => `
+      <div class="sidebar-item" data-a-type="${t}">
+        <span>${typeLabels[t]}</span>
+      </div>`).join('');
+
+    return `
+<div class="browse-layout px-container max-w-7xl">
+  <aside class="browse-sidebar">
+    <div class="sidebar-search">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      <input type="text" id="a-search" placeholder="搜索智能体…" autocomplete="off">
+    </div>
+    <div class="sidebar-section">
+      <p class="sidebar-title">技能类型</p>
+      <div class="sidebar-item active" data-a-type="all">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+        <span>全部</span>
+      </div>
+      ${typeItems}
+    </div>
+  </aside>
+  <div class="browse-main" style="padding:1.5rem 0 4rem">
+    <div class="browse-header">
+      <span class="browse-count" id="a-count">${AGENTS.length} 个智能体</span>
+    </div>
+    <div class="skills-grid" id="a-grid">
+      ${AGENTS.map(a => agentCard(a)).join('')}
+    </div>
+    <p id="a-empty" class="text-center text-muted" style="display:none;padding:3rem 0">没有找到匹配的智能体</p>
+  </div>
+</div>`;
+  }
+
+  function bindAgentsEvents() {
+    const main = document.getElementById('main-content');
+    const searchInput = document.getElementById('a-search');
+    let activeType = 'all';
+    let searchQ = '';
+
+    if (searchInput) {
+      searchInput.addEventListener('input', function () {
+        searchQ = this.value;
+        updateAGrid();
+      });
+    }
+
+    main.addEventListener('click', function (e) {
+      const typeEl = e.target.closest('[data-a-type]');
+      if (typeEl) {
+        activeType = typeEl.dataset.aType;
+        main.querySelectorAll('[data-a-type]').forEach(el => el.classList.remove('active'));
+        typeEl.classList.add('active');
+        updateAGrid();
+      }
+    });
+
+    function updateAGrid() {
+      const q = searchQ.toLowerCase();
+      const filtered = AGENTS.filter(a => {
+        const matchType = activeType === 'all' || (a.skill && a.skill.type === activeType);
+        const matchQ = !q
+          || a.name.toLowerCase().includes(q)
+          || (a.description || '').toLowerCase().includes(q)
+          || (a.author || '').toLowerCase().includes(q)
+          || (a.tags || []).some(t => t.toLowerCase().includes(q));
+        return matchType && matchQ;
+      });
+      const grid  = document.getElementById('a-grid');
+      const empty = document.getElementById('a-empty');
+      const count = document.getElementById('a-count');
+      if (grid)  grid.innerHTML = filtered.map(a => agentCard(a)).join('');
+      if (empty) empty.style.display = filtered.length ? 'none' : 'block';
+      if (count) count.textContent = filtered.length + ' 个智能体';
+    }
+  }
+
+  /* ===================== AGENT DETAIL PAGE ===================== */
+  function renderAgentDetailPage(agent) {
+    const tags = (agent.tags || []).map(t => `<span class="tool-badge">${escHtml(t)}</span>`).join('');
+    const mcpList = (agent.mcp || []).map(m => `
+      <div style="padding:.75rem;border:1px solid var(--border);border-radius:var(--radius);background:var(--muted);margin-bottom:.5rem">
+        <p class="font-semibold text-sm">${escHtml(m.name || '')}</p>
+        <p class="text-xs text-muted">${escHtml(m.type || '')}${m.package ? ' · ' + escHtml(m.package) : ''}</p>
+      </div>`).join('');
+
+    const skillCmd = agent.skill
+      ? (agent.skill.type === 'github'
+          ? `gh skill install ${escHtml(agent.skill.source || '')}`
+          : `npx ${escHtml(agent.skill.package || agent.skill.source || '')}`)
+      : '';
+
+    return `
+<div class="detail-page px-container max-w-7xl" style="padding-bottom:4rem">
+  <nav class="breadcrumb" aria-label="面包屑">
+    <a data-href="#">首页</a>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+    <a data-href="#agents">智能体</a>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+    <span>${escHtml(agent.name)}</span>
+  </nav>
+
+  <div class="detail-header">
+    <div class="detail-top">
+      <div class="skill-icon skill-icon-lg">${agent.icon || '🤖'}</div>
+      <div class="detail-info">
+        <div style="display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;margin-bottom:.5rem">
+          <h1>${escHtml(agent.name)}</h1>
+          ${skillTypeBadge(agent.skill)}
+        </div>
+        <p class="detail-meta">v${escHtml(agent.version || '1.0.0')} · by <strong>${escHtml(agent.author || 'unknown')}</strong></p>
+        <p class="detail-desc">${escHtml(agent.description || '')}</p>
+        ${tags ? `<div class="detail-tools">${tags}</div>` : ''}
+      </div>
+    </div>
+    ${skillCmd ? `
+    <div class="install-box">
+      <div class="clone-cmd" data-copy="${escHtml(skillCmd)}" style="flex:1" role="button" tabindex="0" aria-label="复制安装命令">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0;color:var(--muted-foreground)"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+        <code>$ ${escHtml(skillCmd)}</code>
+        <svg class="copy-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+      </div>
+    </div>` : ''}
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr;gap:1.5rem">
+    ${mcpList ? `
+    <div class="install-steps">
+      <h2 class="font-semibold" style="margin-bottom:1rem">MCP 配置</h2>
+      ${mcpList}
+    </div>` : ''}
+
+    ${agent.agent_md ? `
+    <div class="install-steps">
+      <h2 class="font-semibold" style="margin-bottom:1rem">系统提示词 (AGENT.md)</h2>
+      <pre style="white-space:pre-wrap;word-break:break-word;background:var(--muted);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;font-size:.8rem;line-height:1.6;color:var(--secondary-foreground);overflow:auto">${escHtml(agent.agent_md)}</pre>
+    </div>` : ''}
+  </div>
+</div>`;
+  }
+
   /* ===================== SUBMIT PAGE ===================== */
   function renderSubmitPage() {
     return `
@@ -862,8 +1070,9 @@
 
   function renderNotFound(type) {
     const isHarness = type === 'harness';
-    const label    = isHarness ? '环境' : '技能';
-    const backHref = isHarness ? '#harnesses' : '#browse';
+    const isAgent   = type === 'agent';
+    const label    = isHarness ? '环境' : isAgent ? '智能体' : '技能';
+    const backHref = isHarness ? '#harnesses' : isAgent ? '#agents' : '#browse';
     return `<div style="text-align:center;padding:8rem 1rem">
       <p style="font-size:4rem;margin-bottom:1rem">🔍</p>
       <h2 style="font-size:1.5rem;font-weight:700;margin-bottom:.5rem">${label}未找到</h2>
