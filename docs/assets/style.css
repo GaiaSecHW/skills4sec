@@ -478,6 +478,74 @@ input { font: inherit; }
   background-position: right 0.5rem center;
 }
 
+/* --- Env Type Badges (Harness) --- */
+.env-badge {
+  display: inline-flex; align-items: center;
+  padding: 0.125rem 0.5rem; border-radius: 9999px;
+  font-size: 0.7rem; font-weight: 600; white-space: nowrap;
+}
+.env-badge-image { background: #e0f2fe; color: #0369a1; }
+.env-badge-ssh   { background: #fee2e2; color: #991b1b; }
+
+/* --- Hero CTA Buttons --- */
+.hero-cta-btns {
+  display: flex; gap: .75rem; margin-top: 1.5rem; flex-wrap: wrap;
+}
+.hero-cta-btn {
+  display: inline-flex; align-items: center; gap: .375rem;
+  padding: .5rem 1.25rem; border-radius: var(--radius);
+  font-size: .875rem; font-weight: 600; cursor: pointer;
+  background: var(--accent); color: #fff; border: 1px solid var(--accent);
+  transition: opacity 0.15s;
+}
+.hero-cta-btn:hover { opacity: .85; }
+.hero-cta-btn-alt {
+  background: var(--card); color: var(--foreground); border-color: var(--border);
+}
+.hero-cta-btn-alt:hover { background: var(--muted); opacity: 1; }
+.hero-cta-btn-ghost {
+  background: transparent; color: var(--muted-foreground); border-color: var(--border);
+}
+.hero-cta-btn-ghost:hover { background: var(--muted); color: var(--foreground); opacity: 1; }
+
+/* --- Submit Page --- */
+.submit-layout { max-width: 640px; margin: 0 auto; padding-bottom: 4rem; }
+.submit-steps {
+  display: flex; flex-direction: column; gap: 1rem;
+  padding: 1.5rem; border-radius: var(--radius-xl);
+  border: 1px solid var(--border); background: var(--card);
+  margin-bottom: 1.5rem;
+}
+.submit-step { display: flex; gap: 1rem; align-items: flex-start; }
+.submit-step-num {
+  display: flex; align-items: center; justify-content: center;
+  width: 2rem; height: 2rem; border-radius: 50%; flex-shrink: 0;
+  background: var(--accent); color: #fff; font-size: .875rem; font-weight: 600;
+}
+.submit-step h3 { font-weight: 600; margin-bottom: .25rem; }
+.submit-form {
+  padding: 1.5rem 2rem; border-radius: var(--radius-xl);
+  border: 1px solid var(--border); background: var(--card);
+}
+.form-group { margin-bottom: 1.25rem; }
+.form-label { display: block; font-size: .875rem; font-weight: 500; margin-bottom: .375rem; }
+.form-input {
+  width: 100%; padding: .625rem .75rem; border-radius: var(--radius);
+  border: 1px solid var(--border); background: var(--background);
+  font: inherit; font-size: .875rem; color: var(--foreground);
+  outline: none; transition: border-color 0.15s;
+}
+.form-input:focus { border-color: var(--accent); }
+.submit-btn {
+  display: inline-flex; align-items: center; gap: .5rem;
+  width: 100%; justify-content: center;
+  padding: .75rem 1.5rem; border-radius: var(--radius);
+  background: var(--accent); color: #fff;
+  font-size: .9375rem; font-weight: 600; cursor: pointer;
+  border: none; transition: opacity 0.15s;
+}
+.submit-btn:hover { opacity: .85; }
+
 /* --- Responsive Tweaks --- */
 @media (max-width: 639px) {
   .hide-mobile { display: none !important; }
