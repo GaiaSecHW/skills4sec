@@ -24,6 +24,7 @@
     if (hash === 'agents' || hash.startsWith('agents?')) return { page: 'agents' };
     if (hash.startsWith('agent/')) return { page: 'agent-detail', slug: hash.slice(6) };
     if (hash === 'submit') return { page: 'submit' };
+    if (hash === 'schema-spec') return { page: 'schema-spec' };
     if (hash === 'evolution') return { page: 'evolution' };
     return { page: 'home' };
   }
@@ -115,6 +116,9 @@
     } else if (route.page === 'submit') {
       main.innerHTML = renderSubmitPage();
       bindSubmitEvents();
+    } else if (route.page === 'schema-spec') {
+      main.innerHTML = renderSchemaSpecPage();
+      loadSchemaSpecContent();
     } else if (route.page === 'evolution') {
       main.innerHTML = renderEvolutionPage();
       bindEvolutionEvents();
@@ -1031,7 +1035,7 @@
       <div class="submit-step-num">1</div>
       <div>
         <h3>准备 skill-report.json</h3>
-        <p class="text-sm text-muted">按照 <a href="https://github.com/cxm95/skills4sec/blob/main/schemas/skill-report.schema.json" target="_blank" rel="noopener noreferrer" style="color:var(--accent-foreground)">Schema 规范</a> 准备技能描述文件，包含名称、分类、安全审计信息等字段。</p>
+        <p class="text-sm text-muted">按照 <a data-href="#schema-spec" style="color:var(--accent-foreground);cursor:pointer">Schema 规范</a> 准备技能描述文件，包含名称、分类、安全审计信息等字段。</p>
       </div>
     </div>
     <div class="submit-step">
@@ -1117,6 +1121,36 @@
         + new URLSearchParams({ title: `[技能提交] ${name}`, body, labels: 'skill-submission' });
       window.open(url, '_blank', 'noopener,noreferrer');
     });
+  }
+
+  /* ===================== SCHEMA SPEC PAGE ===================== */
+  function renderSchemaSpecPage() {
+    return `
+<div class="detail-page px-container max-w-7xl">
+  <div style="margin-bottom:1.5rem">
+    <a data-href="#submit" style="color:var(--accent-foreground);cursor:pointer;font-size:.875rem">&larr; 返回提交技能</a>
+  </div>
+  <div id="schema-spec-content" style="padding:2rem;border-radius:var(--radius-xl);border:1px solid var(--border);background:var(--card)">
+    <p class="text-muted">加载中...</p>
+  </div>
+</div>`;
+  }
+
+  function loadSchemaSpecContent() {
+    var container = document.getElementById('schema-spec-content');
+    if (!container) return;
+    fetch('md/secskills.rules.v0.1.md')
+      .then(function(res) { if (!res.ok) throw new Error(res.status); return res.text(); })
+      .then(function(md) {
+        if (typeof marked !== 'undefined' && marked.parse) {
+          container.innerHTML = '<div class="markdown-body">' + marked.parse(md) + '</div>';
+        } else {
+          container.innerHTML = '<pre style="white-space:pre-wrap;font-size:.875rem">' + md.replace(/</g, '&lt;') + '</pre>';
+        }
+      })
+      .catch(function() {
+        container.innerHTML = '<p class="text-muted">无法加载规范文档。</p>';
+      });
   }
 
   /* ===================== EVOLUTION PAGE ===================== */

@@ -77,6 +77,7 @@ docs/index.html           ← SPA Shell（导航、页脚、容器）
 | `#agents` | 智能体浏览页 | 按技能类型过滤（github / npx）+ 搜索 |
 | `#agent/:slug` | 智能体详情页 | 系统提示词（AGENT.md）、MCP 配置、安装命令 |
 | `#submit` | 技能提交页 | 三步引导 + 表单生成 GitHub Issue |
+| `#schema-spec` | 技能规范页 | 渲染 `md/secskills.rules.v0.1.md` 技能设计技术规范 |
 | `#evolution` | 技能自进化页 | Memento-S 原理图、统计面板、实时日志 |
 
 路由使用 `hashchange` 事件，所有带 `data-href` 属性的元素通过 `document` 级委托处理，**不依赖 `onclick`**，避免重复绑定与安全问题。
@@ -150,6 +151,8 @@ skills4sec/
 │   │   └── evol/                  # 技能自进化数据（手动维护）
 │   │       ├── summary.json       # 统计摘要（进化轮数、成功率等）
 │   │       └── logs.json          # 调用/优化日志（按时间倒序）
+│   ├── md/
+│   │   └── secskills.rules.v0.1.md # 技能设计技术规范（Markdown，前端渲染）
 │   └── .nojekyll                  # 禁用 GitHub Pages Jekyll 处理
 │
 ├── scripts/
@@ -560,6 +563,7 @@ AGENT.md 是该智能体的系统提示词，建议包含：
 | `docs/index.html` 静态维护 | 构建脚本只生成数据文件，避免每次构建覆盖已修复的 Shell |
 | diff 文件复制到 `docs/data/diffs/` | 静态站点只能 fetch 同源文件，skills/ 不在 docs/ 下，构建时统一复制 |
 | diff2html CDN 引入 | 专为 git diff 设计，双栏渲染开箱即用，无需打包工具 |
+| marked.js CDN 引入 | 将 Markdown 规范文档渲染为 HTML，用于 `#schema-spec` 页面 |
 
 ---
 
