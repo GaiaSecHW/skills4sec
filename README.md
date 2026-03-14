@@ -20,6 +20,7 @@ Skills4Sec 是一个开源的 AI 技能（Skill）目录仓库，收录了适用
 - [添加新技能](#添加新技能)
 - [安全审计机制](#安全审计机制)
 - [静态站点架构](#静态站点架构)
+- [待实现需求](#待实现需求)
 - [License](#license)
 
 ---
@@ -336,6 +337,100 @@ skills/<skill-name>/
 | `data-href` 而非 `onclick` | 内容与行为分离，避免 XSS 风险，支持键盘导航 |
 | `escHtml()` 包含单引号转义 | 防止 HTML 注入，即使技能名包含特殊字符也安全 |
 | `docs/index.html` 静态维护 | 构建脚本只生成数据文件，避免每次构建覆盖已修复的 Shell |
+
+---
+
+## 待实现需求
+
+### Harness 界面（Banner 区域扩展）
+
+**背景**
+
+当前首页 Banner 区域（Hero Section）仅展示技能（Skill）实体的搜索入口。为支持 Agent 工作流的完整闭环，需要在 Banner 位置新增一个 **Harness 界面**，用于展示另一类核心实体：**Agent 运行的目标环境（Harness）**。
+
+**什么是 Harness**
+
+Harness 是 Agent 执行技能时所依赖的目标运行环境，描述 Agent 可以操作的系统上下文。例如：
+
+- 一个 Ubuntu 22.04 容器（具备特定工具链）
+- 一个运行中的 Web 应用（具备特定接口和数据）
+- 一个模拟的 CTF 靶机环境
+- 一个带有沙箱约束的代码执行环境
+
+Harness 与 Skill 的关系类似"舞台与演员"——Skill 定义 Agent 能做什么，Harness 定义 Agent 在哪里做。
+
+**需求描述**
+
+在首页 Banner 区域，与现有技能搜索入口并列，增加一个 Harness 浏览入口，具体要求：
+
+| 项目 | 说明 |
+|---|---|
+| 位置 | 首页 Hero Section（Banner），与现有 Skill 搜索区域并列或分 Tab 展示 |
+| 展示内容 | Harness 实体列表，每条包含：名称、图标、环境类型、描述、支持的 Agent 工具 |
+| 数据来源 | `docs/data/harnesses.json`，由 `scripts/build-site.js` 从 `harnesses/` 目录构建生成 |
+| 路由 | 新增 `#harnesses` 和 `#harness/:slug` 路由，与现有 Skill 路由并列 |
+| 交互 | 支持按环境类型过滤（如 container / vm / web / sandbox）|
+| 风险标注 | 复用现有 `risk_level` 机制（safe / low / medium / high）|
+
+**Harness 数据结构（草案）**
+
+```json
+{
+  "schema_version": "1.0",
+  "meta": {
+    "slug": "ubuntu-ctf-basic",
+    "source_url": "https://github.com/..."
+  },
+  "harness": {
+    "name": "ubuntu-ctf-basic",
+    "description": "基础 CTF 靶机环境，包含常见漏洞服务",
+    "icon": "🐧",
+    "version": "1.0.0",
+    "author": "your-name",
+    "env_type": "container",
+    "base_image": "ubuntu:22.04",
+    "supported_tools": ["claude-code", "codex"],
+    "tags": ["ctf", "linux", "pwn"]
+  },
+  "security_audit": {
+    "risk_level": "low",
+    "is_blocked": false,
+    "safe_to_publish": true,
+    "summary": "隔离容器环境，不影响宿主机"
+  },
+  "content": {
+    "value_statement": "为 Agent 提供标准化的 CTF 靶机运行上下文",
+    "capabilities": ["运行 pwn 题目", "提供 flag 验证接口"],
+    "use_cases": [
+      {
+        "title": "自动化漏洞利用",
+        "description": "让 Agent 在受控环境中完成 exploit 开发与验证"
+      }
+    ]
+  }
+}
+```
+
+**目录结构扩展**
+
+```
+skills4sec/
+├── harnesses/                     # Harness 目录（新增）
+│   └── <harness-name>/
+│       ├── HARNESS.md             # Harness 定义文件
+│       └── harness-report.json    # 安全审计报告 + 环境元数据
+│
+└── docs/
+    └── data/
+        └── harnesses.json         # 构建产物（由 build-site.js 生成）
+```
+
+**实现优先级**
+
+1. 数据结构定义（`harness-report.json` schema）
+2. 构建脚本扩展（`build-site.js` 支持 `harnesses/` 目录扫描）
+3. 前端路由与渲染（新增 `#harnesses` / `#harness/:slug` 路由）
+4. Banner UI（首页 Hero Section 新增 Harness 入口）
 
 ---
 
