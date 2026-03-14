@@ -487,6 +487,15 @@ input { font: inherit; }
 .env-badge-image { background: #e0f2fe; color: #0369a1; }
 .env-badge-ssh   { background: #fee2e2; color: #991b1b; }
 
+/* --- Agent Skill-Type Badges --- */
+.skill-type-badge {
+  display: inline-flex; align-items: center;
+  padding: 0.125rem 0.5rem; border-radius: 9999px;
+  font-size: 0.7rem; font-weight: 600; white-space: nowrap;
+}
+.skill-type-badge-github { background: #f0fdf4; color: #15803d; }
+.skill-type-badge-npx    { background: #fef3c7; color: #b45309; }
+
 /* --- Hero CTA Buttons --- */
 .hero-cta-btns {
   display: flex; gap: .75rem; margin-top: 1.5rem; flex-wrap: wrap;
