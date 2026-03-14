@@ -569,13 +569,47 @@ input { font: inherit; }
 .diff-tab-active { border-color:var(--accent); background:var(--accent-bg); color:var(--accent-foreground); font-weight:600; }
 
 /* --- Evolution Page --- */
-.evol-principle {
-  display: grid; grid-template-columns: 1fr; gap: 2rem;
-  margin-top: 1.5rem;
+.evol-explain { margin-top: 1.5rem; }
+.evol-explain-grid {
+  display: grid; grid-template-columns: 1fr; gap: 1rem;
 }
-@media (min-width: 1024px) { .evol-principle { grid-template-columns: 3fr 2fr; } }
-.evol-svg-col { min-width: 0; }
-.evol-explain-col { min-width: 0; }
+@media (min-width: 768px) { .evol-explain-grid { grid-template-columns: repeat(3, 1fr); } }
+.evol-explain-card {
+  padding: 1.25rem 1.5rem; border-radius: var(--radius-xl);
+  border: 1px solid var(--border); background: var(--card);
+  display: flex; gap: 1rem; align-items: flex-start;
+}
+.evol-explain-card .step-content h3 { font-weight: 600; margin-bottom: 0.25rem; }
+.evol-explain-card .step-content p { font-size: 0.875rem; color: var(--muted-foreground); margin: 0; }
+
+/* Core idea + toggle */
+.evol-core-idea {
+  display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;
+  margin-top: 1.25rem; padding: .75rem 1rem; border-radius: var(--radius);
+  background: var(--accent-bg); border-left: 3px solid var(--accent);
+  cursor: pointer; transition: background 0.15s;
+}
+.evol-core-idea:hover { background: rgba(99, 102, 241, 0.12); }
+.evol-toggle-btn {
+  display: inline-flex; align-items: center; gap: 0.25rem;
+  font-size: 0.8125rem; font-weight: 500; color: var(--accent-foreground);
+  white-space: nowrap;
+}
+.evol-toggle-icon { transition: transform 0.2s; }
+.evol-core-idea.open .evol-toggle-icon { transform: rotate(90deg); }
+
+/* Collapsible diagram container */
+.evol-diagram-collapse {
+  max-height: 0; overflow: hidden;
+  transition: max-height 0.35s ease;
+}
+.evol-diagram-collapse.open {
+  max-height: 600px;
+}
+.evol-principle {
+  margin-top: 1rem; overflow-x: auto;
+}
+.evol-principle svg { min-width: 600px; width: 100%; height: auto; }
 
 .evol-stats {
   display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem;
