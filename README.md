@@ -1,10 +1,15 @@
 # Skills4Sec — AI 技能市场
 
-> 经过安全审计的 AI 技能目录，支持 Claude Code、Codex 等主流 AI 工具。
+> 经过安全审计的 AI 技能与运行环境目录，支持 Claude Code、Codex 等主流 AI 工具。
 
 ## 项目简介
 
-Skills4Sec 是一个开源的 AI 技能（Skill）目录仓库，收录了适用于 [Claude Code](https://claude.ai/code) 和 [Codex](https://github.com/openai/codex) 的可复用技能包。每个技能都经过自动化安全审计，并附有风险等级标注，帮助开发者安全、快速地扩展 AI 工作流。
+Skills4Sec 是一个开源目录仓库，收录两类核心实体：
+
+- **技能（Skill）** — 适用于 [Claude Code](https://claude.ai/code) 和 [Codex](https://github.com/openai/codex) 的可复用技能包，每个技能都经过自动化安全审计
+- **运行环境（Harness）** — Agent 执行技能时所依赖的目标环境（Docker 镜像或 SSH 环境），描述 Agent 可以操作的系统上下文
+
+两者关系类似"演员与舞台"——Skill 定义 Agent 能做什么，Harness 定义 Agent 在哪里做。
 
 **在线浏览：** [https://cxm95.github.io/skills4sec](https://cxm95.github.io/skills4sec)
 
@@ -18,9 +23,9 @@ Skills4Sec 是一个开源的 AI 技能（Skill）目录仓库，收录了适用
 - [快速使用](#快速使用)
 - [本地开发](#本地开发)
 - [添加新技能](#添加新技能)
+- [添加新环境](#添加新环境)
 - [安全审计机制](#安全审计机制)
 - [静态站点架构](#静态站点架构)
-- [待实现需求](#待实现需求)
 - [License](#license)
 
 ---
@@ -28,10 +33,12 @@ Skills4Sec 是一个开源的 AI 技能（Skill）目录仓库，收录了适用
 ## 特性
 
 - **安全优先** — 每个技能附带 `skill-report.json` 安全报告，包含风险等级（safe / low / medium / high）
+- **Harness 支持** — 维护 Agent 运行环境目录，支持 Docker 镜像（image）和 SSH 两类环境
 - **多平台支持** — 支持 Claude、Claude Code、Codex 三大平台
 - **静态站点** — 纯静态 SPA，无需后端，可直接部署到 GitHub Pages
 - **一键安装** — 技能详情页提供可复制的安装命令
 - **实时搜索** — 按名称、分类、风险等级过滤，无需刷新页面
+- **技能提交** — 内置提交引导页（`#submit`），一键生成 GitHub Issue
 
 ---
 
@@ -43,40 +50,45 @@ Skills4Sec 是一个开源的 AI 技能（Skill）目录仓库，收录了适用
 用户浏览器
     │
     ▼
-docs/index.html          ← SPA Shell（导航、页脚、容器）
-    ├── assets/style.css  ← CSS 设计系统（CSS Variables + 纯 CSS，无框架依赖）
-    └── assets/app.js     ← 客户端 SPA（Hash 路由 + 渲染 + 事件）
+docs/index.html           ← SPA Shell（导航、页脚、容器）
+    ├── assets/style.css   ← CSS 设计系统（CSS Variables + 纯 CSS，无框架依赖）
+    └── assets/app.js      ← 客户端 SPA（Hash 路由 + 渲染 + 事件）
                 │
-                ▼
-         data/skills.json  ← 构建时生成的技能数据（由 build-site.js 读取 skill-report.json 汇总）
+                ├── data/skills.json    ← 构建时生成（skill-report.json 汇总）
+                └── data/harnesses.json ← 构建时生成（harness-report.json 汇总）
 ```
 
 ### SPA 路由
 
 | URL Hash | 页面 | 说明 |
 |---|---|---|
-| `#` / 空 | 首页 | Hero 搜索、精选技能、Why 栏 |
-| `#browse` | 浏览页 | 分类侧边栏 + 搜索 + 排序 |
-| `#browse?q=xxx` | 浏览页（带搜索词） | 从首页搜索框跳转 |
-| `#browse?cat=xxx` | 浏览页（带分类过滤） | 从首页分类 Pill 跳转 |
+| `#` / 空 | 首页 | Hero 搜索、精选技能、精选环境、Why 栏 |
+| `#browse` | 技能浏览页 | 分类侧边栏 + 搜索 + 排序 |
+| `#browse?q=xxx` | 技能浏览页（带搜索词） | 从首页搜索框跳转 |
+| `#browse?cat=xxx` | 技能浏览页（带分类过滤） | 从首页分类 Pill 跳转 |
 | `#skill/:slug` | 技能详情页 | 功能特性、使用场景、提示词模板 |
+| `#harnesses` | 环境浏览页 | 按环境类型过滤（image / ssh） |
+| `#harness/:slug` | 环境详情页 | 能力列表、使用场景、连接信息 |
+| `#submit` | 技能提交页 | 三步引导 + 表单生成 GitHub Issue |
 
 路由使用 `hashchange` 事件，所有带 `data-href` 属性的元素通过 `document` 级委托处理，**不依赖 `onclick`**，避免重复绑定与安全问题。
 
 ### 数据流
 
 ```
-skills/
- └── <skill-name>/
-       └── skill-report.json   (安全审计报告 + 内容元数据)
-                │
-                │  node scripts/build-site.js
-                ▼
-         docs/data/skills.json  (归一化后的技能列表)
-                │
-                │  fetch() in app.js (浏览器运行时)
-                ▼
-           页面渲染 (innerHTML 模板 + escHtml 转义)
+skills/                          harnesses/
+ └── <name>/                      └── <name>/
+       └── skill-report.json            └── harness-report.json
+                │                                    │
+                └──────────────┬─────────────────────┘
+                               │  node scripts/build-site.js
+                               ▼
+                  docs/data/skills.json
+                  docs/data/harnesses.json
+                               │
+                               │  fetch() in app.js (浏览器运行时)
+                               ▼
+                    页面渲染 (innerHTML 模板 + escHtml 转义)
 ```
 
 ### CSS 设计系统
@@ -99,17 +111,22 @@ skills4sec/
 │       ├── references/            # 可选：参考文档
 │       └── assets/                # 可选：静态资源
 │
+├── harnesses/                     # 运行环境目录（每个子目录为一个 Harness）
+│   └── <harness-name>/
+│       └── harness-report.json    # 环境元数据（无安全审计）
+│
 ├── docs/                          # 静态站点（部署到 GitHub Pages）
 │   ├── index.html                 # SPA Shell
 │   ├── assets/
 │   │   ├── style.css              # CSS 设计系统
 │   │   └── app.js                 # SPA 路由与渲染
 │   ├── data/
-│   │   └── skills.json            # 构建产物（由 build-site.js 生成）
+│   │   ├── skills.json            # 构建产物（由 build-site.js 生成）
+│   │   └── harnesses.json         # 构建产物（由 build-site.js 生成）
 │   └── .nojekyll                  # 禁用 GitHub Pages Jekyll 处理
 │
 ├── scripts/
-│   ├── build-site.js              # 构建脚本：skills/ → docs/data/skills.json
+│   ├── build-site.js              # 构建脚本：skills/ + harnesses/ → docs/data/
 │   └── serve.py                   # 本地预览服务器
 │
 ├── schemas/                       # JSON Schema 校验规则
@@ -187,7 +204,7 @@ npm install
 ### 构建站点数据
 
 ```bash
-# 扫描 skills/ 下所有 skill-report.json，生成 docs/data/skills.json
+# 扫描 skills/ 和 harnesses/，生成 docs/data/skills.json 和 harnesses.json
 npm run build:site
 ```
 
@@ -206,13 +223,13 @@ python3 scripts/serve.py 3000
 ### 开发流程
 
 ```
-1. 修改 skills/ 下的技能文件
+1. 修改 skills/ 或 harnesses/ 下的文件
         │
         ▼
-2. npm run build:site    # 重新生成 skills.json
+2. npm run build:site    # 重新生成 skills.json 和 harnesses.json
         │
         ▼
-3. npm run serve         # 浏览器预览
+3. npm run serve         # 浏览器预览（http://localhost:8080）
         │
         ▼
 4. git add & commit & push
@@ -284,11 +301,106 @@ skills/<skill-name>/
 
 ### 提交流程
 
+也可通过网站内置的[技能提交页面](https://cxm95.github.io/skills4sec/#submit)，填写表单后一键生成 GitHub Issue。
+
+或手动提交：
+
 1. Fork 本仓库
 2. 在 `skills/` 下创建新目录（目录名即 slug，使用小写字母、数字和连字符）
 3. 添加 `SKILL.md` 和 `skill-report.json`
 4. 运行 `npm run build:site` 验证数据能被正确解析
 5. 提交 PR，描述技能用途和安全性
+
+---
+
+## 添加新环境
+
+### 环境目录规范
+
+每个 Harness 只需一个文件：
+
+```
+harnesses/<harness-name>/
+└── harness-report.json    # 环境元数据（必须）
+```
+
+目录名即 slug，使用小写字母、数字和连字符。
+
+### harness-report.json 格式
+
+当前支持两种环境类型：
+
+**镜像类型（image）：**
+
+```json
+{
+  "schema_version": "1.0",
+  "meta": {
+    "slug": "my-ubuntu-env",
+    "source_url": "https://github.com/..."
+  },
+  "harness": {
+    "name": "My Ubuntu 环境",
+    "description": "基于 Ubuntu 22.04 的分析环境",
+    "icon": "🐧",
+    "version": "1.0.0",
+    "author": "your-name",
+    "env_type": "image",
+    "base_image": "ubuntu:22.04",
+    "supported_tools": ["claude-code", "codex"],
+    "tags": ["ubuntu", "linux"]
+  },
+  "content": {
+    "value_statement": "为 Agent 提供标准化的 Linux 运行上下文",
+    "capabilities": ["执行 shell 命令", "访问文件系统"],
+    "use_cases": [
+      {
+        "title": "自动化分析",
+        "description": "在受控环境中运行分析脚本"
+      }
+    ]
+  }
+}
+```
+
+**SSH 类型（ssh）：**
+
+```json
+{
+  "schema_version": "1.0",
+  "meta": {
+    "slug": "my-ssh-env",
+    "source_url": "https://github.com/..."
+  },
+  "harness": {
+    "name": "My SSH 实验环境",
+    "description": "可远程 SSH 连接的实验环境",
+    "icon": "🔐",
+    "version": "1.0.0",
+    "author": "your-name",
+    "env_type": "ssh",
+    "ssh_host": "lab.example.com",
+    "ssh_user": "agent",
+    "supported_tools": ["claude-code"],
+    "tags": ["ssh", "remote"]
+  },
+  "content": {
+    "value_statement": "通过 SSH 让 Agent 操作远程环境",
+    "capabilities": ["执行远程命令", "访问内网资源"],
+    "use_cases": []
+  }
+}
+```
+
+> **注意：** Harness 不包含 `security_audit` 块，由提交者和维护者共同评估环境安全性。
+
+### 提交流程
+
+1. Fork 本仓库
+2. 在 `harnesses/` 下创建新目录
+3. 添加 `harness-report.json`
+4. 运行 `npm run build:site` 验证解析
+5. 提交 PR
 
 ---
 
@@ -321,7 +433,7 @@ skills/<skill-name>/
 推送到 `main`/`master` 分支后，`.github/workflows/deploy-site.yml` 自动：
 
 1. 安装 Node.js 依赖
-2. 运行 `node scripts/build-site.js` 生成 `docs/data/skills.json`
+2. 运行 `node scripts/build-site.js` 生成 `docs/data/skills.json` 和 `docs/data/harnesses.json`
 3. 将 `docs/` 目录发布到 GitHub Pages
 
 **启用 GitHub Pages：**
@@ -337,100 +449,6 @@ skills/<skill-name>/
 | `data-href` 而非 `onclick` | 内容与行为分离，避免 XSS 风险，支持键盘导航 |
 | `escHtml()` 包含单引号转义 | 防止 HTML 注入，即使技能名包含特殊字符也安全 |
 | `docs/index.html` 静态维护 | 构建脚本只生成数据文件，避免每次构建覆盖已修复的 Shell |
-
----
-
-## 待实现需求
-
-### Harness 界面（Banner 区域扩展）
-
-**背景**
-
-当前首页 Banner 区域（Hero Section）仅展示技能（Skill）实体的搜索入口。为支持 Agent 工作流的完整闭环，需要在 Banner 位置新增一个 **Harness 界面**，用于展示另一类核心实体：**Agent 运行的目标环境（Harness）**。
-
-**什么是 Harness**
-
-Harness 是 Agent 执行技能时所依赖的目标运行环境，描述 Agent 可以操作的系统上下文。例如：
-
-- 一个 Ubuntu 22.04 容器（具备特定工具链）
-- 一个运行中的 Web 应用（具备特定接口和数据）
-- 一个模拟的 CTF 靶机环境
-- 一个带有沙箱约束的代码执行环境
-
-Harness 与 Skill 的关系类似"舞台与演员"——Skill 定义 Agent 能做什么，Harness 定义 Agent 在哪里做。
-
-**需求描述**
-
-在首页 Banner 区域，与现有技能搜索入口并列，增加一个 Harness 浏览入口，具体要求：
-
-| 项目 | 说明 |
-|---|---|
-| 位置 | 首页 Hero Section（Banner），与现有 Skill 搜索区域并列或分 Tab 展示 |
-| 展示内容 | Harness 实体列表，每条包含：名称、图标、环境类型、描述、支持的 Agent 工具 |
-| 数据来源 | `docs/data/harnesses.json`，由 `scripts/build-site.js` 从 `harnesses/` 目录构建生成 |
-| 路由 | 新增 `#harnesses` 和 `#harness/:slug` 路由，与现有 Skill 路由并列 |
-| 交互 | 支持按环境类型过滤（如 container / vm / web / sandbox）|
-| 风险标注 | 复用现有 `risk_level` 机制（safe / low / medium / high）|
-
-**Harness 数据结构（草案）**
-
-```json
-{
-  "schema_version": "1.0",
-  "meta": {
-    "slug": "ubuntu-ctf-basic",
-    "source_url": "https://github.com/..."
-  },
-  "harness": {
-    "name": "ubuntu-ctf-basic",
-    "description": "基础 CTF 靶机环境，包含常见漏洞服务",
-    "icon": "🐧",
-    "version": "1.0.0",
-    "author": "your-name",
-    "env_type": "container",
-    "base_image": "ubuntu:22.04",
-    "supported_tools": ["claude-code", "codex"],
-    "tags": ["ctf", "linux", "pwn"]
-  },
-  "security_audit": {
-    "risk_level": "low",
-    "is_blocked": false,
-    "safe_to_publish": true,
-    "summary": "隔离容器环境，不影响宿主机"
-  },
-  "content": {
-    "value_statement": "为 Agent 提供标准化的 CTF 靶机运行上下文",
-    "capabilities": ["运行 pwn 题目", "提供 flag 验证接口"],
-    "use_cases": [
-      {
-        "title": "自动化漏洞利用",
-        "description": "让 Agent 在受控环境中完成 exploit 开发与验证"
-      }
-    ]
-  }
-}
-```
-
-**目录结构扩展**
-
-```
-skills4sec/
-├── harnesses/                     # Harness 目录（新增）
-│   └── <harness-name>/
-│       ├── HARNESS.md             # Harness 定义文件
-│       └── harness-report.json    # 安全审计报告 + 环境元数据
-│
-└── docs/
-    └── data/
-        └── harnesses.json         # 构建产物（由 build-site.js 生成）
-```
-
-**实现优先级**
-
-1. 数据结构定义（`harness-report.json` schema）
-2. 构建脚本扩展（`build-site.js` 支持 `harnesses/` 目录扫描）
-3. 前端路由与渲染（新增 `#harnesses` / `#harness/:slug` 路由）
-4. Banner UI（首页 Hero Section 新增 Harness 入口）
 
 ---
 

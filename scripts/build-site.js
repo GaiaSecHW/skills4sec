@@ -16,10 +16,11 @@
 const fs   = require('fs');
 const path = require('path');
 
-const ROOT       = path.resolve(__dirname, '..');
-const SKILLS_DIR = path.join(ROOT, 'skills');
-const DOCS_DIR   = path.join(ROOT, 'docs');
-const DATA_DIR   = path.join(DOCS_DIR, 'data');
+const ROOT          = path.resolve(__dirname, '..');
+const SKILLS_DIR    = path.join(ROOT, 'skills');
+const HARNESSES_DIR = path.join(ROOT, 'harnesses');
+const DOCS_DIR      = path.join(ROOT, 'docs');
+const DATA_DIR      = path.join(DOCS_DIR, 'data');
 
 /* ── Helpers ─────────────────────────────────────────── */
 function ensureDir(dir) {
@@ -106,7 +107,61 @@ function collectSkills() {
   return skills;
 }
 
-/* ── 2. Write docs/data/skills.json ─────────────────── */
+/* ── 2. Collect harnesses ────────────────────────────── */
+function collectHarnesses() {
+  const harnesses = [];
+  if (!fs.existsSync(HARNESSES_DIR)) {
+    console.warn('  ⚠ harnesses/ directory not found');
+    return harnesses;
+  }
+
+  for (const entry of fs.readdirSync(HARNESSES_DIR).sort()) {
+    const dir = path.join(HARNESSES_DIR, entry);
+    if (!fs.statSync(dir).isDirectory()) continue;
+
+    const reportPath = path.join(dir, 'harness-report.json');
+    if (!fs.existsSync(reportPath)) {
+      console.warn(`  ⚠ No harness-report.json in ${entry}, skipping`);
+      continue;
+    }
+
+    const report = readJson(reportPath);
+    if (!report) continue;
+
+    const h = report.harness || {};
+    const c = report.content || {};
+    const m = report.meta    || {};
+
+    if (!h.name) {
+      console.warn(`  ⚠ ${entry}/harness-report.json missing harness.name, skipping`);
+      continue;
+    }
+
+    harnesses.push({
+      slug:            m.slug           || entry,
+      name:            h.name,
+      summary:         h.description    || '',
+      icon:            h.icon           || '🖥️',
+      version:         h.version        || '1.0.0',
+      author:          h.author         || 'unknown',
+      env_type:        h.env_type       || 'image',
+      base_image:      h.base_image     || '',
+      ssh_host:        h.ssh_host       || '',
+      ssh_user:        h.ssh_user       || '',
+      supported_tools: h.supported_tools || [],
+      tags:            h.tags           || [],
+      source_url:      m.source_url     || '',
+      value_statement: c.value_statement || '',
+      capabilities:    c.capabilities   || [],
+      use_cases:       c.use_cases      || [],
+    });
+  }
+
+  harnesses.sort((a, b) => a.name.localeCompare(b.name));
+  return harnesses;
+}
+
+/* ── 3. Write docs/data/skills.json ─────────────────── */
 function writeSkillsJson(skills) {
   ensureDir(DATA_DIR);
   const dest = path.join(DATA_DIR, 'skills.json');
@@ -115,7 +170,16 @@ function writeSkillsJson(skills) {
   skills.forEach(s => console.log(`   · ${s.slug} [${s.risk_level}]`));
 }
 
-/* ── 3. Ensure .nojekyll ─────────────────────────────── */
+/* ── 4. Write docs/data/harnesses.json ──────────────── */
+function writeHarnessesJson(harnesses) {
+  ensureDir(DATA_DIR);
+  const dest = path.join(DATA_DIR, 'harnesses.json');
+  fs.writeFileSync(dest, JSON.stringify(harnesses, null, 2), 'utf8');
+  console.log(`✓ docs/data/harnesses.json — ${harnesses.length} harness(es)`);
+  harnesses.forEach(h => console.log(`   · ${h.slug} [${h.env_type}]`));
+}
+
+/* ── 5. Ensure .nojekyll ─────────────────────────────── */
 function ensureNojekyll() {
   const dest = path.join(DOCS_DIR, '.nojekyll');
   if (!fs.existsSync(dest)) {
@@ -128,8 +192,10 @@ function ensureNojekyll() {
 (function main() {
   console.log('Building skills4sec static site…\n');
   ensureDir(DOCS_DIR);
-  const skills = collectSkills();
+  const skills    = collectSkills();
+  const harnesses = collectHarnesses();
   writeSkillsJson(skills);
+  writeHarnessesJson(harnesses);
   ensureNojekyll();
   console.log('\nDone.');
 })();

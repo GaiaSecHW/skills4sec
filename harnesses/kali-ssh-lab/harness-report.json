@@ -1,0 +1,38 @@
+{
+  "schema_version": "1.0",
+  "meta": {
+    "slug": "kali-ssh-lab",
+    "source_url": "https://github.com/cxm95/skills4sec"
+  },
+  "harness": {
+    "name": "Kali Linux SSH 实验环境",
+    "description": "可远程 SSH 连接的 Kali Linux 渗透测试实验环境，预装完整安全工具集。",
+    "icon": "🔐",
+    "version": "1.0.0",
+    "author": "skills4sec",
+    "env_type": "ssh",
+    "ssh_host": "lab.example.com",
+    "ssh_user": "agent",
+    "supported_tools": ["claude-code"],
+    "tags": ["kali", "pentest", "ssh", "linux"]
+  },
+  "content": {
+    "value_statement": "通过 SSH 连接让 Agent 直接操作真实渗透测试环境，执行扫描、利用与报告生成。",
+    "capabilities": [
+      "通过 SSH 执行任意 shell 命令",
+      "运行 nmap、metasploit 等工具",
+      "访问靶机内网环境",
+      "持久化操作记录与审计日志"
+    ],
+    "use_cases": [
+      {
+        "title": "渗透测试自动化",
+        "description": "Agent 通过 SSH 连接实验环境，自动执行信息收集、漏洞扫描与利用流程。"
+      },
+      {
+        "title": "安全培训演练",
+        "description": "在隔离 SSH 环境中让 Agent 演示攻击路径，用于安全意识培训。"
+      }
+    ]
+  }
+}

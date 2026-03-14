@@ -7,16 +7,18 @@
   'use strict';
 
   /* ===================== DATA ===================== */
-  let SKILLS = [];
+  let SKILLS    = [];
+  let HARNESSES = [];
 
   /* ===================== ROUTER ===================== */
   function getRoute() {
     const hash = location.hash.replace(/^#\/?/, '');
     if (!hash) return { page: 'home' };
-    if (hash === 'browse') return { page: 'browse' };
-    // Browse with query params: browse?q=foo or browse?cat=bar
-    if (hash.startsWith('browse?')) return { page: 'browse' };
+    if (hash === 'browse' || hash.startsWith('browse?')) return { page: 'browse' };
     if (hash.startsWith('skill/')) return { page: 'detail', slug: hash.slice(6) };
+    if (hash === 'harnesses' || hash.startsWith('harnesses?')) return { page: 'harnesses' };
+    if (hash.startsWith('harness/')) return { page: 'harness-detail', slug: hash.slice(8) };
+    if (hash === 'submit') return { page: 'submit' };
     return { page: 'home' };
   }
 
@@ -34,7 +36,7 @@
 
   window.addEventListener('hashchange', render);
   window.addEventListener('load', function () {
-    loadSkills().then(render);
+    Promise.all([loadSkills(), loadHarnesses()]).then(render);
   });
 
   /* ===================== DATA LOADING ===================== */
@@ -45,6 +47,15 @@
     } catch (e) {
       console.error('Failed to load skills:', e);
       SKILLS = [];
+    }
+  }
+
+  async function loadHarnesses() {
+    try {
+      const res = await fetch('data/harnesses.json');
+      HARNESSES = await res.json();
+    } catch (e) {
+      HARNESSES = [];
     }
   }
 
@@ -66,6 +77,15 @@
       const skill = SKILLS.find(s => s.slug === route.slug);
       main.innerHTML = skill ? renderDetailPage(skill) : renderNotFound();
       if (skill) bindDetailEvents();
+    } else if (route.page === 'harnesses') {
+      main.innerHTML = renderHarnessesPage();
+      bindHarnessesEvents();
+    } else if (route.page === 'harness-detail') {
+      const h = HARNESSES.find(x => x.slug === route.slug);
+      main.innerHTML = h ? renderHarnessDetailPage(h) : renderNotFound('harness');
+    } else if (route.page === 'submit') {
+      main.innerHTML = renderSubmitPage();
+      bindSubmitEvents();
     }
 
     window.scrollTo(0, 0);
@@ -73,11 +93,13 @@
 
   function updateNavActive(page) {
     document.querySelectorAll('.nav-link').forEach(link => link.classList.remove('active'));
-    if (page === 'home') {
-      document.querySelector('[data-nav="home"]')?.classList.add('active');
-    } else if (page === 'browse') {
-      document.querySelector('[data-nav="browse"]')?.classList.add('active');
-    }
+    const navMap = {
+      home: 'home', browse: 'browse', detail: 'browse',
+      harnesses: 'harnesses', 'harness-detail': 'harnesses',
+      submit: 'submit',
+    };
+    const nav = navMap[page];
+    if (nav) document.querySelector(`[data-nav="${nav}"]`)?.classList.add('active');
   }
 
   /* ===================== HELPERS ===================== */
@@ -150,6 +172,35 @@
     return { safe: 0, low: 1, medium: 2, high: 3 }[r] ?? 99;
   }
 
+  function envTypeBadge(type) {
+    const labels = { image: '镜像', ssh: 'SSH' };
+    const label = labels[type] || escHtml(type || '');
+    // Whitelist CSS class fragment to prevent attribute injection (escHtml doesn't escape spaces)
+    const safeClass = /^[a-z0-9-]+$/.test(type || '') ? type : 'unknown';
+    return `<span class="env-badge env-badge-${safeClass}">${label}</span>`;
+  }
+
+  function harnessCard(h) {
+    return `
+<a class="skill-card page-enter" data-href="#harness/${escHtml(h.slug)}">
+  <div class="skill-card-header">
+    <div class="skill-icon">${h.icon || '🖥️'}</div>
+    <div style="flex:1;min-width:0">
+      <div class="skill-name-row">
+        <span class="skill-name text-sm font-semibold line-clamp-1">${escHtml(h.name)}</span>
+        ${envTypeBadge(h.env_type)}
+      </div>
+      <p class="skill-short-desc line-clamp-1">${escHtml(h.summary || '')}</p>
+      <p class="skill-author text-xs">by ${escHtml(h.author || 'unknown')}</p>
+    </div>
+  </div>
+  <p class="skill-desc line-clamp-2">${escHtml(h.value_statement || h.summary || '')}</p>
+  <div class="skill-card-footer">
+    <div class="skill-card-tools">${toolBadges(h.supported_tools)}</div>
+  </div>
+</a>`;
+  }
+
   /* ===================== HOME PAGE ===================== */
   function renderHomePage() {
     // FIX: deduplicate — show featured (first 4), popular = remaining; skip popular if no extras
@@ -179,6 +230,11 @@
         <input type="text" id="hero-search" placeholder="搜索技能…" autocomplete="off">
       </div>
       <div class="category-pills" id="category-pills">${catPills}</div>
+      <div class="hero-cta-btns">
+        <a class="hero-cta-btn" data-href="#browse">⚡ 浏览技能</a>
+        <a class="hero-cta-btn hero-cta-btn-alt" data-href="#harnesses">🖥 浏览环境</a>
+        <a class="hero-cta-btn hero-cta-btn-ghost" data-href="#submit">+ 提交技能</a>
+      </div>
     </div>
   </div>
 </section>
@@ -212,6 +268,21 @@
       </a>
     </div>
     <div class="skills-grid">${popular.map(s => skillCard(s, 'large')).join('')}</div>
+  </section>` : ''}
+
+  ${HARNESSES.length ? `
+  <section class="section" style="padding:3rem 0 2rem">
+    <div class="section-header">
+      <div>
+        <h2>精选环境</h2>
+        <p>经过验证的 Agent 运行环境，镜像与 SSH 类型均可一键接入</p>
+      </div>
+      <a class="section-link" data-href="#harnesses">
+        查看全部
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14m-7-7 7 7-7 7"/></svg>
+      </a>
+    </div>
+    <div class="skills-grid cols-4">${HARNESSES.slice(0, 4).map(h => harnessCard(h)).join('')}</div>
   </section>` : ''}
 
   <section class="${featured.length ? 'section ' : ''}" style="padding:3rem 0 2rem">
@@ -544,12 +615,260 @@
     });
   }
 
-  function renderNotFound() {
+  /* ===================== HARNESSES BROWSE PAGE ===================== */
+  function renderHarnessesPage() {
+    const envTypes = ['image', 'ssh'];
+    const envLabels = { image: '🐳 镜像', ssh: '🔐 SSH' };
+    const envItems = envTypes.map(t => `
+      <div class="sidebar-item" data-h-type="${t}">
+        <span>${envLabels[t]}</span>
+      </div>`).join('');
+
+    return `
+<div class="browse-layout px-container max-w-7xl">
+  <aside class="browse-sidebar">
+    <div class="sidebar-search">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      <input type="text" id="h-search" placeholder="搜索环境…" autocomplete="off">
+    </div>
+    <div class="sidebar-section">
+      <p class="sidebar-title">环境类型</p>
+      <div class="sidebar-item active" data-h-type="all">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+        <span>全部</span>
+      </div>
+      ${envItems}
+    </div>
+  </aside>
+  <div class="browse-main" style="padding:1.5rem 0 4rem">
+    <div class="browse-header">
+      <span class="browse-count" id="h-count">${HARNESSES.length} 个环境</span>
+    </div>
+    <div class="skills-grid" id="h-grid">
+      ${HARNESSES.map(h => harnessCard(h)).join('')}
+    </div>
+    <p id="h-empty" class="text-center text-muted" style="display:none;padding:3rem 0">没有找到匹配的环境</p>
+  </div>
+</div>`;
+  }
+
+  function bindHarnessesEvents() {
+    const main = document.getElementById('main-content');
+    const searchInput = document.getElementById('h-search');
+    let activeType = 'all';
+    let searchQ = '';
+
+    if (searchInput) {
+      searchInput.addEventListener('input', function () {
+        searchQ = this.value;
+        updateHGrid();
+      });
+    }
+
+    main.addEventListener('click', function (e) {
+      const typeEl = e.target.closest('[data-h-type]');
+      if (typeEl) {
+        activeType = typeEl.dataset.hType;
+        main.querySelectorAll('[data-h-type]').forEach(el => el.classList.remove('active'));
+        typeEl.classList.add('active');
+        updateHGrid();
+      }
+    });
+
+    function updateHGrid() {
+      const q = searchQ.toLowerCase();
+      const filtered = HARNESSES.filter(h => {
+        const matchType = activeType === 'all' || h.env_type === activeType;
+        const matchQ = !q
+          || h.name.toLowerCase().includes(q)
+          || (h.summary || '').toLowerCase().includes(q)
+          || (h.author || '').toLowerCase().includes(q)
+          || (h.tags || []).some(t => t.toLowerCase().includes(q));
+        return matchType && matchQ;
+      });
+      const grid  = document.getElementById('h-grid');
+      const empty = document.getElementById('h-empty');
+      const count = document.getElementById('h-count');
+      if (grid)  grid.innerHTML = filtered.map(h => harnessCard(h)).join('');
+      if (empty) empty.style.display = filtered.length ? 'none' : 'block';
+      if (count) count.textContent = filtered.length + ' 个环境';
+    }
+  }
+
+  /* ===================== HARNESS DETAIL PAGE ===================== */
+  function renderHarnessDetailPage(h) {
+    const caps = (h.capabilities || []).map(c => `<li>${escHtml(c)}</li>`).join('');
+    const uses = (h.use_cases || []).map(u => `
+      <div style="padding:1rem;border:1px solid var(--border);border-radius:var(--radius);background:var(--muted)">
+        <p class="font-semibold text-sm" style="margin-bottom:.25rem">${escHtml(u.title || '')}</p>
+        <p class="text-sm text-muted">${escHtml(u.description || '')}</p>
+      </div>`).join('');
+
+    const connInfo = h.env_type === 'ssh'
+      ? `<div class="clone-cmd" style="cursor:default"><code>ssh ${escHtml(h.ssh_user || 'agent')}@${escHtml(h.ssh_host || '')}</code></div>`
+      : h.base_image
+        ? `<div class="clone-cmd" style="cursor:default"><code>docker pull ${escHtml(h.base_image)}</code></div>`
+        : '';
+
+    return `
+<div class="detail-page px-container max-w-7xl" style="padding-bottom:4rem">
+  <nav class="breadcrumb" aria-label="面包屑">
+    <a data-href="#">首页</a>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+    <a data-href="#harnesses">环境</a>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+    <span>${escHtml(h.name)}</span>
+  </nav>
+
+  <div class="detail-header">
+    <div class="detail-top">
+      <div class="skill-icon skill-icon-lg">${h.icon || '🖥️'}</div>
+      <div class="detail-info">
+        <div style="display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;margin-bottom:.5rem">
+          <h1>${escHtml(h.name)}</h1>
+          ${envTypeBadge(h.env_type)}
+        </div>
+        <p class="detail-meta">v${escHtml(h.version || '1.0.0')} · by <strong>${escHtml(h.author || 'unknown')}</strong></p>
+        <p class="detail-desc">${escHtml(h.value_statement || h.summary || '')}</p>
+        <div class="detail-tools">
+          <span class="text-xs text-muted">支持平台：</span>
+          ${toolBadges(h.supported_tools)}
+        </div>
+      </div>
+    </div>
+    ${connInfo ? `<div class="install-box">${connInfo}</div>` : ''}
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr;gap:1.5rem">
+    ${caps ? `
+    <div class="install-steps">
+      <h2 class="font-semibold" style="margin-bottom:1rem">环境能力</h2>
+      <ul style="padding-left:1.25rem;color:var(--secondary-foreground)">${caps}</ul>
+    </div>` : ''}
+    ${uses ? `
+    <div class="install-steps">
+      <h2 class="font-semibold" style="margin-bottom:1rem">使用场景</h2>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:.75rem">${uses}</div>
+    </div>` : ''}
+  </div>
+</div>`;
+  }
+
+  /* ===================== SUBMIT PAGE ===================== */
+  function renderSubmitPage() {
+    return `
+<div class="submit-layout px-container max-w-7xl">
+  <div style="text-align:center;padding:3rem 0 2rem">
+    <div style="display:inline-flex;align-items:center;gap:.5rem;padding:.375rem .75rem;border-radius:9999px;background:var(--accent-bg);color:var(--accent-foreground);font-size:.75rem;font-weight:600;margin-bottom:1rem">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+      提交技能
+    </div>
+    <h1 style="font-size:2rem;font-weight:700;margin-bottom:.75rem">分享你的 <span class="gradient-text">AI 技能</span></h1>
+    <p class="text-muted">将你开发的技能提交到 Skills4Sec，让更多人受益。</p>
+  </div>
+
+  <div class="submit-steps">
+    <div class="submit-step">
+      <div class="submit-step-num">1</div>
+      <div>
+        <h3>准备 skill-report.json</h3>
+        <p class="text-sm text-muted">按照 <a href="https://github.com/cxm95/skills4sec/blob/main/schemas/skill-report.schema.json" target="_blank" rel="noopener noreferrer" style="color:var(--accent-foreground)">Schema 规范</a> 准备技能描述文件，包含名称、分类、安全审计信息等字段。</p>
+      </div>
+    </div>
+    <div class="submit-step">
+      <div class="submit-step-num">2</div>
+      <div>
+        <h3>填写提交信息</h3>
+        <p class="text-sm text-muted">在下方表单中填写技能基本信息，系统将自动生成 GitHub Issue。</p>
+      </div>
+    </div>
+    <div class="submit-step">
+      <div class="submit-step-num">3</div>
+      <div>
+        <h3>等待审核合并</h3>
+        <p class="text-sm text-muted">维护者审核通过后，技能将出现在 Skills4Sec 平台，并自动进行安全评级。</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="submit-form">
+    <h2 style="font-size:1.125rem;font-weight:600;margin-bottom:1.5rem">填写提交信息</h2>
+    <div class="form-group">
+      <label class="form-label" for="s-name">技能名称 *</label>
+      <input class="form-input" id="s-name" type="text" placeholder="例：git-commit-helper">
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="s-repo">GitHub 仓库地址 *</label>
+      <input class="form-input" id="s-repo" type="url" placeholder="https://github.com/yourname/yourskill">
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="s-cat">分类</label>
+      <select class="form-input" id="s-cat">
+        <option value="">请选择分类</option>
+        <option value="productivity">⚡ productivity</option>
+        <option value="documentation">📝 documentation</option>
+        <option value="development">🛠️ development</option>
+        <option value="security">🔒 security</option>
+        <option value="data">📊 data</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="s-desc">简短描述 *</label>
+      <textarea class="form-input" id="s-desc" rows="3" placeholder="一两句话描述技能的用途和亮点…"></textarea>
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="s-contact">联系方式（可选）</label>
+      <input class="form-input" id="s-contact" type="text" placeholder="GitHub 用户名或邮箱">
+    </div>
+    <p id="submit-error" class="text-sm" style="color:var(--danger);display:none;margin-bottom:.75rem"></p>
+    <button class="submit-btn" id="submit-btn">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+      在 GitHub 提交 Issue
+    </button>
+  </div>
+</div>`;
+  }
+
+  function bindSubmitEvents() {
+    const btn = document.getElementById('submit-btn');
+    if (!btn) return;
+    btn.addEventListener('click', function () {
+      const name    = document.getElementById('s-name')?.value.trim();
+      const repo    = document.getElementById('s-repo')?.value.trim();
+      const desc    = document.getElementById('s-desc')?.value.trim();
+      const cat     = document.getElementById('s-cat')?.value;
+      const contact = document.getElementById('s-contact')?.value.trim();
+      const errEl   = document.getElementById('submit-error');
+
+      if (!name || !repo || !desc) {
+        if (errEl) { errEl.textContent = '请填写技能名称、仓库地址和描述。'; errEl.style.display = 'block'; }
+        return;
+      }
+      if (errEl) errEl.style.display = 'none';
+
+      const body = [
+        `## 技能名称\n${name}`,
+        `## 仓库地址\n${repo}`,
+        cat ? `## 分类\n${cat}` : '',
+        `## 描述\n${desc}`,
+        contact ? `## 联系方式\n${contact}` : '',
+      ].filter(Boolean).join('\n\n');
+
+      const url = 'https://github.com/cxm95/skills4sec/issues/new?'
+        + new URLSearchParams({ title: `[技能提交] ${name}`, body, labels: 'skill-submission' });
+      window.open(url, '_blank', 'noopener,noreferrer');
+    });
+  }
+
+  function renderNotFound(type) {
+    const isHarness = type === 'harness';
+    const label    = isHarness ? '环境' : '技能';
+    const backHref = isHarness ? '#harnesses' : '#browse';
     return `<div style="text-align:center;padding:8rem 1rem">
       <p style="font-size:4rem;margin-bottom:1rem">🔍</p>
-      <h2 style="font-size:1.5rem;font-weight:700;margin-bottom:.5rem">技能未找到</h2>
-      <p class="text-muted" style="margin-bottom:1.5rem">该技能可能已被移除或链接有误。</p>
-      <a class="btn-install" data-href="#browse" style="padding:.75rem 1.5rem;font-size:.875rem">浏览所有技能</a>
+      <h2 style="font-size:1.5rem;font-weight:700;margin-bottom:.5rem">${label}未找到</h2>
+      <p class="text-muted" style="margin-bottom:1.5rem">该${label}可能已被移除或链接有误。</p>
+      <a class="btn-install" data-href="${backHref}" style="padding:.75rem 1.5rem;font-size:.875rem">浏览所有${label}</a>
     </div>`;
   }
 
