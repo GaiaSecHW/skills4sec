@@ -82,7 +82,7 @@
       bindHarnessesEvents();
     } else if (route.page === 'harness-detail') {
       const h = HARNESSES.find(x => x.slug === route.slug);
-      main.innerHTML = h ? renderHarnessDetailPage(h) : renderNotFound();
+      main.innerHTML = h ? renderHarnessDetailPage(h) : renderNotFound('harness');
     } else if (route.page === 'submit') {
       main.innerHTML = renderSubmitPage();
       bindSubmitEvents();
@@ -175,7 +175,9 @@
   function envTypeBadge(type) {
     const labels = { image: '镜像', ssh: 'SSH' };
     const label = labels[type] || escHtml(type || '');
-    return `<span class="env-badge env-badge-${escHtml(type || 'image')}">${label}</span>`;
+    // Whitelist CSS class fragment to prevent attribute injection (escHtml doesn't escape spaces)
+    const safeClass = /^[a-z0-9-]+$/.test(type || '') ? type : 'unknown';
+    return `<span class="env-badge env-badge-${safeClass}">${label}</span>`;
   }
 
   function harnessCard(h) {
@@ -858,12 +860,15 @@
     });
   }
 
-  function renderNotFound() {
+  function renderNotFound(type) {
+    const isHarness = type === 'harness';
+    const label    = isHarness ? '环境' : '技能';
+    const backHref = isHarness ? '#harnesses' : '#browse';
     return `<div style="text-align:center;padding:8rem 1rem">
       <p style="font-size:4rem;margin-bottom:1rem">🔍</p>
-      <h2 style="font-size:1.5rem;font-weight:700;margin-bottom:.5rem">技能未找到</h2>
-      <p class="text-muted" style="margin-bottom:1.5rem">该技能可能已被移除或链接有误。</p>
-      <a class="btn-install" data-href="#browse" style="padding:.75rem 1.5rem;font-size:.875rem">浏览所有技能</a>
+      <h2 style="font-size:1.5rem;font-weight:700;margin-bottom:.5rem">${label}未找到</h2>
+      <p class="text-muted" style="margin-bottom:1.5rem">该${label}可能已被移除或链接有误。</p>
+      <a class="btn-install" data-href="${backHref}" style="padding:.75rem 1.5rem;font-size:.875rem">浏览所有${label}</a>
     </div>`;
   }
 
