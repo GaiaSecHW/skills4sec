@@ -562,3 +562,16 @@ input { font: inherit; }
 @media (min-width: 640px) {
   .hide-desktop { display: none !important; }
 }
+
+/* --- Diff Tab Buttons --- */
+.diff-tab { padding:.375rem .875rem; border:1px solid var(--border); border-radius:var(--radius); font-size:.875rem; color:var(--muted-foreground); cursor:pointer; background:var(--card); transition:border-color .15s,color .15s; }
+.diff-tab:hover { border-color:var(--accent); color:var(--accent-foreground); }
+.diff-tab-active { border-color:var(--accent); background:var(--accent-bg); color:var(--accent-foreground); font-weight:600; }
+
+/* --- diff2html overrides to match site theme --- */
+.d2h-wrapper { border-radius:var(--radius); overflow:hidden; border:1px solid var(--border); }
+.d2h-file-header { background:var(--muted); border-bottom:1px solid var(--border); }
+/* Prevent long diff lines from expanding the page — cut the min-width:auto propagation chain */
+.detail-page > div { min-width: 0; }
+.diff-section { overflow: hidden; }
+#diff-render-box { overflow-x: auto; }

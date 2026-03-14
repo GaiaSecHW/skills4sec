@@ -109,6 +109,11 @@
         "question": "How is this different from Claude projects?",
         "answer": "Skills are modular, distributable packages with standardized structure. Projects are broader workspace configurations. Skills work across platforms; projects are tool-specific."
       }
+    ],
+    "diffs": [
+      "001-v1.0-v1.1.diff",
+      "002-v1.1-v1.2.diff",
+      "003-v1.2-v1.3.diff"
     ]
   },
   {
@@ -222,7 +227,8 @@
         "question": "Can I use this skill for standalone skills?",
         "answer": "No. This skill is designed for plugin skills distributed with Claude Code plugins, not standalone packages."
       }
-    ]
+    ],
+    "diffs": []
   },
   {
     "slug": "skill-installer",
@@ -336,6 +342,7 @@
         "question": "How is this different from manual skill installation?",
         "answer": "This skill automates the entire process including authentication handling, git fallback, and installation validation."
       }
-    ]
+    ],
+    "diffs": []
   }
 ]

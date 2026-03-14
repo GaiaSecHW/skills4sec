@@ -595,6 +595,16 @@
 
     const sourceUrl = skill.source_url || '';
 
+    const diffs = skill.diffs || [];
+    const diffSection = diffs.length ? `
+    <div class="install-steps diff-section">
+      <h2 class="font-semibold" style="margin-bottom:1rem">版本变更对比</h2>
+      <div style="display:flex;gap:.75rem;flex-wrap:wrap;margin-bottom:1rem">
+        ${diffs.map((f, i) => `<button class="diff-tab${i === diffs.length - 1 ? ' diff-tab-active' : ''}" data-diff-file="${escHtml(f)}" data-diff-slug="${escHtml(skill.slug)}">${escHtml(f.replace(/^\d+-/, '').replace(/\.diff$/, ''))}</button>`).join('')}
+      </div>
+      <div id="diff-render-box"></div>
+    </div>` : '';
+
     return `
 <div class="detail-page px-container max-w-7xl" style="padding-bottom:4rem">
   <nav class="breadcrumb" aria-label="面包屑">
@@ -658,6 +668,8 @@
       <h2 class="font-semibold" style="margin-bottom:1rem">提示词模板</h2>
       ${prompts}
     </div>` : ''}
+
+    ${diffSection}
   </div>
 </div>
 `;
@@ -677,6 +689,31 @@
         }
       });
     });
+
+    // Diff tabs
+    function loadDiff(slug, file) {
+      const box = document.getElementById('diff-render-box');
+      if (!box) return;
+      box.innerHTML = '<p class="text-sm text-muted" style="padding:.5rem">加载中…</p>';
+      fetch(`data/diffs/${slug}/${file}`)
+        .then(r => { if (!r.ok) throw new Error(r.status); return r.text(); })
+        .then(text => {
+          box.innerHTML = '';
+          new Diff2HtmlUI(box, text, { outputFormat: 'side-by-side', drawFileList: false }).draw();
+        })
+        .catch(() => { box.innerHTML = '<p class="text-sm text-muted" style="padding:.5rem">加载失败</p>'; });
+    }
+
+    document.querySelectorAll('.diff-tab').forEach(btn => {
+      btn.addEventListener('click', function () {
+        document.querySelectorAll('.diff-tab').forEach(b => b.classList.remove('diff-tab-active'));
+        this.classList.add('diff-tab-active');
+        loadDiff(this.dataset.diffSlug, this.dataset.diffFile);
+      });
+    });
+
+    const activeTab = document.querySelector('.diff-tab-active');
+    if (activeTab) loadDiff(activeTab.dataset.diffSlug, activeTab.dataset.diffFile);
   }
 
   /* ===================== HARNESSES BROWSE PAGE ===================== */

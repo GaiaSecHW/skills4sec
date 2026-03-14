@@ -42,6 +42,7 @@ Skills4Sec 是一个开源目录仓库，收录三类核心实体：
 - **一键安装** — 技能详情页提供可复制的安装命令
 - **实时搜索** — 按名称、分类、风险等级过滤，无需刷新页面
 - **技能提交** — 内置提交引导页（`#submit`），一键生成 GitHub Issue
+- **版本变更对比** — 技能详情页展示版本间 diff，双栏 side-by-side 对比，支持多版本切换
 
 ---
 
@@ -69,7 +70,7 @@ docs/index.html           ← SPA Shell（导航、页脚、容器）
 | `#browse` | 技能浏览页 | 分类侧边栏 + 搜索 + 排序 |
 | `#browse?q=xxx` | 技能浏览页（带搜索词） | 从首页搜索框跳转 |
 | `#browse?cat=xxx` | 技能浏览页（带分类过滤） | 从首页分类 Pill 跳转 |
-| `#skill/:slug` | 技能详情页 | 功能特性、使用场景、提示词模板 |
+| `#skill/:slug` | 技能详情页 | 功能特性、使用场景、提示词模板、版本变更对比 |
 | `#harnesses` | 环境浏览页 | 按环境类型过滤（image / ssh） |
 | `#harness/:slug` | 环境详情页 | 能力列表、使用场景、连接信息 |
 | `#agents` | 智能体浏览页 | 按技能类型过滤（github / npx）+ 搜索 |
@@ -83,18 +84,21 @@ docs/index.html           ← SPA Shell（导航、页脚、容器）
 ```
 skills/            harnesses/             agents/
  └── <name>/        └── <name>/            └── <name>/
-       └── skill-report.json  └── harness-report.json  ├── AGENT.md
-                │                     │                └── config.json
+       ├── skill-report.json  └── harness-report.json  ├── AGENT.md
+       └── .diff/*.diff             │                └── config.json
+                │                     │
                 └─────────────────────┴──────────────────────┘
                                       │  node scripts/build-site.js
                                       ▼
                          docs/data/skills.json
                          docs/data/harnesses.json
                          docs/data/agents.json
+                         docs/data/diffs/<slug>/*.diff   ← diff 文件复制到此
                                       │
                                       │  fetch() in app.js (浏览器运行时)
                                       ▼
                            页面渲染 (innerHTML 模板 + escHtml 转义)
+                           技能详情页：diff2html 渲染版本变更对比
 ```
 
 ### CSS 设计系统
@@ -113,6 +117,8 @@ skills4sec/
 │   └── <skill-name>/
 │       ├── SKILL.md               # 技能定义文件（AI 工具加载）
 │       ├── skill-report.json      # 安全审计报告 + 内容元数据
+│       ├── .diff/                 # 可选：版本变更 diff 文件
+│       │   └── 001-v1.0-v1.1.diff # 命名规范：{序号}-{from}-{to}.diff
 │       ├── scripts/               # 可选：可执行脚本
 │       ├── references/            # 可选：参考文档
 │       └── assets/                # 可选：静态资源
@@ -134,7 +140,9 @@ skills4sec/
 │   ├── data/
 │   │   ├── skills.json            # 构建产物（由 build-site.js 生成）
 │   │   ├── harnesses.json         # 构建产物（由 build-site.js 生成）
-│   │   └── agents.json            # 构建产物（由 build-site.js 生成）
+│   │   ├── agents.json            # 构建产物（由 build-site.js 生成）
+│   │   └── diffs/                 # 构建产物：diff 文件（由 build-site.js 复制）
+│   │       └── <skill-slug>/      # 按 slug 分目录存放
 │   └── .nojekyll                  # 禁用 GitHub Pages Jekyll 处理
 │
 ├── scripts/
@@ -311,6 +319,24 @@ skills/<skill-name>/
 }
 ```
 
+### 添加版本变更对比（可选）
+
+在技能目录下创建 `.diff/` 子文件夹，放入 unified diff 文件，构建后自动在详情页展示双栏对比：
+
+```
+skills/<skill-name>/.diff/
+├── 001-v1.0-v1.1.diff
+├── 002-v1.1-v1.2.diff
+└── 003-v1.2-v1.3.diff    ← 序号最大的默认展示
+```
+
+**命名规范：** `{三位序号}-{from版本}-{to版本}.diff`，例如 `001-v1.0-v1.1.diff`。构建时按文件名字典序排序，序号最大的为最新版本，默认展示。
+
+生成 diff 文件的方法：
+```bash
+git diff v1.0 v1.1 -- skills/<skill-name>/ > skills/<skill-name>/.diff/001-v1.0-v1.1.diff
+```
+
 ### 提交流程
 
 也可通过网站内置的[技能提交页面](https://cxm95.github.io/skills4sec/#submit)，填写表单后一键生成 GitHub Issue。
@@ -320,8 +346,9 @@ skills/<skill-name>/
 1. Fork 本仓库
 2. 在 `skills/` 下创建新目录（目录名即 slug，使用小写字母、数字和连字符）
 3. 添加 `SKILL.md` 和 `skill-report.json`
-4. 运行 `npm run build:site` 验证数据能被正确解析
-5. 提交 PR，描述技能用途和安全性
+4. （可选）在 `.diff/` 下添加版本变更 diff 文件
+5. 运行 `npm run build:site` 验证数据能被正确解析
+6. 提交 PR，描述技能用途和安全性
 
 ---
 
@@ -524,6 +551,8 @@ AGENT.md 是该智能体的系统提示词，建议包含：
 | `data-href` 而非 `onclick` | 内容与行为分离，避免 XSS 风险，支持键盘导航 |
 | `escHtml()` 包含单引号转义 | 防止 HTML 注入，即使技能名包含特殊字符也安全 |
 | `docs/index.html` 静态维护 | 构建脚本只生成数据文件，避免每次构建覆盖已修复的 Shell |
+| diff 文件复制到 `docs/data/diffs/` | 静态站点只能 fetch 同源文件，skills/ 不在 docs/ 下，构建时统一复制 |
+| diff2html CDN 引入 | 专为 git diff 设计，双栏渲染开箱即用，无需打包工具 |
 
 ---
 

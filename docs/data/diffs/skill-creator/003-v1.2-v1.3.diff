@@ -1,0 +1,47 @@
+diff --git a/SKILL.md b/SKILL.md
+index b7c8d9e..f0a1b2c 100644
+--- a/SKILL.md
++++ b/SKILL.md
+@@ -4,6 +4,7 @@
+ metadata:
+   short-description: Create or update a skill
+ ---
++
+ @@ -23,6 +23,30 @@
+ 
+ ## Skill Creation Process
+ 
++Skill creation involves these steps:
++
++1. Understand the skill with concrete examples
++2. Plan reusable skill contents (scripts, references, assets)
++3. Initialize the skill (run init_skill.py)
++4. Edit the skill (implement resources and write SKILL.md)
++5. Package the skill (run package_skill.py)
++6. Iterate based on real usage
++
++### Step 3: Initializing the Skill
++
++When creating a new skill from scratch, always run the `init_skill.py` script:
++
++```bash
++scripts/init_skill.py <skill-name> --path <output-directory>
++```
+diff --git a/scripts/init_skill.py b/scripts/init_skill.py
+new file mode 100644
+index 0000000..1234567
+--- /dev/null
++++ b/scripts/init_skill.py
+@@ -0,0 +1,12 @@
++#!/usr/bin/env python3
++"""Initialize a new skill directory with boilerplate."""
++import argparse, os, pathlib
++
++def main():
++    parser = argparse.ArgumentParser()
++    parser.add_argument('name')
++    parser.add_argument('--path', default='.')
++    args = parser.parse_args()
++    dest = pathlib.Path(args.path) / args.name
++    dest.mkdir(parents=True, exist_ok=True)
++    print(f"Initialized skill at {dest}")

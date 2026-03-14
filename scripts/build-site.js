@@ -95,6 +95,12 @@ function collectSkills() {
       prompt_templates:  c.prompt_templates || [],
       limitations:       c.limitations      || [],
       faq:               c.faq              || [],
+      // diff files: scanned from skills/{slug}/.diff/*.diff, sorted by filename
+      diffs: (() => {
+        const diffDir = path.join(dir, '.diff');
+        if (!fs.existsSync(diffDir)) return [];
+        return fs.readdirSync(diffDir).filter(f => f.endsWith('.diff')).sort();
+      })(),
     });
   }
 
@@ -218,6 +224,20 @@ function writeSkillsJson(skills) {
   skills.forEach(s => console.log(`   · ${s.slug} [${s.risk_level}]`));
 }
 
+/* ── 4b. Copy .diff files to docs/data/diffs/{slug}/ ── */
+function copyDiffs(skills) {
+  for (const skill of skills) {
+    if (!skill.diffs.length) continue;
+    const srcDir  = path.join(SKILLS_DIR, skill.slug, '.diff');
+    const destDir = path.join(DATA_DIR, 'diffs', skill.slug);
+    ensureDir(destDir);
+    for (const file of skill.diffs) {
+      fs.copyFileSync(path.join(srcDir, file), path.join(destDir, file));
+    }
+    console.log(`✓ diffs copied for ${skill.slug} (${skill.diffs.length} file(s))`);
+  }
+}
+
 /* ── 5. Write docs/data/harnesses.json ──────────────── */
 function writeHarnessesJson(harnesses) {
   ensureDir(DATA_DIR);
@@ -253,6 +273,7 @@ function ensureNojekyll() {
   const harnesses = collectHarnesses();
   const agents    = collectAgents();
   writeSkillsJson(skills);
+  copyDiffs(skills);
   writeHarnessesJson(harnesses);
   writeAgentsJson(agents);
   ensureNojekyll();

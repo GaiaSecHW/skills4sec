@@ -1,0 +1,21 @@
+diff --git a/SKILL.md b/SKILL.md
+index a1b2c3d..e4f5a6b 100644
+--- a/SKILL.md
++++ b/SKILL.md
+@@ -1,7 +1,14 @@
+ ---
+ name: skill-creator
+-description: Guide for creating skills.
++description: Guide for creating effective skills. This skill should be used when users want to create a new skill (or update an existing skill) that extends Codex's capabilities with specialized knowledge, workflows, or tool integrations.
+ metadata:
+   short-description: Create or update a skill
+ ---
+ 
+ # Skill Creator
++
++This skill provides guidance for creating effective skills.
++
++## About Skills
++
++Skills are modular, self-contained packages that extend Codex's capabilities by providing
++specialized knowledge, workflows, and tools.
