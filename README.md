@@ -1,15 +1,16 @@
 # Skills4Sec — AI 技能市场
 
-> 经过安全审计的 AI 技能与运行环境目录，支持 Claude Code、Codex 等主流 AI 工具。
+> 经过安全审计的 AI 技能、运行环境与智能体目录，支持 Claude Code、Codex 等主流 AI 工具。
 
 ## 项目简介
 
-Skills4Sec 是一个开源目录仓库，收录两类核心实体：
+Skills4Sec 是一个开源目录仓库，收录三类核心实体：
 
 - **技能（Skill）** — 适用于 [Claude Code](https://claude.ai/code) 和 [Codex](https://github.com/openai/codex) 的可复用技能包，每个技能都经过自动化安全审计
 - **运行环境（Harness）** — Agent 执行技能时所依赖的目标环境（Docker 镜像或 SSH 环境），描述 Agent 可以操作的系统上下文
+- **智能体（Agent）** — 开箱即用的 AI 智能体，内置系统提示词（AGENT.md）与工具配置（MCP），可直接用于特定领域的自动化任务
 
-两者关系类似"演员与舞台"——Skill 定义 Agent 能做什么，Harness 定义 Agent 在哪里做。
+三者关系：Skill 定义 Agent 能做什么，Harness 定义 Agent 在哪里做，Agent 则将二者整合为可直接运行的完整工作流。
 
 **在线浏览：** [https://cxm95.github.io/skills4sec](https://cxm95.github.io/skills4sec)
 
@@ -24,6 +25,7 @@ Skills4Sec 是一个开源目录仓库，收录两类核心实体：
 - [本地开发](#本地开发)
 - [添加新技能](#添加新技能)
 - [添加新环境](#添加新环境)
+- [添加新智能体](#添加新智能体)
 - [安全审计机制](#安全审计机制)
 - [静态站点架构](#静态站点架构)
 - [License](#license)
@@ -34,6 +36,7 @@ Skills4Sec 是一个开源目录仓库，收录两类核心实体：
 
 - **安全优先** — 每个技能附带 `skill-report.json` 安全报告，包含风险等级（safe / low / medium / high）
 - **Harness 支持** — 维护 Agent 运行环境目录，支持 Docker 镜像（image）和 SSH 两类环境
+- **智能体目录** — 收录开箱即用的 AI 智能体，内置 AGENT.md 系统提示词与 MCP 工具配置
 - **多平台支持** — 支持 Claude、Claude Code、Codex 三大平台
 - **静态站点** — 纯静态 SPA，无需后端，可直接部署到 GitHub Pages
 - **一键安装** — 技能详情页提供可复制的安装命令
@@ -62,13 +65,15 @@ docs/index.html           ← SPA Shell（导航、页脚、容器）
 
 | URL Hash | 页面 | 说明 |
 |---|---|---|
-| `#` / 空 | 首页 | Hero 搜索、精选技能、精选环境、Why 栏 |
+| `#` / 空 | 首页 | Hero 搜索、精选技能、精选环境、精选智能体、Why 栏 |
 | `#browse` | 技能浏览页 | 分类侧边栏 + 搜索 + 排序 |
 | `#browse?q=xxx` | 技能浏览页（带搜索词） | 从首页搜索框跳转 |
 | `#browse?cat=xxx` | 技能浏览页（带分类过滤） | 从首页分类 Pill 跳转 |
 | `#skill/:slug` | 技能详情页 | 功能特性、使用场景、提示词模板 |
 | `#harnesses` | 环境浏览页 | 按环境类型过滤（image / ssh） |
 | `#harness/:slug` | 环境详情页 | 能力列表、使用场景、连接信息 |
+| `#agents` | 智能体浏览页 | 按技能类型过滤（github / npx）+ 搜索 |
+| `#agent/:slug` | 智能体详情页 | 系统提示词（AGENT.md）、MCP 配置、安装命令 |
 | `#submit` | 技能提交页 | 三步引导 + 表单生成 GitHub Issue |
 
 路由使用 `hashchange` 事件，所有带 `data-href` 属性的元素通过 `document` 级委托处理，**不依赖 `onclick`**，避免重复绑定与安全问题。
@@ -76,19 +81,20 @@ docs/index.html           ← SPA Shell（导航、页脚、容器）
 ### 数据流
 
 ```
-skills/                          harnesses/
- └── <name>/                      └── <name>/
-       └── skill-report.json            └── harness-report.json
-                │                                    │
-                └──────────────┬─────────────────────┘
-                               │  node scripts/build-site.js
-                               ▼
-                  docs/data/skills.json
-                  docs/data/harnesses.json
-                               │
-                               │  fetch() in app.js (浏览器运行时)
-                               ▼
-                    页面渲染 (innerHTML 模板 + escHtml 转义)
+skills/            harnesses/             agents/
+ └── <name>/        └── <name>/            └── <name>/
+       └── skill-report.json  └── harness-report.json  ├── AGENT.md
+                │                     │                └── config.json
+                └─────────────────────┴──────────────────────┘
+                                      │  node scripts/build-site.js
+                                      ▼
+                         docs/data/skills.json
+                         docs/data/harnesses.json
+                         docs/data/agents.json
+                                      │
+                                      │  fetch() in app.js (浏览器运行时)
+                                      ▼
+                           页面渲染 (innerHTML 模板 + escHtml 转义)
 ```
 
 ### CSS 设计系统
@@ -115,6 +121,11 @@ skills4sec/
 │   └── <harness-name>/
 │       └── harness-report.json    # 环境元数据（无安全审计）
 │
+├── agents/                        # 智能体目录（每个子目录为一个 Agent）
+│   └── <agent-name>/
+│       ├── AGENT.md               # 系统提示词（AI 工具直接加载）
+│       └── config.json            # 元数据 + skill 配置 + MCP 配置
+│
 ├── docs/                          # 静态站点（部署到 GitHub Pages）
 │   ├── index.html                 # SPA Shell
 │   ├── assets/
@@ -122,11 +133,12 @@ skills4sec/
 │   │   └── app.js                 # SPA 路由与渲染
 │   ├── data/
 │   │   ├── skills.json            # 构建产物（由 build-site.js 生成）
-│   │   └── harnesses.json         # 构建产物（由 build-site.js 生成）
+│   │   ├── harnesses.json         # 构建产物（由 build-site.js 生成）
+│   │   └── agents.json            # 构建产物（由 build-site.js 生成）
 │   └── .nojekyll                  # 禁用 GitHub Pages Jekyll 处理
 │
 ├── scripts/
-│   ├── build-site.js              # 构建脚本：skills/ + harnesses/ → docs/data/
+│   ├── build-site.js              # 构建脚本：skills/ + harnesses/ + agents/ → docs/data/
 │   └── serve.py                   # 本地预览服务器
 │
 ├── schemas/                       # JSON Schema 校验规则
@@ -204,7 +216,7 @@ npm install
 ### 构建站点数据
 
 ```bash
-# 扫描 skills/ 和 harnesses/，生成 docs/data/skills.json 和 harnesses.json
+# 扫描 skills/、harnesses/ 和 agents/，生成 docs/data/ 下的三个 JSON 文件
 npm run build:site
 ```
 
@@ -223,10 +235,10 @@ python3 scripts/serve.py 3000
 ### 开发流程
 
 ```
-1. 修改 skills/ 或 harnesses/ 下的文件
+1. 修改 skills/、harnesses/ 或 agents/ 下的文件
         │
         ▼
-2. npm run build:site    # 重新生成 skills.json 和 harnesses.json
+2. npm run build:site    # 重新生成 skills.json、harnesses.json 和 agents.json
         │
         ▼
 3. npm run serve         # 浏览器预览（http://localhost:8080）
@@ -404,6 +416,69 @@ harnesses/<harness-name>/
 
 ---
 
+## 添加新智能体
+
+### 智能体目录规范
+
+每个 Agent 包含两个文件：
+
+```
+agents/<agent-name>/
+├── AGENT.md        # 系统提示词，AI 工具直接加载（必须）
+└── config.json     # 元数据 + skill 配置 + MCP 配置（必须）
+```
+
+目录名即 slug，使用小写字母、数字和连字符。
+
+### config.json 格式
+
+```json
+{
+  "name": "我的安全智能体",
+  "slug": "my-security-agent",
+  "icon": "🤖",
+  "description": "一句话描述智能体的用途",
+  "author": "your-name",
+  "version": "1.0.0",
+  "tags": ["security", "recon"],
+  "skill": {
+    "type": "github",
+    "source": "cxm95/skills4sec"
+  },
+  "mcp": [
+    {
+      "name": "filesystem",
+      "type": "npx",
+      "package": "@modelcontextprotocol/server-filesystem",
+      "args": ["/tmp/workspace"]
+    }
+  ]
+}
+```
+
+`skill.type` 支持两种值：
+- `"github"` — 通过 `gh skill install <source>` 安装
+- `"npx"` — 通过 `npx <package>` 运行
+
+### AGENT.md 格式
+
+AGENT.md 是该智能体的系统提示词，建议包含：
+
+- 角色定位（这个 Agent 是谁、做什么）
+- 行为准则（安全红线、授权要求）
+- 工作流程（标准操作步骤）
+- 输出格式（报告模板、结构要求）
+
+### 提交流程
+
+1. Fork 本仓库
+2. 在 `agents/` 下创建新目录（目录名即 slug）
+3. 添加 `AGENT.md` 和 `config.json`
+4. 运行 `npm run build:site` 验证 Agent 被正确解析
+5. 提交 PR，说明智能体的用途和使用场景
+
+---
+
 ## 安全审计机制
 
 每个技能的 `skill-report.json` 包含 `security_audit` 块，记录：
@@ -433,7 +508,7 @@ harnesses/<harness-name>/
 推送到 `main`/`master` 分支后，`.github/workflows/deploy-site.yml` 自动：
 
 1. 安装 Node.js 依赖
-2. 运行 `node scripts/build-site.js` 生成 `docs/data/skills.json` 和 `docs/data/harnesses.json`
+2. 运行 `node scripts/build-site.js` 生成 `docs/data/skills.json`、`docs/data/harnesses.json` 和 `docs/data/agents.json`
 3. 将 `docs/` 目录发布到 GitHub Pages
 
 **启用 GitHub Pages：**

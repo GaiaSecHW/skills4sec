@@ -232,7 +232,7 @@
     return `
 <a class="skill-card page-enter" data-href="#agent/${escHtml(agent.slug)}">
   <div class="skill-card-header">
-    <div class="skill-icon">${agent.icon || '🤖'}</div>
+    <div class="skill-icon">${escHtml(agent.icon || '🤖')}</div>
     <div style="flex:1;min-width:0">
       <div class="skill-name-row">
         <span class="skill-name text-sm font-semibold line-clamp-1">${escHtml(agent.name)}</span>
@@ -925,7 +925,7 @@
 
   <div class="detail-header">
     <div class="detail-top">
-      <div class="skill-icon skill-icon-lg">${agent.icon || '🤖'}</div>
+      <div class="skill-icon skill-icon-lg">${escHtml(agent.icon || '🤖')}</div>
       <div class="detail-info">
         <div style="display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;margin-bottom:.5rem">
           <h1>${escHtml(agent.name)}</h1>
