@@ -43,6 +43,7 @@ Skills4Sec 是一个开源目录仓库，收录三类核心实体：
 - **实时搜索** — 按名称、分类、风险等级过滤，无需刷新页面
 - **技能提交** — 内置提交引导页（`#submit`），一键生成 GitHub Issue
 - **版本变更对比** — 技能详情页展示版本间 diff，双栏 side-by-side 对比，支持多版本切换
+- **技能自进化** — 展示 Memento-S 技能自进化系统的工作原理（SVG 流程图）、运行状态统计和实时滚动日志
 
 ---
 
@@ -76,6 +77,7 @@ docs/index.html           ← SPA Shell（导航、页脚、容器）
 | `#agents` | 智能体浏览页 | 按技能类型过滤（github / npx）+ 搜索 |
 | `#agent/:slug` | 智能体详情页 | 系统提示词（AGENT.md）、MCP 配置、安装命令 |
 | `#submit` | 技能提交页 | 三步引导 + 表单生成 GitHub Issue |
+| `#evolution` | 技能自进化页 | Memento-S 原理图、统计面板、实时日志 |
 
 路由使用 `hashchange` 事件，所有带 `data-href` 属性的元素通过 `document` 级委托处理，**不依赖 `onclick`**，避免重复绑定与安全问题。
 
@@ -94,6 +96,8 @@ skills/            harnesses/             agents/
                          docs/data/harnesses.json
                          docs/data/agents.json
                          docs/data/diffs/<slug>/*.diff   ← diff 文件复制到此
+                         docs/data/evol/summary.json     ← 自进化统计（手动维护）
+                         docs/data/evol/logs.json        ← 自进化日志（手动维护）
                                       │
                                       │  fetch() in app.js (浏览器运行时)
                                       ▼
@@ -141,8 +145,11 @@ skills4sec/
 │   │   ├── skills.json            # 构建产物（由 build-site.js 生成）
 │   │   ├── harnesses.json         # 构建产物（由 build-site.js 生成）
 │   │   ├── agents.json            # 构建产物（由 build-site.js 生成）
-│   │   └── diffs/                 # 构建产物：diff 文件（由 build-site.js 复制）
-│   │       └── <skill-slug>/      # 按 slug 分目录存放
+│   │   ├── diffs/                 # 构建产物：diff 文件（由 build-site.js 复制）
+│   │   │   └── <skill-slug>/      # 按 slug 分目录存放
+│   │   └── evol/                  # 技能自进化数据（手动维护）
+│   │       ├── summary.json       # 统计摘要（进化轮数、成功率等）
+│   │       └── logs.json          # 调用/优化日志（按时间倒序）
 │   └── .nojekyll                  # 禁用 GitHub Pages Jekyll 处理
 │
 ├── scripts/
@@ -553,6 +560,47 @@ AGENT.md 是该智能体的系统提示词，建议包含：
 | `docs/index.html` 静态维护 | 构建脚本只生成数据文件，避免每次构建覆盖已修复的 Shell |
 | diff 文件复制到 `docs/data/diffs/` | 静态站点只能 fetch 同源文件，skills/ 不在 docs/ 下，构建时统一复制 |
 | diff2html CDN 引入 | 专为 git diff 设计，双栏渲染开箱即用，无需打包工具 |
+
+---
+
+## 技能自进化（Memento-S）
+
+`#evolution` 页面展示基于 Memento-S 框架的技能自进化系统，包含三个核心模块：
+
+### 原理图
+
+SVG 流程图呈现 Memento-S 闭环的三个阶段：
+
+1. **Execution Phase** — Task Executor 执行任务，Answer Judge 判定结果；正确则记录成功，失败则进入归因
+2. **Attribution Phase** — Failure Attribution 分析失败根因，Utility Tracker 评估技能效用，决定 OPTIMIZE（优化已有技能）或 DISCOVER（发现新技能）
+3. **Evolution Phase** — LLM Skill Rewriter 重写技能代码，Unit Test Gate 运行回归+生成测试；通过则重试任务，失败则回滚
+
+### 统计面板
+
+4 个指标卡片，数据来自 `docs/data/evol/summary.json`：
+
+| 字段 | 说明 |
+|---|---|
+| `total_rounds` | 进化轮数 |
+| `evolved_skills` | 发生进化的技能数 |
+| `original_accuracy` / `improved_accuracy` | 成功率提升（原始 → 改进） |
+| `running_instances` | 当前运行中的优化实例数 |
+
+### 实时日志
+
+自动滚动的日志列表，数据来自 `docs/data/evol/logs.json`，每条记录包含：
+
+| 字段 | 说明 |
+|---|---|
+| `ts` | ISO 8601 时间戳 |
+| `type` | `optimize`（优化）或 `invoke`（调用） |
+| `skill` | 技能名称 |
+| `agent` | 智能体名称 |
+| `harness` | 运行环境名称 |
+| `detail` | 操作描述 |
+| `result` | `pass` / `success` / `fail` |
+
+日志使用 CSS animation 实现无缝自滚动，鼠标悬停时暂停。
 
 ---
 

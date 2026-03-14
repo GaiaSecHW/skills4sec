@@ -1,0 +1,92 @@
+[
+  {
+    "ts": "2026-03-14T05:26:13Z",
+    "type": "optimize",
+    "skill": "pdf",
+    "agent": "claude-pentest-agent",
+    "harness": "ubuntu-ctf-basic",
+    "detail": "添加 OCR 降级路径，支持图像内文字提取",
+    "result": "pass"
+  },
+  {
+    "ts": "2026-03-14T04:10:00Z",
+    "type": "invoke",
+    "skill": "web-search",
+    "agent": "claude-pentest-agent",
+    "harness": "kali-ssh-lab",
+    "detail": "搜索 arXiv 论文 AI regulation 2022",
+    "result": "success"
+  },
+  {
+    "ts": "2026-03-14T03:45:22Z",
+    "type": "optimize",
+    "skill": "nmap-scan",
+    "agent": "claude-recon-agent",
+    "harness": "kali-ssh-lab",
+    "detail": "优化端口扫描速率限制，避免触发 IDS 告警",
+    "result": "pass"
+  },
+  {
+    "ts": "2026-03-14T02:30:11Z",
+    "type": "invoke",
+    "skill": "sql-injection",
+    "agent": "claude-pentest-agent",
+    "harness": "dvwa-target",
+    "detail": "检测 login 表单的 SQL 注入漏洞",
+    "result": "success"
+  },
+  {
+    "ts": "2026-03-14T01:55:44Z",
+    "type": "optimize",
+    "skill": "xss-detector",
+    "agent": "claude-pentest-agent",
+    "harness": "ubuntu-ctf-basic",
+    "detail": "增加 DOM-based XSS 检测规则",
+    "result": "fail"
+  },
+  {
+    "ts": "2026-03-14T01:12:08Z",
+    "type": "invoke",
+    "skill": "pdf",
+    "agent": "claude-recon-agent",
+    "harness": "ubuntu-ctf-basic",
+    "detail": "解析目标系统的安全审计报告 PDF",
+    "result": "success"
+  },
+  {
+    "ts": "2026-03-13T23:48:30Z",
+    "type": "optimize",
+    "skill": "web-search",
+    "agent": "claude-pentest-agent",
+    "harness": "kali-ssh-lab",
+    "detail": "增加搜索结果去重和相关性排序",
+    "result": "pass"
+  },
+  {
+    "ts": "2026-03-13T22:15:00Z",
+    "type": "invoke",
+    "skill": "nmap-scan",
+    "agent": "claude-recon-agent",
+    "harness": "kali-ssh-lab",
+    "detail": "扫描 192.168.1.0/24 子网开放端口",
+    "result": "success"
+  },
+  {
+    "ts": "2026-03-13T21:30:19Z",
+    "type": "optimize",
+    "skill": "pdf",
+    "agent": "claude-pentest-agent",
+    "harness": "ubuntu-ctf-basic",
+    "detail": "修复大文件分块读取时的内存泄漏",
+    "result": "pass"
+  },
+  {
+    "ts": "2026-03-13T20:05:42Z",
+    "type": "invoke",
+    "skill": "xss-detector",
+    "agent": "claude-pentest-agent",
+    "harness": "dvwa-target",
+    "detail": "测试反射型 XSS payload 注入",
+    "result": "fail"
+  }
+]

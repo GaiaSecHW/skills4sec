@@ -10,6 +10,8 @@
   let SKILLS    = [];
   let HARNESSES = [];
   let AGENTS    = [];
+  let EVOL_SUMMARY = {};
+  let EVOL_LOGS = [];
 
   /* ===================== ROUTER ===================== */
   function getRoute() {
@@ -22,6 +24,7 @@
     if (hash === 'agents' || hash.startsWith('agents?')) return { page: 'agents' };
     if (hash.startsWith('agent/')) return { page: 'agent-detail', slug: hash.slice(6) };
     if (hash === 'submit') return { page: 'submit' };
+    if (hash === 'evolution') return { page: 'evolution' };
     return { page: 'home' };
   }
 
@@ -39,7 +42,7 @@
 
   window.addEventListener('hashchange', render);
   window.addEventListener('load', function () {
-    Promise.all([loadSkills(), loadHarnesses(), loadAgents()]).then(render);
+    Promise.all([loadSkills(), loadHarnesses(), loadAgents(), loadEvol()]).then(render);
   });
 
   /* ===================== DATA LOADING ===================== */
@@ -69,6 +72,13 @@
     } catch (e) {
       AGENTS = [];
     }
+  }
+
+  async function loadEvol() {
+    try { const r = await fetch('data/evol/summary.json'); EVOL_SUMMARY = await r.json(); }
+    catch (e) { EVOL_SUMMARY = {}; }
+    try { const r = await fetch('data/evol/logs.json'); EVOL_LOGS = await r.json(); }
+    catch (e) { EVOL_LOGS = []; }
   }
 
   /* ===================== RENDER DISPATCH ===================== */
@@ -105,6 +115,9 @@
     } else if (route.page === 'submit') {
       main.innerHTML = renderSubmitPage();
       bindSubmitEvents();
+    } else if (route.page === 'evolution') {
+      main.innerHTML = renderEvolutionPage();
+      bindEvolutionEvents();
     }
 
     window.scrollTo(0, 0);
@@ -117,6 +130,7 @@
       harnesses: 'harnesses', 'harness-detail': 'harnesses',
       agents: 'agents', 'agent-detail': 'agents',
       submit: 'submit',
+      evolution: 'evolution',
     };
     const nav = navMap[page];
     if (nav) document.querySelector(`[data-nav="${nav}"]`)?.classList.add('active');
@@ -1103,6 +1117,226 @@
         + new URLSearchParams({ title: `[技能提交] ${name}`, body, labels: 'skill-submission' });
       window.open(url, '_blank', 'noopener,noreferrer');
     });
+  }
+
+  /* ===================== EVOLUTION PAGE ===================== */
+  function renderEvolutionPage() {
+    const s = EVOL_SUMMARY;
+    const improvement = s.original_accuracy && s.improved_accuracy
+      ? '+' + Math.round((s.improved_accuracy - s.original_accuracy) * 100) + '%'
+      : 'N/A';
+
+    const logItems = EVOL_LOGS.map(l => {
+      const time = l.ts ? new Date(l.ts).toLocaleString('zh-CN', { hour12: false }) : '';
+      const badgeCls = l.type === 'optimize' ? 'evol-log-badge-optimize' : 'evol-log-badge-invoke';
+      const badgeLabel = l.type === 'optimize' ? '优化' : '调用';
+      const resultCls = (l.result === 'pass' || l.result === 'success') ? 'evol-log-result-ok' : 'evol-log-result-fail';
+      return `<div class="evol-log-item">
+        <span class="evol-log-time">${escHtml(time)}</span>
+        <span class="evol-log-badge ${badgeCls}">${badgeLabel}</span>
+        <span class="evol-log-skill">${escHtml(l.skill || '')}</span>
+        <span class="evol-log-agent">${escHtml(l.agent || '')}</span>
+        <span class="evol-log-harness">${escHtml(l.harness || '')}</span>
+        <span class="evol-log-detail">${escHtml(l.detail || '')}</span>
+        <span class="evol-log-badge ${resultCls}">${escHtml(l.result || '')}</span>
+      </div>`;
+    }).join('');
+
+    return `
+<div class="detail-page px-container max-w-7xl page-enter" style="padding-bottom:4rem">
+  <div style="text-align:center;padding:2rem 0 1.5rem">
+    <div style="display:inline-flex;align-items:center;gap:.5rem;padding:.375rem .75rem;border-radius:9999px;background:var(--accent-bg);color:var(--accent-foreground);font-size:.75rem;font-weight:600;margin-bottom:1rem">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+      Memento-S
+    </div>
+    <h1 style="font-size:2rem;font-weight:700;margin-bottom:.75rem">技能<span class="gradient-text">自进化</span>系统</h1>
+    <p class="text-muted" style="max-width:36rem;margin:0 auto">基于 Memento-S 闭环框架，自动发现、优化和验证 AI 技能，持续提升任务成功率。</p>
+  </div>
+
+  <!-- Principle Diagram + Explanation -->
+  <div class="evol-principle">
+    <div class="evol-svg-col">
+      <svg viewBox="0 0 520 620" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Memento-S 技能自进化闭环流程图：执行阶段、归因阶段、进化阶段" style="width:100%;height:auto">
+        <title>Memento-S Skill Self-Evolution Loop</title>
+        <defs>
+          <marker id="ah" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="#64748b"/></marker>
+          <marker id="ah-g" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="#16a34a"/></marker>
+          <marker id="ah-r" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="#dc2626"/></marker>
+          <marker id="ah-b" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="#2563eb"/></marker>
+          <linearGradient id="gExec" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#f3e8ff"/><stop offset="100%" stop-color="#ede9fe"/></linearGradient>
+          <linearGradient id="gAttr" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#e0f2fe"/><stop offset="100%" stop-color="#dbeafe"/></linearGradient>
+          <linearGradient id="gEvol" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#dcfce7"/><stop offset="100%" stop-color="#d1fae5"/></linearGradient>
+        </defs>
+
+        <!-- Phase backgrounds -->
+        <rect x="10" y="10" width="500" height="190" rx="16" fill="url(#gExec)" stroke="#c4b5fd" stroke-width="1"/>
+        <text x="30" y="36" font-size="11" fill="#7c3aed" font-weight="600">EXECUTION PHASE</text>
+
+        <rect x="10" y="215" width="500" height="190" rx="16" fill="url(#gAttr)" stroke="#93c5fd" stroke-width="1"/>
+        <text x="30" y="241" font-size="11" fill="#2563eb" font-weight="600">ATTRIBUTION PHASE</text>
+
+        <rect x="10" y="420" width="500" height="190" rx="16" fill="url(#gEvol)" stroke="#86efac" stroke-width="1"/>
+        <text x="30" y="446" font-size="11" fill="#16a34a" font-weight="600">EVOLUTION PHASE</text>
+
+        <!-- === Execution Phase === -->
+        <rect x="40" y="55" width="150" height="44" rx="10" fill="#fff" stroke="#a78bfa" stroke-width="1.5"/>
+        <text x="72" y="82" font-size="13" fill="#1e1b4b" font-weight="500">Task Executor</text>
+        <text x="48" y="78" font-size="15">⚙️</text>
+
+        <rect x="290" y="55" width="150" height="44" rx="10" fill="#fff" stroke="#a78bfa" stroke-width="1.5"/>
+        <text x="322" y="82" font-size="13" fill="#1e1b4b" font-weight="500">Answer Judge</text>
+        <text x="298" y="78" font-size="15">🔍</text>
+
+        <!-- Executor -> Judge -->
+        <line x1="190" y1="77" x2="285" y2="77" stroke="#64748b" stroke-width="1.5" marker-end="url(#ah)"/>
+
+        <!-- Diamond: Correct? -->
+        <polygon points="365,120 400,145 365,170 330,145" fill="#fff" stroke="#a78bfa" stroke-width="1.5"/>
+        <text x="345" y="149" font-size="11" fill="#1e1b4b" font-weight="500">Correct?</text>
+
+        <!-- Judge -> Diamond -->
+        <line x1="365" y1="99" x2="365" y2="118" stroke="#64748b" stroke-width="1.5" marker-end="url(#ah)"/>
+
+        <!-- YES -> Log Success -->
+        <line x1="330" y1="145" x2="200" y2="145" stroke="#16a34a" stroke-width="1.5" marker-end="url(#ah-g)"/>
+        <text x="240" y="138" font-size="10" fill="#16a34a" font-weight="600">YES</text>
+        <rect x="60" y="127" width="140" height="36" rx="8" fill="#dcfce7" stroke="#86efac" stroke-width="1"/>
+        <text x="90" y="150" font-size="12" fill="#166534" font-weight="500">Log Success ✓</text>
+
+        <!-- NO -> down to Failure Attribution -->
+        <path d="M365,170 L365,230 L220,230 L220,258" stroke="#dc2626" stroke-width="1.5" fill="none" marker-end="url(#ah-r)"/>
+        <text x="372" y="200" font-size="10" fill="#dc2626" font-weight="600">NO</text>
+
+        <!-- === Attribution Phase === -->
+        <rect x="40" y="260" width="180" height="44" rx="10" fill="#fff" stroke="#60a5fa" stroke-width="1.5"/>
+        <text x="72" y="287" font-size="13" fill="#1e3a5f" font-weight="500">Failure Attribution</text>
+        <text x="48" y="283" font-size="15">🎯</text>
+
+        <rect x="290" y="260" width="170" height="44" rx="10" fill="#fff" stroke="#60a5fa" stroke-width="1.5"/>
+        <text x="322" y="287" font-size="13" fill="#1e3a5f" font-weight="500">Utility Tracker</text>
+        <text x="298" y="283" font-size="15">📊</text>
+
+        <!-- Failure Attribution -> Utility Tracker -->
+        <line x1="220" y1="282" x2="285" y2="282" stroke="#64748b" stroke-width="1.5" marker-end="url(#ah)"/>
+
+        <!-- Utility Tracker -> Decision diamond -->
+        <polygon points="375,325 415,355 375,385 335,355" fill="#fff" stroke="#60a5fa" stroke-width="1.5"/>
+        <text x="354" y="359" font-size="10" fill="#1e3a5f" font-weight="500">Decision</text>
+        <line x1="375" y1="304" x2="375" y2="323" stroke="#64748b" stroke-width="1.5" marker-end="url(#ah)"/>
+
+        <!-- OPTIMIZE branch (left) -> down to LLM Skill Rewriter -->
+        <path d="M335,355 L130,355 L130,458" stroke="#2563eb" stroke-width="1.5" fill="none" marker-end="url(#ah-b)"/>
+        <text x="210" y="348" font-size="10" fill="#2563eb" font-weight="600">OPTIMIZE</text>
+
+        <!-- DISCOVER branch (right) -> down to LLM Skill Rewriter via right side -->
+        <path d="M415,355 L480,355 L480,440 L220,440 L220,458" stroke="#2563eb" stroke-width="1.5" fill="none" stroke-dasharray="5 3" marker-end="url(#ah-b)"/>
+        <text x="422" y="348" font-size="10" fill="#2563eb" font-weight="600">DISCOVER</text>
+
+        <!-- === Evolution Phase === -->
+        <rect x="40" y="460" width="180" height="44" rx="10" fill="#fff" stroke="#4ade80" stroke-width="1.5"/>
+        <text x="72" y="487" font-size="13" fill="#14532d" font-weight="500">LLM Skill Rewriter</text>
+        <text x="48" y="483" font-size="15">✏️</text>
+
+        <rect x="290" y="460" width="170" height="44" rx="10" fill="#fff" stroke="#4ade80" stroke-width="1.5"/>
+        <text x="322" y="487" font-size="13" fill="#14532d" font-weight="500">Unit Test Gate</text>
+        <text x="298" y="483" font-size="15">🧪</text>
+
+        <!-- LLM Skill Rewriter -> Unit Test Gate -->
+        <line x1="220" y1="482" x2="285" y2="482" stroke="#64748b" stroke-width="1.5" marker-end="url(#ah)"/>
+
+        <!-- PASS -> Retry Task -->
+        <line x1="460" y1="482" x2="490" y2="482" stroke="#16a34a" stroke-width="1.5"/>
+        <line x1="490" y1="482" x2="490" y2="545" stroke="#16a34a" stroke-width="1.5" marker-end="url(#ah-g)"/>
+        <text x="467" y="474" font-size="10" fill="#16a34a" font-weight="600">PASS</text>
+
+        <rect x="430" y="548" width="90" height="36" rx="8" fill="#fff" stroke="#4ade80" stroke-width="1.5"/>
+        <text x="445" y="571" font-size="12" fill="#14532d" font-weight="500">Retry Task</text>
+
+        <!-- Retry -> back to top (loop arrow) -->
+        <path d="M500,548 L505,548 L505,40 L115,40 L115,53" stroke="#64748b" stroke-width="1.2" fill="none" stroke-dasharray="5 3" marker-end="url(#ah)"/>
+
+        <!-- FAIL -> Rollback -->
+        <line x1="375" y1="504" x2="375" y2="548" stroke="#dc2626" stroke-width="1.5" marker-end="url(#ah-r)"/>
+        <text x="382" y="530" font-size="10" fill="#dc2626" font-weight="600">FAIL</text>
+
+        <rect x="310" y="548" width="100" height="36" rx="8" fill="#fee2e2" stroke="#fca5a5" stroke-width="1"/>
+        <text x="332" y="571" font-size="12" fill="#991b1b" font-weight="500">Rollback ⏪</text>
+      </svg>
+    </div>
+
+    <div class="evol-explain-col">
+      <div class="install-steps">
+        <h2 style="font-size:1.25rem;font-weight:700;margin-bottom:1.25rem">技能自进化闭环</h2>
+
+        <div class="install-step">
+          <div class="step-number">1</div>
+          <div class="step-content">
+            <h3>执行与评判</h3>
+            <p>Task Executor 使用当前版本的技能执行任务，Answer Judge 自动判定结果是否正确。正确则记录成功日志；失败则进入归因阶段。</p>
+          </div>
+        </div>
+        <div class="install-step">
+          <div class="step-number">2</div>
+          <div class="step-content">
+            <h3>失败归因</h3>
+            <p>Failure Attribution 分析失败根因，Utility Tracker 评估技能历史表现，决定是优化已有技能（OPTIMIZE）还是发现新技能（DISCOVER）。</p>
+          </div>
+        </div>
+        <div class="install-step">
+          <div class="step-number">3</div>
+          <div class="step-content">
+            <h3>进化与验证</h3>
+            <p>LLM Skill Rewriter 重写技能代码，Unit Test Gate 运行单元测试。通过则重试原始任务；失败则回滚到上一版本。</p>
+          </div>
+        </div>
+
+        <div style="margin-top:1.25rem;padding:.75rem 1rem;border-radius:var(--radius);background:var(--accent-bg);border-left:3px solid var(--accent)">
+          <p style="font-size:.875rem;color:var(--secondary-foreground);line-height:1.6;margin:0"><strong>核心理念：</strong>学习不发生在模型权重中，而是发生在外部技能代码的迭代重写中。</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Stats Board -->
+  <div style="margin-top:2.5rem">
+    <h2 style="font-size:1.25rem;font-weight:600;margin-bottom:1rem">运行状态</h2>
+    <div class="evol-stats">
+      <div class="evol-stat-card">
+        <div class="evol-stat-value">${escHtml(String(s.total_rounds || 0))}</div>
+        <div class="evol-stat-label">进化轮数</div>
+      </div>
+      <div class="evol-stat-card">
+        <div class="evol-stat-value">${escHtml(String(s.evolved_skills || 0))}</div>
+        <div class="evol-stat-label">进化技能数</div>
+      </div>
+      <div class="evol-stat-card">
+        <div class="evol-stat-value">${escHtml(improvement)}</div>
+        <div class="evol-stat-label">成功率提升</div>
+        <div class="evol-stat-sub">${escHtml(Math.round((s.original_accuracy || 0) * 100) + '% → ' + Math.round((s.improved_accuracy || 0) * 100) + '%')}</div>
+      </div>
+      <div class="evol-stat-card">
+        <div class="evol-stat-value">${escHtml(String(s.running_instances || 0))}</div>
+        <div class="evol-stat-label">运行实例</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Auto-scroll Log -->
+  <div style="margin-top:2.5rem">
+    <h2 style="font-size:1.25rem;font-weight:600;margin-bottom:1rem">实时日志</h2>
+    <div class="evol-log-wrapper" id="evol-log-wrapper">
+      <div class="evol-log-track" id="evol-log-track">
+        ${logItems}
+        ${logItems}
+      </div>
+    </div>
+  </div>
+</div>`;
+  }
+
+  function bindEvolutionEvents() {
+    // Log auto-scroll pause on hover is handled purely via CSS
+    // (.evol-log-track:hover { animation-play-state: paused })
   }
 
   function renderNotFound(type) {
