@@ -213,7 +213,7 @@ function collectAgents() {
 function writeSkillsJson(skills) {
   ensureDir(DATA_DIR);
   const dest = path.join(DATA_DIR, 'skills.json');
-  fs.writeFileSync(dest, JSON.stringify(skills, null, 2), 'utf8');
+  fs.writeFileSync(dest, JSON.stringify(skills, null, 2) + '\n', 'utf8');
   console.log(`✓ docs/data/skills.json — ${skills.length} skill(s)`);
   skills.forEach(s => console.log(`   · ${s.slug} [${s.risk_level}]`));
 }
@@ -222,7 +222,7 @@ function writeSkillsJson(skills) {
 function writeHarnessesJson(harnesses) {
   ensureDir(DATA_DIR);
   const dest = path.join(DATA_DIR, 'harnesses.json');
-  fs.writeFileSync(dest, JSON.stringify(harnesses, null, 2), 'utf8');
+  fs.writeFileSync(dest, JSON.stringify(harnesses, null, 2) + '\n', 'utf8');
   console.log(`✓ docs/data/harnesses.json — ${harnesses.length} harness(es)`);
   harnesses.forEach(h => console.log(`   · ${h.slug} [${h.env_type}]`));
 }
@@ -231,7 +231,7 @@ function writeHarnessesJson(harnesses) {
 function writeAgentsJson(agents) {
   ensureDir(DATA_DIR);
   const dest = path.join(DATA_DIR, 'agents.json');
-  fs.writeFileSync(dest, JSON.stringify(agents, null, 2), 'utf8');
+  fs.writeFileSync(dest, JSON.stringify(agents, null, 2) + '\n', 'utf8');
   console.log(`✓ docs/data/agents.json — ${agents.length} agent(s)`);
   agents.forEach(a => console.log(`   · ${a.slug}`));
 }
