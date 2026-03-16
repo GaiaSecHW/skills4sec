@@ -337,6 +337,21 @@
     <div class="skills-grid">${popular.map(s => skillCard(s, 'large')).join('')}</div>
   </section>` : ''}
 
+  ${AGENTS.length ? `
+  <section class="section" style="padding:3rem 0 2rem">
+    <div class="section-header">
+      <div>
+        <h2>精选原子智能体</h2>
+        <p>开箱即用的 AI 智能体，内置系统提示词与工具配置</p>
+      </div>
+      <a class="section-link" data-href="#agents">
+        查看全部
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14m-7-7 7 7-7 7"/></svg>
+      </a>
+    </div>
+    <div class="skills-grid cols-4">${AGENTS.slice(0, 4).map(a => agentCard(a)).join('')}</div>
+  </section>` : ''}
+
   ${HARNESSES.length ? `
   <section class="section" style="padding:3rem 0 2rem">
     <div class="section-header">
@@ -350,21 +365,6 @@
       </a>
     </div>
     <div class="skills-grid cols-4">${HARNESSES.slice(0, 4).map(h => harnessCard(h)).join('')}</div>
-  </section>` : ''}
-
-  ${AGENTS.length ? `
-  <section class="section" style="padding:3rem 0 2rem">
-    <div class="section-header">
-      <div>
-        <h2>精选智能体</h2>
-        <p>开箱即用的 AI 智能体，内置系统提示词与工具配置</p>
-      </div>
-      <a class="section-link" data-href="#agents">
-        查看全部
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14m-7-7 7 7-7 7"/></svg>
-      </a>
-    </div>
-    <div class="skills-grid cols-4">${AGENTS.slice(0, 4).map(a => agentCard(a)).join('')}</div>
   </section>` : ''}
 
   <section class="${featured.length ? 'section ' : ''}" style="padding:3rem 0 2rem">
