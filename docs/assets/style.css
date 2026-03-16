@@ -119,6 +119,10 @@ input { font: inherit; }
 }
 .nav-link:hover { background: var(--muted); color: var(--foreground); }
 .nav-link.active { color: var(--accent-foreground); background: var(--accent-bg); }
+.nav-link-submit { background: var(--warning-bg); color: var(--warning); }
+.nav-link-submit:hover { background: #fde68a; color: var(--warning); }
+.nav-link-evolution { background: var(--success-bg); color: var(--success); }
+.nav-link-evolution:hover { background: #bbf7d0; color: var(--success); }
 .nav-right { display: flex; align-items: center; gap: 0.5rem; }
 .nav-github {
   display: none; align-items: center; gap: 0.375rem;
