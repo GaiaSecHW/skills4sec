@@ -60,6 +60,7 @@ docs/index.html           ← SPA Shell（导航、页脚、容器）
     └── assets/app.js      ← 客户端 SPA（Hash 路由 + 渲染 + 事件）
                 │
                 ├── data/skills.json    ← 构建时生成（skill-report.json 汇总）
+                ├── data/agents.json   ← 构建时生成
                 └── data/harnesses.json ← 构建时生成（harness-report.json 汇总）
 ```
 

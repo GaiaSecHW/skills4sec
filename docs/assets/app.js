@@ -287,10 +287,10 @@
     <div class="hero-content">
       <div style="display:inline-flex;align-items:center;gap:.5rem;padding:.375rem .75rem;border-radius:9999px;background:var(--accent-bg);color:var(--accent-foreground);font-size:.75rem;font-weight:600;margin-bottom:1rem">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-        技能市场
+        SecAgentHub
       </div>
-      <h1>发现 <span class="gradient-text">AI 技能</span><br>扩展你的智能体</h1>
-      <p>浏览精选的 Claude Code、Codex 等 AI 工具技能库，每个技能均经过安全审计。</p>
+      <h1>构建更强大的 <span class="gradient-text">AI for ICSL安全应用</span></h1>
+      <p>技能(Skills) · 运行时(Harness) · 原子智能体(Agent)，一站式发现与接入</p>
       <div class="search-box">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
         <input type="text" id="hero-search" placeholder="搜索技能…" autocomplete="off">
@@ -298,7 +298,7 @@
       <div class="category-pills" id="category-pills">${catPills}</div>
       <div class="hero-cta-btns">
         <a class="hero-cta-btn" data-href="#browse">⚡ 浏览技能</a>
-        <a class="hero-cta-btn hero-cta-btn-alt" data-href="#harnesses">🖥 浏览环境</a>
+        <a class="hero-cta-btn hero-cta-btn-alt" data-href="#harnesses">🖥 浏览运行时</a>
         <a class="hero-cta-btn hero-cta-btn-alt" data-href="#agents">🤖 浏览智能体</a>
         <a class="hero-cta-btn hero-cta-btn-ghost" data-href="#submit">+ 提交技能</a>
       </div>
@@ -341,8 +341,8 @@
   <section class="section" style="padding:3rem 0 2rem">
     <div class="section-header">
       <div>
-        <h2>精选环境</h2>
-        <p>经过验证的 Agent 运行环境，镜像与 SSH 类型均可一键接入</p>
+        <h2>精选运行时</h2>
+        <p>经过验证的 Agent 运行时（Harness），镜像与 SSH 类型均可一键接入</p>
       </div>
       <a class="section-link" data-href="#harnesses">
         查看全部
@@ -370,7 +370,7 @@
   <section class="${featured.length ? 'section ' : ''}" style="padding:3rem 0 2rem">
     <div class="section-header" style="margin-bottom:2rem">
       <div>
-        <h2>为什么选择 Skills4Sec？</h2>
+        <h2>为什么选择 SecAgentHub？</h2>
         <p>构建更安全、更智能的 AI 工作流</p>
       </div>
     </div>
@@ -748,10 +748,10 @@
   <aside class="browse-sidebar">
     <div class="sidebar-search">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-      <input type="text" id="h-search" placeholder="搜索环境…" autocomplete="off">
+      <input type="text" id="h-search" placeholder="搜索运行时…" autocomplete="off">
     </div>
     <div class="sidebar-section">
-      <p class="sidebar-title">环境类型</p>
+      <p class="sidebar-title">运行时类型</p>
       <div class="sidebar-item active" data-h-type="all">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
         <span>全部</span>
@@ -761,12 +761,12 @@
   </aside>
   <div class="browse-main" style="padding:1.5rem 0 4rem">
     <div class="browse-header">
-      <span class="browse-count" id="h-count">${HARNESSES.length} 个环境</span>
+      <span class="browse-count" id="h-count">${HARNESSES.length} 个运行时</span>
     </div>
     <div class="skills-grid" id="h-grid">
       ${HARNESSES.map(h => harnessCard(h)).join('')}
     </div>
-    <p id="h-empty" class="text-center text-muted" style="display:none;padding:3rem 0">没有找到匹配的环境</p>
+    <p id="h-empty" class="text-center text-muted" style="display:none;padding:3rem 0">没有找到匹配的运行时</p>
   </div>
 </div>`;
   }
@@ -810,7 +810,7 @@
       const count = document.getElementById('h-count');
       if (grid)  grid.innerHTML = filtered.map(h => harnessCard(h)).join('');
       if (empty) empty.style.display = filtered.length ? 'none' : 'block';
-      if (count) count.textContent = filtered.length + ' 个环境';
+      if (count) count.textContent = filtered.length + ' 个运行时';
     }
   }
 
@@ -834,7 +834,7 @@
   <nav class="breadcrumb" aria-label="面包屑">
     <a data-href="#">首页</a>
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
-    <a data-href="#harnesses">环境</a>
+    <a data-href="#harnesses">运行时</a>
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
     <span>${escHtml(h.name)}</span>
   </nav>
@@ -861,7 +861,7 @@
   <div style="display:grid;grid-template-columns:1fr;gap:1.5rem">
     ${caps ? `
     <div class="install-steps">
-      <h2 class="font-semibold" style="margin-bottom:1rem">环境能力</h2>
+      <h2 class="font-semibold" style="margin-bottom:1rem">运行时能力</h2>
       <ul style="padding-left:1.25rem;color:var(--secondary-foreground)">${caps}</ul>
     </div>` : ''}
     ${uses ? `
@@ -1027,7 +1027,7 @@
       提交技能
     </div>
     <h1 style="font-size:2rem;font-weight:700;margin-bottom:.75rem">分享你的 <span class="gradient-text">AI 技能</span></h1>
-    <p class="text-muted">将你开发的技能提交到 Skills4Sec，让更多人受益。</p>
+    <p class="text-muted">将你开发的技能提交到 SecAgentHub，让更多人受益。</p>
   </div>
 
   <div class="submit-steps">
@@ -1049,7 +1049,7 @@
       <div class="submit-step-num">3</div>
       <div>
         <h3>等待审核合并</h3>
-        <p class="text-sm text-muted">维护者审核通过后，技能将出现在 Skills4Sec 平台，并自动进行安全评级。</p>
+        <p class="text-sm text-muted">维护者审核通过后，技能将出现在 SecAgentHub 平台，并自动进行安全评级。</p>
       </div>
     </div>
   </div>
@@ -1286,7 +1286,7 @@
   function renderNotFound(type) {
     const isHarness = type === 'harness';
     const isAgent   = type === 'agent';
-    const label    = isHarness ? '环境' : isAgent ? '智能体' : '技能';
+    const label    = isHarness ? '运行时' : isAgent ? '智能体' : '技能';
     const backHref = isHarness ? '#harnesses' : isAgent ? '#agents' : '#browse';
     return `<div style="text-align:center;padding:8rem 1rem">
       <p style="font-size:4rem;margin-bottom:1rem">🔍</p>
