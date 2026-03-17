@@ -1346,4 +1346,227 @@
       }
     });
   }
+
+  /* ===================== AUTH MODULE ===================== */
+  const API_BASE = 'http://localhost:8000/api/auth';
+  let currentUser = null;
+
+  // Check for existing token on load
+  function initAuth() {
+    const token = localStorage.getItem('access_token');
+    if (token) {
+      fetchCurrentUser(token);
+    }
+    updateAuthUI();
+    bindAuthEvents();
+  }
+
+  async function fetchCurrentUser(token) {
+    try {
+      const res = await fetch(API_BASE + '/me', {
+        headers: { 'Authorization': 'Bearer ' + token }
+      });
+      if (res.ok) {
+        currentUser = await res.json();
+        updateAuthUI();
+      } else {
+        // Token invalid, clear it
+        localStorage.removeItem('access_token');
+        currentUser = null;
+        updateAuthUI();
+      }
+    } catch (e) {
+      console.error('Failed to fetch user:', e);
+    }
+  }
+
+  function updateAuthUI() {
+    const loggedOut = document.getElementById('auth-logged-out');
+    const loggedIn = document.getElementById('auth-logged-in');
+    const avatarText = document.getElementById('user-avatar-text');
+    const displayName = document.getElementById('user-display-name');
+    const userEmail = document.getElementById('user-email');
+
+    if (currentUser) {
+      loggedOut.style.display = 'none';
+      loggedIn.style.display = 'flex';
+      if (avatarText) avatarText.textContent = currentUser.username.charAt(0).toUpperCase();
+      if (displayName) displayName.textContent = currentUser.username;
+      if (userEmail) userEmail.textContent = currentUser.email;
+    } else {
+      loggedOut.style.display = 'flex';
+      loggedIn.style.display = 'none';
+    }
+  }
+
+  function bindAuthEvents() {
+    // Login button
+    const loginBtn = document.getElementById('login-btn');
+    if (loginBtn) {
+      loginBtn.addEventListener('click', () => showAuthModal('login'));
+    }
+
+    // Register button
+    const registerBtn = document.getElementById('register-btn');
+    if (registerBtn) {
+      registerBtn.addEventListener('click', () => showAuthModal('register'));
+    }
+
+    // Modal close
+    const modalClose = document.getElementById('modal-close');
+    const modal = document.getElementById('auth-modal');
+    const backdrop = modal ? modal.querySelector('.modal-backdrop') : null;
+    if (modalClose) {
+      modalClose.addEventListener('click', hideAuthModal);
+    }
+    if (backdrop) {
+      backdrop.addEventListener('click', hideAuthModal);
+    }
+
+    // Switch between login/register
+    const switchToRegister = document.getElementById('switch-to-register');
+    const switchToLogin = document.getElementById('switch-to-login');
+    if (switchToRegister) {
+      switchToRegister.addEventListener('click', (e) => {
+        e.preventDefault();
+        showAuthModal('register');
+      });
+    }
+    if (switchToLogin) {
+      switchToLogin.addEventListener('click', (e) => {
+        e.preventDefault();
+        showAuthModal('login');
+      });
+    }
+
+    // Login form
+    const loginForm = document.getElementById('login-form');
+    if (loginForm) {
+      loginForm.addEventListener('submit', handleLogin);
+    }
+
+    // Register form
+    const registerForm = document.getElementById('register-form');
+    if (registerForm) {
+      registerForm.addEventListener('submit', handleRegister);
+    }
+
+    // User dropdown
+    const userMenuBtn = document.getElementById('user-menu-btn');
+    const userDropdown = document.getElementById('user-dropdown');
+    if (userMenuBtn && userDropdown) {
+      userMenuBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        userDropdown.style.display = userDropdown.style.display === 'none' ? 'block' : 'none';
+      });
+      document.addEventListener('click', () => {
+        userDropdown.style.display = 'none';
+      });
+    }
+
+    // Logout
+    const logoutBtn = document.getElementById('logout-btn');
+    if (logoutBtn) {
+      logoutBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        handleLogout();
+      });
+    }
+  }
+
+  function showAuthModal(type) {
+    const modal = document.getElementById('auth-modal');
+    const loginContainer = document.getElementById('login-form-container');
+    const registerContainer = document.getElementById('register-form-container');
+    const loginError = document.getElementById('login-error');
+    const registerError = document.getElementById('register-error');
+
+    if (modal) modal.style.display = 'flex';
+    if (type === 'login') {
+      if (loginContainer) loginContainer.style.display = 'block';
+      if (registerContainer) registerContainer.style.display = 'none';
+    } else {
+      if (loginContainer) loginContainer.style.display = 'none';
+      if (registerContainer) registerContainer.style.display = 'block';
+    }
+    if (loginError) loginError.style.display = 'none';
+    if (registerError) registerError.style.display = 'none';
+  }
+
+  function hideAuthModal() {
+    const modal = document.getElementById('auth-modal');
+    if (modal) modal.style.display = 'none';
+  }
+
+  async function handleLogin(e) {
+    e.preventDefault();
+    const username = document.getElementById('login-username').value;
+    const password = document.getElementById('login-password').value;
+    const errorEl = document.getElementById('login-error');
+
+    try {
+      const res = await fetch(API_BASE + '/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        localStorage.setItem('access_token', data.access_token);
+        await fetchCurrentUser(data.access_token);
+        hideAuthModal();
+        showToast('登录成功');
+        document.getElementById('login-form').reset();
+      } else {
+        const err = await res.json();
+        errorEl.textContent = err.detail || '登录失败，请检查用户名和密码';
+        errorEl.style.display = 'block';
+      }
+    } catch (e) {
+      errorEl.textContent = '网络错误，请稍后重试';
+      errorEl.style.display = 'block';
+    }
+  }
+
+  async function handleRegister(e) {
+    e.preventDefault();
+    const username = document.getElementById('register-username').value;
+    const email = document.getElementById('register-email').value;
+    const password = document.getElementById('register-password').value;
+    const errorEl = document.getElementById('register-error');
+
+    try {
+      const res = await fetch(API_BASE + '/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, email, password })
+      });
+
+      if (res.ok || res.status === 201) {
+        showToast('注册成功，请登录');
+        showAuthModal('login');
+        document.getElementById('register-form').reset();
+        // Pre-fill username
+        document.getElementById('login-username').value = username;
+      } else {
+        const err = await res.json();
+        errorEl.textContent = err.detail || '注册失败';
+        errorEl.style.display = 'block';
+      }
+    } catch (e) {
+      errorEl.textContent = '网络错误，请稍后重试';
+      errorEl.style.display = 'block';
+    }
+  }
+
+  function handleLogout() {
+    localStorage.removeItem('access_token');
+    currentUser = null;
+    updateAuthUI();
+    showToast('已退出登录');
+  }
+
+  // Initialize auth on page load
+  initAuth();
 })();
