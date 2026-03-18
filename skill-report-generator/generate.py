@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 """
 Skill Report Generator - 手工生成 skill-report.json
 
@@ -14,6 +15,11 @@ import json
 import os
 import re
 import sys
+
+# 修复 Windows 控制台编码问题
+if sys.platform == 'win32':
+    sys.stdout.reconfigure(encoding='utf-8')
+    sys.stderr.reconfigure(encoding='utf-8')
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from pathlib import Path
@@ -435,17 +441,33 @@ Skill 名称: {skill_data.get('name', 'Unknown')}
 
     for attempt in range(retry + 1):
         try:
-            response = client.chat.completions.create(
+            # 使用流式输出显示模型执行过程
+            console.print(f"[cyan]🔄 模型思考中...[/cyan]")
+
+            stream = client.chat.completions.create(
                 model=model,
                 messages=[
                     {"role": "system", "content": "You are a technical documentation expert. Generate structured JSON content for skill reports. Always respond with valid JSON only, no markdown formatting."},
                     {"role": "user", "content": prompt}
                 ],
                 temperature=0.7,
-                max_tokens=3000
+                max_tokens=3000,
+                stream=True  # 启用流式输出
             )
 
-            content_text = response.choices[0].message.content.strip()
+            # 实时显示模型输出
+            content_chunks = []
+            with console.status("[bold green]生成中...[/bold green]", spinner="dots") as status:
+                for chunk in stream:
+                    if chunk.choices[0].delta.content:
+                        text = chunk.choices[0].delta.content
+                        content_chunks.append(text)
+                        # 实时打印输出（可选）
+                        if verbose:
+                            console.print(text, end="", style="dim")
+
+            console.print()  # 换行
+            content_text = "".join(content_chunks).strip()
 
             # 清理可能的 markdown 代码块
             if content_text.startswith("```"):
@@ -682,7 +704,7 @@ def main():
             if args.dry_run:
                 console.print(f"\n[yellow]DRY RUN - Would write to: {skill_dir / 'skill-report.json'}[/yellow]")
                 if args.verbose:
-                    console.print_json(report)
+                    console.print_json(json.dumps(report, indent=2, ensure_ascii=False))
             else:
                 if output_dir:
                     rel_path = skill_dir.name
