@@ -1,0 +1,7 @@
+{
+  "tool_name": "Bash",
+  "tool_input_preview": "{\"command\":\"cd \\\"D:/work/skillhub/marketplace-main/skill-report-generator\\\" && \\\"C:/Users/Will/AppData/Local/Python/bin/python.exe\\\" generate.py --input \\\"../skills/0xbigboss/python-best-practices\\\" -...",
+  "error": "Exit code 1\n\r\nSkill Report Generator\r\n\r\nFound 1 skill(s)\r\n\r\n\r\nProcessing: ..\\skills\\0xbigboss\\python-best-practices\r\nCalling AI model: REDACTED_MODEL_ID\r\n\r\nTraceback (most recent call last):\r\n  File \"D:\\work\\skillhub\\marketplace-main\\skill-report-generator\\generate.py\", line 710, in <module>\r\n    main()\r\n    ~~~~^^\r\n  File \"D:\\work\\skillhub\\marketplace-main\\skill-report-generator\\generate.py\", line 697, in main\r\n    console.print(f\"[green]\\u2713 Generated: {out_path}[/green]\")\r\n    ~~~~~~~...",
+  "timestamp": "2026-03-18T07:25:27.980Z",
+  "retry_count": 1
+}
