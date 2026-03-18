@@ -1,0 +1,177 @@
+{
+  "schema_version": "2.0",
+  "meta": {
+    "generated_at": "2026-03-18T07:38:09.515Z",
+    "slug": "unknown-intercom-automation",
+    "source_url": "https://github.com/unknown/skills/tree/main/intercom-automation",
+    "source_ref": "main",
+    "model": "ep-20260210173421-9vsg8",
+    "analysis_version": "1.0.0",
+    "source_type": "community",
+    "content_hash": "52a0983bd6a2f1d8a92b0524dc1df6a72bc1007c6dd406f5e94f990bb61a3d1c",
+    "tree_hash": "8242878d91d19c50158bf7ebd834e72809d8a4fdd76af4b668a2c79a792c4bc9"
+  },
+  "skill": {
+    "name": "intercom-automation",
+    "description": "\"Automate Intercom tasks via Rube MCP (Composio): conversations, contacts, companies, segments, admins. Always search tools first for current schemas.\"",
+    "summary": "\"Automate Intercom tasks via Rube MCP (Composio): conversations, contacts, companies, segments, admi...",
+    "icon": "📦",
+    "version": "1.0.0",
+    "author": "unknown",
+    "license": "MIT",
+    "category": "coding",
+    "tags": [],
+    "supported_tools": [
+      "claude",
+      "codex",
+      "claude-code"
+    ],
+    "risk_factors": [
+      "network"
+    ]
+  },
+  "security_audit": {
+    "risk_level": "low",
+    "is_blocked": false,
+    "safe_to_publish": true,
+    "summary": "This skill has low-risk features: network. No dangerous patterns detected.",
+    "risk_factor_evidence": [
+      {
+        "factor": "network",
+        "evidence": [
+          {
+            "file": "SKILL.md",
+            "line_start": 20,
+            "line_end": 20
+          }
+        ]
+      }
+    ],
+    "critical_findings": [],
+    "high_findings": [],
+    "medium_findings": [],
+    "low_findings": [],
+    "dangerous_patterns": [],
+    "files_scanned": 2,
+    "total_lines": 434,
+    "audit_model": "ep-20260210173421-9vsg8",
+    "audited_at": "2026-03-18T07:38:09.515Z"
+  },
+  "content": {
+    "user_title": "Automate Intercom Workflows via Rube MCP",
+    "value_statement": "This skill enables seamless automation of Intercom tasks—managing conversations, contacts, and admins—directly through Rube MCP. It streamlines support workflows by allowing programmatic control over Intercom's API without manual coding, ensuring efficient customer engagement and data management.",
+    "seo_keywords": [
+      "Intercom automation",
+      "Rube MCP",
+      "Composio",
+      "Customer support workflow",
+      "Intercom API",
+      "Conversation management"
+    ],
+    "actual_capabilities": [
+      "Create, search, and list conversations",
+      "Reply to conversations and manage state (close/reopen)",
+      "Assign conversations to specific admins or teams",
+      "Search, retrieve, and manage contacts (users and leads)",
+      "List workspace admins and teams",
+      "Retrieve contact tags and segments"
+    ],
+    "limitations": [
+      "Requires active Intercom OAuth connection via Rube MCP",
+      "Search functions use structured query objects, not free-text search",
+      "Admin IDs are mandatory for replies, assignments, and state changes",
+      "Listing contacts requires handling pagination cursors",
+      "External IDs are case-sensitive"
+    ],
+    "use_cases": [
+      {
+        "target_user": "Customer Support Managers",
+        "title": "Automated Ticket Triage",
+        "description": "Automatically search for open conversations based on specific criteria and assign them to the appropriate support admin or team."
+      },
+      {
+        "target_user": "Sales Representatives",
+        "title": "Lead Lookup and Engagement",
+        "description": "Quickly search for contacts by external ID or email to view their segments and initiate new conversation threads."
+      },
+      {
+        "target_user": "System Integrators",
+        "title": "Bulk Data Synchronization",
+        "description": "List all contacts or admins to synchronize Intercom data with external CRM systems or databases."
+      }
+    ],
+    "prompt_templates": [
+      {
+        "title": "Search Open Conversations",
+        "scenario": "Finding unassigned tickets",
+        "prompt": "Use INTERCOM_SEARCH_CONVERSATIONS to find all open conversations where the assignee_id is null and return the first 5 results."
+      },
+      {
+        "title": "Reply to Customer",
+        "scenario": "Sending a support response",
+        "prompt": "Reply to conversation ID 12345 with the message 'Your ticket has been received' using admin_id 998877. Set the message_type to 'comment'."
+      },
+      {
+        "title": "Find Contact by Email",
+        "scenario": "Looking up a user",
+        "prompt": "Search for a contact where the email field equals 'example@domain.com' and return their contact ID and attached tags."
+      }
+    ],
+    "output_examples": [
+      {
+        "input": "List all admins",
+        "output": [
+          "Admin ID: 123, Name: Alice Support",
+          "Admin ID: 456, Name: Bob Sales"
+        ]
+      },
+      {
+        "input": "Create conversation for user 789",
+        "output": [
+          "Conversation created successfully",
+          "Conversation ID: 987654321",
+          "State: open"
+        ]
+      }
+    ],
+    "best_practices": [
+      "Always call RUBE_SEARCH_TOOLS first to verify current tool schemas",
+      "Fetch admin IDs using LIST_ALL_ADMINS before performing assignments or replies",
+      "Use structured query objects ({field, operator, value}) for searches instead of free text",
+      "Implement idempotency checks to prevent duplicate sends on retries"
+    ],
+    "anti_patterns": [
+      "Attempting to create a conversation with an admin as the 'from' field (must be user/lead)",
+      "Using free-text strings in search queries instead of structured filter objects",
+      "Forgetting to include the admin_id when closing, reopening, or assigning conversations"
+    ],
+    "faq": [
+      {
+        "question": "How do I authenticate Intercom?",
+        "answer": "Add the Rube MCP server endpoint, then call RUBE_MANAGE_CONNECTIONS with toolkit 'intercom' and follow the OAuth link provided."
+      },
+      {
+        "question": "Why is my search returning no results?",
+        "answer": "Ensure you are using a structured query object with 'field', 'operator', and 'value', rather than a simple text string."
+      },
+      {
+        "question": "Can I add internal notes to a conversation?",
+        "answer": "Yes, use the INTERCOM_REPLY_TO_CONVERSATION tool and set the message_type parameter to 'note'."
+      }
+    ]
+  },
+  "file_structure": [
+    {
+      "name": "skill-report.json",
+      "type": "file",
+      "path": "skill-report.json",
+      "lines": 186
+    },
+    {
+      "name": "SKILL.md",
+      "type": "file",
+      "path": "SKILL.md",
+      "lines": 248
+    }
+  ]
+}
