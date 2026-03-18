@@ -678,7 +678,7 @@ def generate_report(skill_dir: Path, config: dict, verbose: bool = False) -> dic
     file_structure = scan_file_structure(skill_dir)
 
     # 3. 安全审计（支持 AI 模式）
-    use_ai_security = config.get("security", {}).get("use_ai_audit", False)
+    use_ai_security = config.get("security", {}).get("use_ai_audit", True)  # 默认启用 AI 审计
     if use_ai_security:
         try:
             security_audit = analyze_security_with_ai(skill_dir, skill_data, config, verbose)
