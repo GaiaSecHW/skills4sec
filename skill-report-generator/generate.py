@@ -207,6 +207,148 @@ def scan_file_structure(skill_dir: Path) -> list[dict]:
 # 安全审计
 # ============================================================================
 
+def analyze_security_with_ai(skill_dir: Path, skill_data: dict, config: dict, verbose: bool = False) -> dict:
+    """使用 AI 进行智能安全审计"""
+    api_config = config.get("api", {})
+    base_url = api_config.get("base_url", "https://api.openai.com/v1")
+    api_key = api_config.get("api_key", "")
+    model = api_config.get("model", "gpt-4o")
+    timeout = api_config.get("timeout", 120)
+
+    # 处理环境变量
+    if api_key.startswith("${") and api_key.endswith("}"):
+        env_var = api_key[2:-1]
+        api_key = os.environ.get(env_var, "")
+
+    if not api_key:
+        raise ValueError("API key not configured for security audit")
+
+    client = OpenAI(base_url=base_url, api_key=api_key, timeout=timeout)
+
+    # 收集所有代码文件内容
+    code_files = {}
+    for file_path in skill_dir.rglob("*"):
+        if not file_path.is_file():
+            continue
+        if file_path.name.startswith('.') or file_path.name == 'skill-report.json':
+            continue
+        ext = file_path.suffix.lower()
+        if ext in ['.py', '.js', '.ts', '.sh', '.ps1', '.bat', '.mjs']:
+            try:
+                content = file_path.read_text(encoding='utf-8')
+                relative_file = str(file_path.relative_to(skill_dir))
+                code_files[relative_file] = content[:3000]  # 限制每个文件大小
+            except:
+                pass
+
+    # 统计文件数和行数
+    files_scanned = 0
+    total_lines = 0
+    for f in skill_dir.rglob("*"):
+        if f.is_file() and not f.name.startswith('.'):
+            files_scanned += 1
+            try:
+                total_lines += len(f.read_text(encoding='utf-8').splitlines())
+            except:
+                pass
+
+    if not code_files:
+        return {
+            "risk_level": "safe",
+            "is_blocked": False,
+            "safe_to_publish": True,
+            "summary": "No executable code files found. This skill contains only documentation.",
+            "risk_factors": [],
+            "risk_factor_evidence": [],
+            "critical_findings": [],
+            "high_findings": [],
+            "medium_findings": [],
+            "low_findings": [],
+            "dangerous_patterns": [],
+            "files_scanned": files_scanned,
+            "total_lines": total_lines,
+        }
+
+    # 构建 AI 安全审计 prompt
+    code_content = "\n\n".join([f"=== {f} ===\n{c}" for f, c in code_files.items()])
+
+    prompt = f"""你是一个专业的安全审计专家。请对以下技能代码进行全面的安全审计。
+
+技能名称: {skill_data.get('name', 'Unknown')}
+技能描述: {skill_data.get('description', '')}
+
+代码文件:
+{code_content[:10000]}
+
+请分析以下安全风险维度：
+1. 代码执行风险 (eval, exec, subprocess等)
+2. 网络访问风险 (HTTP请求, WebSocket等)
+3. 文件系统风险 (读写文件, 删除等)
+4. 环境变量访问风险 (读取密钥, 配置等)
+5. 外部命令执行风险 (shell命令等)
+
+请以 JSON 格式返回审计结果（只输出 JSON，不要包含 markdown 代码块）：
+{{
+  "risk_level": "safe|low|medium|high|critical",
+  "is_blocked": true|false,
+  "safe_to_publish": true|false,
+  "summary": "100-200字的安全审计摘要",
+  "risk_factors": ["scripts", "network", "filesystem", "env_access", "external_commands"],
+  "critical_findings": [
+    {{"title": "发现标题", "description": "详细描述", "locations": [{{"file": "文件路径", "line_start": 1, "line_end": 5}}]}}
+  ],
+  "high_findings": [],
+  "medium_findings": [],
+  "low_findings": []
+}}"""
+
+    console.print(f"[cyan]🔒 AI安全审计中...[/cyan]")
+
+    try:
+        stream = client.chat.completions.create(
+            model=model,
+            messages=[
+                {"role": "system", "content": "You are a security expert. Analyze code for security risks and return structured JSON. Always respond with valid JSON only."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.3,
+            max_tokens=2000,
+            stream=True
+        )
+
+        content_chunks = []
+        with console.status("[bold green]AI分析中...[/bold green]", spinner="dots"):
+            for chunk in stream:
+                if chunk.choices[0].delta.content:
+                    content_chunks.append(chunk.choices[0].delta.content)
+
+        content_text = "".join(content_chunks).strip()
+
+        # 清理 markdown 代码块
+        if content_text.startswith("```"):
+            content_text = re.sub(r'^```(?:json)?\s*\n', '', content_text)
+            content_text = re.sub(r'\n```\s*$', '', content_text)
+
+        result = json.loads(content_text)
+
+        # 添加审计元数据
+        result["files_scanned"] = files_scanned
+        result["total_lines"] = total_lines
+        result["audit_model"] = model
+        result["audited_at"] = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z"
+        result["dangerous_patterns"] = []
+
+        # 确保必要字段存在
+        if "risk_factor_evidence" not in result:
+            result["risk_factor_evidence"] = []
+
+        return result
+
+    except Exception as e:
+        console.print(f"[yellow]AI安全审计失败，回退到规则匹配: {e}[/yellow]")
+        return analyze_security(skill_dir, config)
+
+
 def analyze_security(skill_dir: Path, config: dict) -> dict:
     """安全审计 - 规则匹配"""
     risk_factors = []
@@ -535,8 +677,17 @@ def generate_report(skill_dir: Path, config: dict, verbose: bool = False) -> dic
     # 2. 扫描文件结构
     file_structure = scan_file_structure(skill_dir)
 
-    # 3. 安全审计
-    security_audit = analyze_security(skill_dir, config)
+    # 3. 安全审计（支持 AI 模式）
+    use_ai_security = config.get("security", {}).get("use_ai_audit", False)
+    if use_ai_security:
+        try:
+            security_audit = analyze_security_with_ai(skill_dir, skill_data, config, verbose)
+        except Exception as e:
+            if verbose:
+                console.print(f"[yellow]AI安全审计失败，使用规则匹配: {e}[/yellow]")
+            security_audit = analyze_security(skill_dir, config)
+    else:
+        security_audit = analyze_security(skill_dir, config)
 
     # 4. AI 生成内容
     ai_content = generate_content_with_ai(skill_data, file_structure, config, verbose)
