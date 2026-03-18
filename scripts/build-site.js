@@ -69,6 +69,7 @@ function collectSkills() {
     }
 
     skills.push({
+      _dir:              entry, // actual directory name for diff copying
       slug:              m.slug             || entry,
       name:              s.name,
       summary:           s.summary          || s.description || '',
@@ -228,7 +229,7 @@ function writeSkillsJson(skills) {
 function copyDiffs(skills) {
   for (const skill of skills) {
     if (!skill.diffs.length) continue;
-    const srcDir  = path.join(SKILLS_DIR, skill.slug, '.diff');
+    const srcDir  = path.join(SKILLS_DIR, skill._dir, '.diff');
     const destDir = path.join(DATA_DIR, 'diffs', skill.slug);
     ensureDir(destDir);
     for (const file of skill.diffs) {
