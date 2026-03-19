@@ -1266,14 +1266,13 @@
     <span>${title}</span>
   </nav>
 
+  ${dateStr || tags ? `
   <div class="blog-post-header">
-    <h1 class="blog-post-title">${title}</h1>
-    ${dateStr || tags ? `
     <div class="blog-post-meta">
       ${dateStr ? `<span class="blog-post-date">${escHtml(dateStr)}</span>` : ''}
       ${tags ? `<div class="blog-post-tags">${tags}</div>` : ''}
-    </div>` : ''}
-  </div>
+    </div>
+  </div>` : ''}
 
   <div id="blog-post-content" style="padding:2rem;border-radius:var(--radius-xl);border:1px solid var(--border);background:var(--card)">
     <p class="text-muted">加载中...</p>
