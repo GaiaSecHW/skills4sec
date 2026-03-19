@@ -1,0 +1,29 @@
+# docker-compose.runner.yml
+# Deploy Gitea Actions Runner
+#
+# Usage:
+#   1. Get registration token from Gitea UI (Site Admin > Actions > Runners)
+#   2. export REGISTRATION_TOKEN=your-token
+#   3. docker-compose -f docker-compose.runner.yml up -d
+
+version: "3"
+
+services:
+  act-runner:
+    image: gitea/act_runner:latest
+    container_name: gitea-act-runner
+    environment:
+      - GITEA_INSTANCE_URL=http://172.28.95.77:3000
+      - GITEA_RUNNER_REGISTRATION_TOKEN=${REGISTRATION_TOKEN}
+      - GITEA_RUNNER_NAME=gitea-runner-01
+    volumes:
+      - ./data/act_runner:/data
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./cache:/cache
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 512M

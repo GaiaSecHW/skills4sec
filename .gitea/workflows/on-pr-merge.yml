@@ -1,0 +1,111 @@
+# .gitea/workflows/on-pr-merge.yml
+# PR 合并后自动将 pending 目录的技能移动到 skills 目录
+name: On PR Merge - Approve Skill
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [main]
+
+env:
+  GITEA_API_URL: http://172.28.95.77:3000/api/v1
+
+jobs:
+  approve-skill:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout repository
+        env:
+          GITEA_TOKEN: ${{ secrets.GITEATOKEN }}
+        run: |
+          git clone http://oauth2:${GITEA_TOKEN}@172.28.95.77:3000/${{ github.repository }}.git .
+          git checkout main
+
+      - name: Find and move pending skills
+        env:
+          GITEA_TOKEN: ${{ secrets.GITEATOKEN }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          # Configure git
+          git config user.name "skillstore-bot"
+          git config user.email "bot@local"
+
+          # Find pending skills by looking for SKILL.md files
+          SKILL_PATHS=""
+          SKILL_NAMES=""
+
+          for skill_file in $(find pending -name "SKILL.md" 2>/dev/null); do
+            SKILL_DIR=$(dirname "$skill_file")
+            SKILL_PATHS="$SKILL_PATHS $SKILL_DIR"
+            NAME=$(basename "$SKILL_DIR")
+            SKILL_NAMES="$SKILL_NAMES /$NAME"
+          done
+
+          if [ -z "$SKILL_PATHS" ]; then
+            echo "No pending skills found to approve"
+            exit 0
+          fi
+
+          echo "Found pending skills:$SKILL_PATHS"
+
+          echo "=== Moving skills from pending to skills ==="
+          for PENDING_DIR in $SKILL_PATHS; do
+            if [ -d "$PENDING_DIR" ] && [ -f "$PENDING_DIR/SKILL.md" ]; then
+              # Extract author (org) from pending path: pending/author/skill-name -> author
+              AUTHOR=$(echo "$PENDING_DIR" | cut -d'/' -f2)
+              SKILL_NAME=$(basename "$PENDING_DIR")
+              TARGET_DIR="skills/$AUTHOR/$SKILL_NAME"
+
+              echo "Moving $PENDING_DIR to $TARGET_DIR"
+
+              mkdir -p "$(dirname "$TARGET_DIR")"
+
+              if [ -d "$TARGET_DIR" ]; then
+                rm -rf "$TARGET_DIR"
+              fi
+
+              mv "$PENDING_DIR" "$TARGET_DIR"
+            fi
+          done
+
+          echo "=== Committing and pushing ==="
+          git add -A
+
+          # Remove empty pending directory
+          if [ -d "pending" ] && [ -z "$(ls -A pending 2>/dev/null)" ]; then
+            rmdir pending 2>/dev/null || true
+            git add -A
+          fi
+
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Approve skills:$SKILL_NAMES"
+
+            # Push with retry for race conditions
+            for i in 1 2 3; do
+              if git push http://oauth2:${GITEA_TOKEN}@172.28.95.77:3000/${REPOSITORY}.git main; then
+                echo "✅ Successfully pushed to main"
+                break
+              fi
+              echo "Push failed, pulling latest and retrying ($i/3)..."
+              git pull --rebase http://oauth2:${GITEA_TOKEN}@172.28.95.77:3000/${REPOSITORY}.git main || {
+                git rebase --abort 2>/dev/null || true
+                git reset --hard origin/main
+              }
+              sleep 2
+            done
+          fi
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "## Skill Approval Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "PR #${{ github.event.pull_request.number }} merged by @${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Skills moved from \`pending/\` to \`skills/\` directory." >> $GITHUB_STEP_SUMMARY
