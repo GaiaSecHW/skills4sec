@@ -305,9 +305,9 @@
     <div class="hero-content">
       <div style="display:inline-flex;align-items:center;gap:.5rem;padding:.375rem .75rem;border-radius:9999px;background:var(--accent-bg);color:var(--accent-foreground);font-size:.75rem;font-weight:600;margin-bottom:1rem">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-        SecAgentHub
+        SecEvo
       </div>
-      <h1>构建更强大的 <span class="gradient-text">AI for ICSL安全应用</span></h1>
+      <h1>构建面向自我进化的<span class="gradient-text">AI for ICSL智能系统</span></h1>
       <p>技能(Skills) · 运行时(Harness) · 原子智能体(Agent)，一站式发现与接入</p>
       <div class="search-box">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
@@ -329,7 +329,7 @@
     <div class="section-header">
       <div>
         <h2>最新动态</h2>
-        <p>来自 SecAgentHub 生态的最新技能与更新</p>
+        <p>来自 SecEvo 生态的最新技能与更新</p>
       </div>
       <a class="section-link" data-href="#blog">
         查看博客
@@ -404,7 +404,7 @@
   <section class="${featured.length ? 'section ' : ''}" style="padding:3rem 0 2rem">
     <div class="section-header" style="margin-bottom:2rem">
       <div>
-        <h2>为什么选择 SecAgentHub？</h2>
+        <h2>为什么选择 SecEvo？</h2>
         <p>构建更安全、更智能的 AI 工作流</p>
       </div>
     </div>
@@ -1079,7 +1079,7 @@
       提交技能
     </div>
     <h1 style="font-size:2rem;font-weight:700;margin-bottom:.75rem">分享你的 <span class="gradient-text">AI 技能</span></h1>
-    <p class="text-muted">将你开发的技能提交到 SecAgentHub，让更多人受益。</p>
+    <p class="text-muted">将你开发的技能提交到 SecEvo，让更多人受益。</p>
   </div>
 
   <div class="submit-steps">
@@ -1101,7 +1101,7 @@
       <div class="submit-step-num">3</div>
       <div>
         <h3>等待审核合并</h3>
-        <p class="text-sm text-muted">维护者审核通过后，技能将出现在 SecAgentHub 平台，并自动进行安全评级。</p>
+        <p class="text-sm text-muted">维护者审核通过后，技能将出现在 SecEvo 平台，并自动进行安全评级。</p>
       </div>
     </div>
   </div>
