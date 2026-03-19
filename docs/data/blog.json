@@ -1,5 +1,13 @@
 [
   {
+    "slug": "secevo-intro",
+    "title": "SecEvo：构建面向自我进化的AI for ICSL智能系统",
+    "date": "2026-03-19",
+    "summary": "",
+    "file": "md/blog/secevo-intro.md",
+    "tags": ["SecEvo", "ICSL", "智能系统", "自我进化"]
+  },
+  {
     "slug": "secskill-evo-intro",
     "title": "secskill-evo：基于 Memento-S 的 Claude Code Skill 演化框架",
     "date": "2026-03-19",
