@@ -12,6 +12,7 @@
   let AGENTS    = [];
   let EVOL_SUMMARY = {};
   let EVOL_LOGS = [];
+  let BLOG_POSTS = [];
 
   /* ===================== ROUTER ===================== */
   function getRoute() {
@@ -26,6 +27,8 @@
     if (hash === 'submit') return { page: 'submit' };
     if (hash === 'schema-spec') return { page: 'schema-spec' };
     if (hash === 'evolution') return { page: 'evolution' };
+    if (hash === 'blog' || hash.startsWith('blog?')) return { page: 'blog' };
+    if (hash.startsWith('blog/')) return { page: 'blog-post', slug: hash.slice(5) };
     return { page: 'home' };
   }
 
@@ -43,7 +46,7 @@
 
   window.addEventListener('hashchange', render);
   window.addEventListener('load', function () {
-    Promise.all([loadSkills(), loadHarnesses(), loadAgents(), loadEvol()]).then(render);
+    Promise.all([loadSkills(), loadHarnesses(), loadAgents(), loadEvol(), loadBlog()]).then(render);
   });
 
   /* ===================== DATA LOADING ===================== */
@@ -80,6 +83,15 @@
     catch (e) { EVOL_SUMMARY = {}; }
     try { const r = await fetch('data/evol/logs.json'); EVOL_LOGS = await r.json(); }
     catch (e) { EVOL_LOGS = []; }
+  }
+
+  async function loadBlog() {
+    try {
+      const res = await fetch('data/blog.json');
+      BLOG_POSTS = await res.json();
+    } catch (e) {
+      BLOG_POSTS = [];
+    }
   }
 
   /* ===================== RENDER DISPATCH ===================== */
@@ -122,6 +134,11 @@
     } else if (route.page === 'evolution') {
       main.innerHTML = renderEvolutionPage();
       bindEvolutionEvents();
+    } else if (route.page === 'blog') {
+      main.innerHTML = renderBlogPage();
+    } else if (route.page === 'blog-post') {
+      main.innerHTML = renderBlogPostPage(route.slug);
+      loadBlogPostContent(route.slug);
     }
 
     window.scrollTo(0, 0);
@@ -135,6 +152,7 @@
       agents: 'agents', 'agent-detail': 'agents',
       submit: 'submit',
       evolution: 'evolution',
+      blog: 'blog', 'blog-post': 'blog',
     };
     const nav = navMap[page];
     if (nav) document.querySelector(`[data-nav="${nav}"]`)?.classList.add('active');
@@ -307,6 +325,22 @@
 </section>
 
 <div class="px-container max-w-7xl" style="padding-bottom:4rem">
+  <section class="update-module-section" style="padding:3rem 0 2rem">
+    <div class="section-header">
+      <div>
+        <h2>最新动态</h2>
+        <p>来自 SecAgentHub 生态的最新技能与更新</p>
+      </div>
+      <a class="section-link" data-href="#blog">
+        查看博客
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14m-7-7 7 7-7 7"/></svg>
+      </a>
+    </div>
+    <div id="update-content" class="update-module-card">
+      <p class="text-muted">加载中...</p>
+    </div>
+  </section>
+
   ${featured.length ? `
   <section style="padding:3rem 0 2rem">
     <div class="section-header">
@@ -408,7 +442,25 @@
 `;
   }
 
+  function loadUpdateContent() {
+    var container = document.getElementById('update-content');
+    if (!container) return;
+    fetch('md/update.md')
+      .then(function(res) { if (!res.ok) throw new Error(res.status); return res.text(); })
+      .then(function(md) {
+        if (typeof marked !== 'undefined' && marked.parse) {
+          container.innerHTML = '<div class="markdown-body">' + marked.parse(md) + '</div>';
+        } else {
+          container.innerHTML = '<pre style="white-space:pre-wrap;font-size:.875rem">' + md.replace(/</g, '&lt;') + '</pre>';
+        }
+      })
+      .catch(function() {
+        container.innerHTML = '<p class="text-muted">无法加载更新内容。</p>';
+      });
+  }
+
   function bindHomeEvents() {
+    loadUpdateContent();
     // Hero search — Enter key navigates to browse with query
     const heroSearch = document.getElementById('hero-search');
     if (heroSearch) {
@@ -1150,6 +1202,104 @@
       })
       .catch(function() {
         container.innerHTML = '<p class="text-muted">无法加载规范文档。</p>';
+      });
+  }
+
+  /* ===================== BLOG PAGE ===================== */
+  function renderBlogPage() {
+    const postCards = BLOG_POSTS.map(p => {
+      const dateStr = p.date ? new Date(p.date).toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' }) : '';
+      const tags = (p.tags || []).map(t => `<span class="tool-badge">${escHtml(t)}</span>`).join('');
+      return `
+<a class="blog-card page-enter" data-href="#blog/${escHtml(p.slug)}">
+  <div class="blog-card-body">
+    <h3 class="blog-card-title">${escHtml(p.title)}</h3>
+    <p class="blog-card-summary">${escHtml(p.summary || '')}</p>
+    <div class="blog-card-footer">
+      <span class="blog-card-date">${escHtml(dateStr)}</span>
+      <div class="blog-card-tags">${tags}</div>
+    </div>
+  </div>
+  <div class="blog-card-arrow">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14m-7-7 7 7-7 7"/></svg>
+  </div>
+</a>`;
+    }).join('');
+
+    return `
+<div class="detail-page px-container max-w-7xl" style="padding-bottom:4rem">
+  <div style="text-align:center;padding:3rem 0 2rem">
+    <div style="display:inline-flex;align-items:center;gap:.5rem;padding:.375rem .75rem;border-radius:9999px;background:var(--accent-bg);color:var(--accent-foreground);font-size:.75rem;font-weight:600;margin-bottom:1rem">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+      博客
+    </div>
+    <h1 style="font-size:2rem;font-weight:700;margin-bottom:.75rem">技术<span class="gradient-text">博客</span></h1>
+    <p class="text-muted">深度解析 AI 技能生态、安全实践与工程经验</p>
+  </div>
+
+  ${BLOG_POSTS.length ? `
+  <div class="blog-list">
+    ${postCards}
+  </div>` : `
+  <div style="text-align:center;padding:4rem 1rem">
+    <p style="font-size:3rem;margin-bottom:1rem">📝</p>
+    <p class="text-muted">暂无博客文章</p>
+  </div>`}
+</div>`;
+  }
+
+  function renderBlogPostPage(slug) {
+    const post = BLOG_POSTS.find(p => p.slug === slug);
+    const title = post ? escHtml(post.title) : '文章加载中…';
+    const dateStr = post && post.date
+      ? new Date(post.date).toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' })
+      : '';
+    const tags = post ? (post.tags || []).map(t => `<span class="tool-badge">${escHtml(t)}</span>`).join('') : '';
+
+    return `
+<div class="detail-page px-container max-w-7xl" style="padding-bottom:4rem">
+  <nav class="breadcrumb" aria-label="面包屑">
+    <a data-href="#">首页</a>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+    <a data-href="#blog">博客</a>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+    <span>${title}</span>
+  </nav>
+
+  <div class="blog-post-header">
+    <h1 class="blog-post-title">${title}</h1>
+    ${dateStr || tags ? `
+    <div class="blog-post-meta">
+      ${dateStr ? `<span class="blog-post-date">${escHtml(dateStr)}</span>` : ''}
+      ${tags ? `<div class="blog-post-tags">${tags}</div>` : ''}
+    </div>` : ''}
+  </div>
+
+  <div id="blog-post-content" style="padding:2rem;border-radius:var(--radius-xl);border:1px solid var(--border);background:var(--card)">
+    <p class="text-muted">加载中...</p>
+  </div>
+</div>`;
+  }
+
+  function loadBlogPostContent(slug) {
+    var container = document.getElementById('blog-post-content');
+    if (!container) return;
+    const post = BLOG_POSTS.find(p => p.slug === slug);
+    if (!post) {
+      container.innerHTML = '<p class="text-muted">文章未找到。</p>';
+      return;
+    }
+    fetch(post.file)
+      .then(function(res) { if (!res.ok) throw new Error(res.status); return res.text(); })
+      .then(function(md) {
+        if (typeof marked !== 'undefined' && marked.parse) {
+          container.innerHTML = '<div class="markdown-body">' + marked.parse(md) + '</div>';
+        } else {
+          container.innerHTML = '<pre style="white-space:pre-wrap;font-size:.875rem">' + md.replace(/</g, '&lt;') + '</pre>';
+        }
+      })
+      .catch(function() {
+        container.innerHTML = '<p class="text-muted">无法加载文章内容。</p>';
       });
   }
 
