@@ -95,6 +95,7 @@ input { font: inherit; }
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
+  white-space: nowrap;
 }
 
 /* --- Navigation --- */
@@ -119,10 +120,12 @@ input { font: inherit; }
 }
 .nav-link:hover { background: var(--muted); color: var(--foreground); }
 .nav-link.active { color: var(--accent-foreground); background: var(--accent-bg); }
-.nav-link-submit { background: var(--warning-bg); color: var(--warning); }
-.nav-link-submit:hover { background: #fde68a; color: var(--warning); }
-.nav-link-evolution { background: var(--success-bg); color: var(--success); }
-.nav-link-evolution:hover { background: #bbf7d0; color: var(--success); }
+.nav-link-submit { background: rgba(99, 102, 241, 0.12); color: var(--accent-foreground); }
+.nav-link-submit:hover { background: rgba(99, 102, 241, 0.2); color: var(--accent-foreground); }
+.nav-link-evolution { background: rgba(99, 102, 241, 0.12); color: var(--accent-foreground); }
+.nav-link-evolution:hover { background: rgba(99, 102, 241, 0.2); color: var(--accent-foreground); }
+.nav-link-blog { background: rgba(99, 102, 241, 0.12); color: var(--accent-foreground); }
+.nav-link-blog:hover { background: rgba(99, 102, 241, 0.2); color: var(--accent-foreground); }
 .nav-right { display: flex; align-items: center; gap: 0.5rem; }
 .nav-github {
   display: none; align-items: center; gap: 0.375rem;
@@ -147,7 +150,7 @@ input { font: inherit; }
   position: absolute; inset: 0;
   background: radial-gradient(ellipse 80% 50% at 50% -20%, var(--accent-bg), transparent);
 }
-.hero-content { position: relative; padding: 4rem 0 3rem; text-align: center; max-width: 48rem; margin: 0 auto; }
+.hero-content { position: relative; padding: 4rem 0 3rem; text-align: center; max-width: 56rem; margin: 0 auto; }
 .hero h1 { font-size: 2.25rem; font-weight: 700; letter-spacing: -0.025em; margin-bottom: 1rem; color: var(--foreground); }
 @media (min-width: 640px) { .hero h1 { font-size: 3rem; } }
 .hero p { font-size: 1.125rem; margin-bottom: 2rem; color: var(--muted-foreground); }
