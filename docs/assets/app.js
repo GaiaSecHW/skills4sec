@@ -1169,7 +1169,7 @@
         contact ? `## 联系方式\n${contact}` : '',
       ].filter(Boolean).join('\n\n');
 
-      const url = 'https://github.com/cxm95/skills4sec/issues/new?'
+      const url = 'http://127.0.0.1:3000/admin/skills4sec/issues/new?'
         + new URLSearchParams({ title: `[技能提交] ${name}`, body, labels: 'skill-submission' });
       window.open(url, '_blank', 'noopener,noreferrer');
     });
