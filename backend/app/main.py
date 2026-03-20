@@ -10,10 +10,47 @@ from app.api.audit import router as audit_router
 from app.api.submissions import router as submissions_router
 
 
+async def init_super_admin():
+    """初始化超级管理员"""
+    from app.models.user import User
+    from app.utils.security import get_password_hash
+
+    employee_id = settings.SUPER_ADMIN_EMPLOYEE_ID
+    api_key = settings.SUPER_ADMIN_API_KEY
+
+    if not employee_id or not api_key:
+        return  # 未配置则跳过
+
+    existing = await User.filter(employee_id=employee_id).first()
+    if existing:
+        # 更新密钥确保与 .env 一致
+        existing.api_key_hash = get_password_hash(api_key)
+        existing.role = "super_admin"
+        existing.status = "active"
+        existing.is_superuser = True
+        existing.is_active = True
+        await existing.save()
+        print(f"[Init] 超级管理员已更新: {employee_id}")
+    else:
+        # 创建超级管理员
+        await User.create(
+            employee_id=employee_id,
+            api_key_hash=get_password_hash(api_key),
+            name=settings.SUPER_ADMIN_NAME or "系统管理员",
+            role="super_admin",
+            status="active",
+            is_superuser=True,
+            is_active=True,
+        )
+        print(f"[Init] 超级管理员已创建: {employee_id}")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # 启动时初始化数据库
     await init_db()
+    # 初始化超级管理员
+    await init_super_admin()
     yield
     # 关闭时清理数据库连接
     await close_db()
