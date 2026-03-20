@@ -4,7 +4,10 @@ from contextlib import asynccontextmanager
 
 from app.config import settings
 from app.database import init_db, close_db
-from app.api import skills, auth, audit
+from app.api.skills import router as skills_router
+from app.api.auth import router as auth_router
+from app.api.audit import router as audit_router
+from app.api.submissions import router as submissions_router
 
 
 @asynccontextmanager
@@ -35,9 +38,10 @@ app.add_middleware(
 )
 
 # 注册路由
-app.include_router(skills.router, prefix="/api")
-app.include_router(auth.router, prefix="/api")
-app.include_router(audit.router, prefix="/api")
+app.include_router(skills_router, prefix="/api")
+app.include_router(auth_router, prefix="/api")
+app.include_router(audit_router, prefix="/api")
+app.include_router(submissions_router, prefix="/api")
 
 
 @app.get("/")
