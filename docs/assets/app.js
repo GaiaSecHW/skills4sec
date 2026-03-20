@@ -12,6 +12,7 @@
   let AGENTS    = [];
   let EVOL_SUMMARY = {};
   let EVOL_LOGS = [];
+  let BLOG_POSTS = [];
 
   /* ===================== ROUTER ===================== */
   function getRoute() {
@@ -26,6 +27,8 @@
     if (hash === 'submit') return { page: 'submit' };
     if (hash === 'schema-spec') return { page: 'schema-spec' };
     if (hash === 'evolution') return { page: 'evolution' };
+    if (hash === 'blog' || hash.startsWith('blog?')) return { page: 'blog' };
+    if (hash.startsWith('blog/')) return { page: 'blog-post', slug: hash.slice(5) };
     return { page: 'home' };
   }
 
@@ -43,7 +46,7 @@
 
   window.addEventListener('hashchange', render);
   window.addEventListener('load', function () {
-    Promise.all([loadSkills(), loadHarnesses(), loadAgents(), loadEvol()]).then(render);
+    Promise.all([loadSkills(), loadHarnesses(), loadAgents(), loadEvol(), loadBlog()]).then(render);
   });
 
   /* ===================== DATA LOADING ===================== */
@@ -80,6 +83,15 @@
     catch (e) { EVOL_SUMMARY = {}; }
     try { const r = await fetch('data/evol/logs.json'); EVOL_LOGS = await r.json(); }
     catch (e) { EVOL_LOGS = []; }
+  }
+
+  async function loadBlog() {
+    try {
+      const res = await fetch('data/blog.json');
+      BLOG_POSTS = await res.json();
+    } catch (e) {
+      BLOG_POSTS = [];
+    }
   }
 
   /* ===================== RENDER DISPATCH ===================== */
@@ -122,6 +134,11 @@
     } else if (route.page === 'evolution') {
       main.innerHTML = renderEvolutionPage();
       bindEvolutionEvents();
+    } else if (route.page === 'blog') {
+      main.innerHTML = renderBlogPage();
+    } else if (route.page === 'blog-post') {
+      main.innerHTML = renderBlogPostPage(route.slug);
+      loadBlogPostContent(route.slug);
     }
 
     window.scrollTo(0, 0);
@@ -135,6 +152,7 @@
       agents: 'agents', 'agent-detail': 'agents',
       submit: 'submit',
       evolution: 'evolution',
+      blog: 'blog', 'blog-post': 'blog',
     };
     const nav = navMap[page];
     if (nav) document.querySelector(`[data-nav="${nav}"]`)?.classList.add('active');
@@ -287,9 +305,9 @@
     <div class="hero-content">
       <div style="display:inline-flex;align-items:center;gap:.5rem;padding:.375rem .75rem;border-radius:9999px;background:var(--accent-bg);color:var(--accent-foreground);font-size:.75rem;font-weight:600;margin-bottom:1rem">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-        SecAgentHub
+        SecEvo
       </div>
-      <h1>构建更强大的 <span class="gradient-text">AI for ICSL安全应用</span></h1>
+      <h1>构建面向自我进化的<span class="gradient-text">AI for ICSL智能系统</span></h1>
       <p>技能(Skills) · 运行时(Harness) · 原子智能体(Agent)，一站式发现与接入</p>
       <div class="search-box">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
@@ -307,6 +325,22 @@
 </section>
 
 <div class="px-container max-w-7xl" style="padding-bottom:4rem">
+  <section class="update-module-section" style="padding:3rem 0 2rem">
+    <div class="section-header">
+      <div>
+        <h2>最新动态</h2>
+        <p>来自 SecEvo 生态的最新技能与更新</p>
+      </div>
+      <a class="section-link" data-href="#blog">
+        查看博客
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14m-7-7 7 7-7 7"/></svg>
+      </a>
+    </div>
+    <div id="update-content" class="update-module-card">
+      <p class="text-muted">加载中...</p>
+    </div>
+  </section>
+
   ${featured.length ? `
   <section style="padding:3rem 0 2rem">
     <div class="section-header">
@@ -370,7 +404,7 @@
   <section class="${featured.length ? 'section ' : ''}" style="padding:3rem 0 2rem">
     <div class="section-header" style="margin-bottom:2rem">
       <div>
-        <h2>为什么选择 SecAgentHub？</h2>
+        <h2>为什么选择 SecEvo？</h2>
         <p>构建更安全、更智能的 AI 工作流</p>
       </div>
     </div>
@@ -408,7 +442,25 @@
 `;
   }
 
+  function loadUpdateContent() {
+    var container = document.getElementById('update-content');
+    if (!container) return;
+    fetch('md/update.md')
+      .then(function(res) { if (!res.ok) throw new Error(res.status); return res.text(); })
+      .then(function(md) {
+        if (typeof marked !== 'undefined' && marked.parse) {
+          container.innerHTML = '<div class="markdown-body">' + marked.parse(md) + '</div>';
+        } else {
+          container.innerHTML = '<pre style="white-space:pre-wrap;font-size:.875rem">' + md.replace(/</g, '&lt;') + '</pre>';
+        }
+      })
+      .catch(function() {
+        container.innerHTML = '<p class="text-muted">无法加载更新内容。</p>';
+      });
+  }
+
   function bindHomeEvents() {
+    loadUpdateContent();
     // Hero search — Enter key navigates to browse with query
     const heroSearch = document.getElementById('hero-search');
     if (heroSearch) {
@@ -1027,7 +1079,7 @@
       提交技能
     </div>
     <h1 style="font-size:2rem;font-weight:700;margin-bottom:.75rem">分享你的 <span class="gradient-text">AI 技能</span></h1>
-    <p class="text-muted">将你开发的技能提交到 SecAgentHub，让更多人受益。</p>
+    <p class="text-muted">将你开发的技能提交到 SecEvo，让更多人受益。</p>
   </div>
 
   <div class="submit-steps">
@@ -1049,7 +1101,7 @@
       <div class="submit-step-num">3</div>
       <div>
         <h3>等待审核合并</h3>
-        <p class="text-sm text-muted">维护者审核通过后，技能将出现在 SecAgentHub 平台，并自动进行安全评级。</p>
+        <p class="text-sm text-muted">维护者审核通过后，技能将出现在 SecEvo 平台，并自动进行安全评级。</p>
       </div>
     </div>
   </div>
@@ -1150,6 +1202,103 @@
       })
       .catch(function() {
         container.innerHTML = '<p class="text-muted">无法加载规范文档。</p>';
+      });
+  }
+
+  /* ===================== BLOG PAGE ===================== */
+  function renderBlogPage() {
+    const postCards = BLOG_POSTS.map(p => {
+      const dateStr = p.date ? new Date(p.date).toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' }) : '';
+      const tags = (p.tags || []).map(t => `<span class="tool-badge">${escHtml(t)}</span>`).join('');
+      return `
+<a class="blog-card page-enter" data-href="#blog/${escHtml(p.slug)}">
+  <div class="blog-card-body">
+    <h3 class="blog-card-title">${escHtml(p.title)}</h3>
+    <p class="blog-card-summary">${escHtml(p.summary || '')}</p>
+    <div class="blog-card-footer">
+      <span class="blog-card-date">${escHtml(dateStr)}</span>
+      <div class="blog-card-tags">${tags}</div>
+    </div>
+  </div>
+  <div class="blog-card-arrow">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14m-7-7 7 7-7 7"/></svg>
+  </div>
+</a>`;
+    }).join('');
+
+    return `
+<div class="detail-page px-container max-w-7xl" style="padding-bottom:4rem">
+  <div style="text-align:center;padding:3rem 0 2rem">
+    <div style="display:inline-flex;align-items:center;gap:.5rem;padding:.375rem .75rem;border-radius:9999px;background:var(--accent-bg);color:var(--accent-foreground);font-size:.75rem;font-weight:600;margin-bottom:1rem">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+      博客
+    </div>
+    <h1 style="font-size:2rem;font-weight:700;margin-bottom:.75rem">技术<span class="gradient-text">博客</span></h1>
+    <p class="text-muted">深度解析 AI 技能生态、安全实践与工程经验</p>
+  </div>
+
+  ${BLOG_POSTS.length ? `
+  <div class="blog-list">
+    ${postCards}
+  </div>` : `
+  <div style="text-align:center;padding:4rem 1rem">
+    <p style="font-size:3rem;margin-bottom:1rem">📝</p>
+    <p class="text-muted">暂无博客文章</p>
+  </div>`}
+</div>`;
+  }
+
+  function renderBlogPostPage(slug) {
+    const post = BLOG_POSTS.find(p => p.slug === slug);
+    const title = post ? escHtml(post.title) : '文章加载中…';
+    const dateStr = post && post.date
+      ? new Date(post.date).toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' })
+      : '';
+    const tags = post ? (post.tags || []).map(t => `<span class="tool-badge">${escHtml(t)}</span>`).join('') : '';
+
+    return `
+<div class="detail-page px-container max-w-7xl" style="padding-bottom:4rem">
+  <nav class="breadcrumb" aria-label="面包屑">
+    <a data-href="#">首页</a>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+    <a data-href="#blog">博客</a>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+    <span>${title}</span>
+  </nav>
+
+  ${dateStr || tags ? `
+  <div class="blog-post-header">
+    <div class="blog-post-meta">
+      ${dateStr ? `<span class="blog-post-date">${escHtml(dateStr)}</span>` : ''}
+      ${tags ? `<div class="blog-post-tags">${tags}</div>` : ''}
+    </div>
+  </div>` : ''}
+
+  <div id="blog-post-content" style="padding:2rem;border-radius:var(--radius-xl);border:1px solid var(--border);background:var(--card)">
+    <p class="text-muted">加载中...</p>
+  </div>
+</div>`;
+  }
+
+  function loadBlogPostContent(slug) {
+    var container = document.getElementById('blog-post-content');
+    if (!container) return;
+    const post = BLOG_POSTS.find(p => p.slug === slug);
+    if (!post) {
+      container.innerHTML = '<p class="text-muted">文章未找到。</p>';
+      return;
+    }
+    fetch(post.file)
+      .then(function(res) { if (!res.ok) throw new Error(res.status); return res.text(); })
+      .then(function(md) {
+        if (typeof marked !== 'undefined' && marked.parse) {
+          container.innerHTML = '<div class="markdown-body">' + marked.parse(md) + '</div>';
+        } else {
+          container.innerHTML = '<pre style="white-space:pre-wrap;font-size:.875rem">' + md.replace(/</g, '&lt;') + '</pre>';
+        }
+      })
+      .catch(function() {
+        container.innerHTML = '<p class="text-muted">无法加载文章内容。</p>';
       });
   }
 
@@ -1346,227 +1495,4 @@
       }
     });
   }
-
-  /* ===================== AUTH MODULE ===================== */
-  const API_BASE = 'http://localhost:8000/api/auth';
-  let currentUser = null;
-
-  // Check for existing token on load
-  function initAuth() {
-    const token = localStorage.getItem('access_token');
-    if (token) {
-      fetchCurrentUser(token);
-    }
-    updateAuthUI();
-    bindAuthEvents();
-  }
-
-  async function fetchCurrentUser(token) {
-    try {
-      const res = await fetch(API_BASE + '/me', {
-        headers: { 'Authorization': 'Bearer ' + token }
-      });
-      if (res.ok) {
-        currentUser = await res.json();
-        updateAuthUI();
-      } else {
-        // Token invalid, clear it
-        localStorage.removeItem('access_token');
-        currentUser = null;
-        updateAuthUI();
-      }
-    } catch (e) {
-      console.error('Failed to fetch user:', e);
-    }
-  }
-
-  function updateAuthUI() {
-    const loggedOut = document.getElementById('auth-logged-out');
-    const loggedIn = document.getElementById('auth-logged-in');
-    const avatarText = document.getElementById('user-avatar-text');
-    const displayName = document.getElementById('user-display-name');
-    const userEmail = document.getElementById('user-email');
-
-    if (currentUser) {
-      loggedOut.style.display = 'none';
-      loggedIn.style.display = 'flex';
-      if (avatarText) avatarText.textContent = currentUser.username.charAt(0).toUpperCase();
-      if (displayName) displayName.textContent = currentUser.username;
-      if (userEmail) userEmail.textContent = currentUser.email;
-    } else {
-      loggedOut.style.display = 'flex';
-      loggedIn.style.display = 'none';
-    }
-  }
-
-  function bindAuthEvents() {
-    // Login button
-    const loginBtn = document.getElementById('login-btn');
-    if (loginBtn) {
-      loginBtn.addEventListener('click', () => showAuthModal('login'));
-    }
-
-    // Register button
-    const registerBtn = document.getElementById('register-btn');
-    if (registerBtn) {
-      registerBtn.addEventListener('click', () => showAuthModal('register'));
-    }
-
-    // Modal close
-    const modalClose = document.getElementById('modal-close');
-    const modal = document.getElementById('auth-modal');
-    const backdrop = modal ? modal.querySelector('.modal-backdrop') : null;
-    if (modalClose) {
-      modalClose.addEventListener('click', hideAuthModal);
-    }
-    if (backdrop) {
-      backdrop.addEventListener('click', hideAuthModal);
-    }
-
-    // Switch between login/register
-    const switchToRegister = document.getElementById('switch-to-register');
-    const switchToLogin = document.getElementById('switch-to-login');
-    if (switchToRegister) {
-      switchToRegister.addEventListener('click', (e) => {
-        e.preventDefault();
-        showAuthModal('register');
-      });
-    }
-    if (switchToLogin) {
-      switchToLogin.addEventListener('click', (e) => {
-        e.preventDefault();
-        showAuthModal('login');
-      });
-    }
-
-    // Login form
-    const loginForm = document.getElementById('login-form');
-    if (loginForm) {
-      loginForm.addEventListener('submit', handleLogin);
-    }
-
-    // Register form
-    const registerForm = document.getElementById('register-form');
-    if (registerForm) {
-      registerForm.addEventListener('submit', handleRegister);
-    }
-
-    // User dropdown
-    const userMenuBtn = document.getElementById('user-menu-btn');
-    const userDropdown = document.getElementById('user-dropdown');
-    if (userMenuBtn && userDropdown) {
-      userMenuBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        userDropdown.style.display = userDropdown.style.display === 'none' ? 'block' : 'none';
-      });
-      document.addEventListener('click', () => {
-        userDropdown.style.display = 'none';
-      });
-    }
-
-    // Logout
-    const logoutBtn = document.getElementById('logout-btn');
-    if (logoutBtn) {
-      logoutBtn.addEventListener('click', (e) => {
-        e.preventDefault();
-        handleLogout();
-      });
-    }
-  }
-
-  function showAuthModal(type) {
-    const modal = document.getElementById('auth-modal');
-    const loginContainer = document.getElementById('login-form-container');
-    const registerContainer = document.getElementById('register-form-container');
-    const loginError = document.getElementById('login-error');
-    const registerError = document.getElementById('register-error');
-
-    if (modal) modal.style.display = 'flex';
-    if (type === 'login') {
-      if (loginContainer) loginContainer.style.display = 'block';
-      if (registerContainer) registerContainer.style.display = 'none';
-    } else {
-      if (loginContainer) loginContainer.style.display = 'none';
-      if (registerContainer) registerContainer.style.display = 'block';
-    }
-    if (loginError) loginError.style.display = 'none';
-    if (registerError) registerError.style.display = 'none';
-  }
-
-  function hideAuthModal() {
-    const modal = document.getElementById('auth-modal');
-    if (modal) modal.style.display = 'none';
-  }
-
-  async function handleLogin(e) {
-    e.preventDefault();
-    const username = document.getElementById('login-username').value;
-    const password = document.getElementById('login-password').value;
-    const errorEl = document.getElementById('login-error');
-
-    try {
-      const res = await fetch(API_BASE + '/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password })
-      });
-
-      if (res.ok) {
-        const data = await res.json();
-        localStorage.setItem('access_token', data.access_token);
-        await fetchCurrentUser(data.access_token);
-        hideAuthModal();
-        showToast('登录成功');
-        document.getElementById('login-form').reset();
-      } else {
-        const err = await res.json();
-        errorEl.textContent = err.detail || '登录失败，请检查用户名和密码';
-        errorEl.style.display = 'block';
-      }
-    } catch (e) {
-      errorEl.textContent = '网络错误，请稍后重试';
-      errorEl.style.display = 'block';
-    }
-  }
-
-  async function handleRegister(e) {
-    e.preventDefault();
-    const username = document.getElementById('register-username').value;
-    const email = document.getElementById('register-email').value;
-    const password = document.getElementById('register-password').value;
-    const errorEl = document.getElementById('register-error');
-
-    try {
-      const res = await fetch(API_BASE + '/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, email, password })
-      });
-
-      if (res.ok || res.status === 201) {
-        showToast('注册成功，请登录');
-        showAuthModal('login');
-        document.getElementById('register-form').reset();
-        // Pre-fill username
-        document.getElementById('login-username').value = username;
-      } else {
-        const err = await res.json();
-        errorEl.textContent = err.detail || '注册失败';
-        errorEl.style.display = 'block';
-      }
-    } catch (e) {
-      errorEl.textContent = '网络错误，请稍后重试';
-      errorEl.style.display = 'block';
-    }
-  }
-
-  function handleLogout() {
-    localStorage.removeItem('access_token');
-    currentUser = null;
-    updateAuthUI();
-    showToast('已退出登录');
-  }
-
-  // Initialize auth on page load
-  initAuth();
 })();

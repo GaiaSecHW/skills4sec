@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SecAgentHub — AI 技能市场</title>
+  <title>SecEvo — AI 技能市场</title>
   <meta name="description" content="发现经过安全审计的 AI 技能，涵盖 documentation、development、productivity 等分类，适用于 Claude Code、Codex 等主流 AI 工具。">
-  <meta property="og:title" content="SecAgentHub — AI 技能市场">
+  <meta property="og:title" content="SecEvo — AI 技能市场">
   <meta property="og:description" content="经过安全审计的 AI 技能库，一键安装，扩展 AI 工作流。">
   <meta property="og:type" content="website">
   <link rel="stylesheet" href="assets/style.css">
@@ -25,7 +25,7 @@
             <rect width="32" height="32" rx="8" fill="#6366f1"/>
             <path d="M17.5 7L9 17.5h7L14.5 25 23 14.5h-7L17.5 7z" fill="white"/>
           </svg>
-          <span>SecAgentHub</span>
+          <span>SecEvo</span>
         </a>
 
         <div class="nav-links">
@@ -35,30 +35,10 @@
           <a class="nav-link" data-href="#agents" data-nav="agents">浏览智能体</a>
           <a class="nav-link nav-link-submit" data-href="#submit" data-nav="submit">提交技能</a>
           <a class="nav-link nav-link-evolution" data-href="#evolution" data-nav="evolution">技能自进化</a>
+          <a class="nav-link nav-link-blog" data-href="#blog" data-nav="blog">博客</a>
         </div>
 
         <div class="nav-right">
-          <!-- Auth buttons (logged out state) -->
-          <div id="auth-logged-out" class="nav-auth">
-            <button class="btn btn-ghost btn-sm" id="login-btn">登录</button>
-            <button class="btn btn-primary btn-sm" id="register-btn">注册</button>
-          </div>
-          <!-- User menu (logged in state) -->
-          <div id="auth-logged-in" class="nav-auth" style="display:none;">
-            <div class="user-menu">
-              <button class="user-avatar" id="user-menu-btn">
-                <span id="user-avatar-text">U</span>
-              </button>
-              <div class="user-dropdown" id="user-dropdown" style="display:none;">
-                <div class="user-info">
-                  <span id="user-display-name">用户</span>
-                  <span id="user-email" class="text-muted"></span>
-                </div>
-                <hr>
-                <a href="#" id="logout-btn">退出登录</a>
-              </div>
-            </div>
-          </div>
           <a class="nav-github" href="https://github.com/cxm95/skills4sec" target="_blank" rel="noopener noreferrer">
             <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.3 3.44 9.8 8.2 11.38.6.11.82-.26.82-.57v-2c-3.34.73-4.04-1.61-4.04-1.61-.55-1.39-1.34-1.76-1.34-1.76-1.09-.75.08-.73.08-.73 1.2.08 1.84 1.24 1.84 1.24 1.07 1.83 2.81 1.3 3.5 1 .1-.78.42-1.3.76-1.6-2.67-.3-5.47-1.33-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.12-.3-.54-1.52.12-3.17 0 0 1.01-.32 3.3 1.23a11.5 11.5 0 016 0c2.3-1.55 3.3-1.23 3.3-1.23.66 1.65.24 2.87.12 3.17.77.84 1.24 1.91 1.24 3.22 0 4.61-2.81 5.63-5.48 5.92.43.37.81 1.1.81 2.22v3.29c0 .32.22.69.83.57C20.57 21.8 24 17.3 24 12c0-6.63-5.37-12-12-12z"/></svg>
             <span class="text-sm">GitHub</span>
@@ -78,6 +58,7 @@
       <a class="sidebar-item" data-href="#agents">浏览智能体</a>
       <a class="sidebar-item" data-href="#submit">提交技能</a>
       <a class="sidebar-item" data-href="#evolution">技能自进化</a>
+      <a class="sidebar-item" data-href="#blog">博客</a>
       <a class="sidebar-item" href="https://github.com/cxm95/skills4sec" target="_blank" rel="noopener noreferrer">GitHub</a>
     </div>
   </nav>
@@ -85,61 +66,13 @@
   <!-- Main content (SPA) -->
   <main id="main-content" role="main"></main>
 
-  <!-- Auth Modal -->
-  <div id="auth-modal" class="modal" style="display:none;">
-    <div class="modal-backdrop"></div>
-    <div class="modal-content">
-      <button class="modal-close" id="modal-close">&times;</button>
-
-      <!-- Login Form -->
-      <div id="login-form-container">
-        <h2 class="modal-title">登录</h2>
-        <form id="login-form" class="auth-form">
-          <div class="form-group">
-            <label for="login-username">用户名</label>
-            <input type="text" id="login-username" name="username" required placeholder="请输入用户名">
-          </div>
-          <div class="form-group">
-            <label for="login-password">密码</label>
-            <input type="password" id="login-password" name="password" required placeholder="请输入密码">
-          </div>
-          <div id="login-error" class="form-error" style="display:none;"></div>
-          <button type="submit" class="btn btn-primary btn-full">登录</button>
-        </form>
-        <p class="auth-switch">还没有账号？<a href="#" id="switch-to-register">立即注册</a></p>
-      </div>
-
-      <!-- Register Form -->
-      <div id="register-form-container" style="display:none;">
-        <h2 class="modal-title">注册</h2>
-        <form id="register-form" class="auth-form">
-          <div class="form-group">
-            <label for="register-username">用户名</label>
-            <input type="text" id="register-username" name="username" required minlength="3" maxlength="50" placeholder="3-50个字符">
-          </div>
-          <div class="form-group">
-            <label for="register-email">邮箱</label>
-            <input type="email" id="register-email" name="email" required placeholder="请输入邮箱">
-          </div>
-          <div class="form-group">
-            <label for="register-password">密码</label>
-            <input type="password" id="register-password" name="password" required minlength="6" placeholder="至少6个字符">
-          </div>
-          <div id="register-error" class="form-error" style="display:none;"></div>
-          <button type="submit" class="btn btn-primary btn-full">注册</button>
-        </form>
-        <p class="auth-switch">已有账号？<a href="#" id="switch-to-login">立即登录</a></p>
-      </div>
-    </div>
-  </div>
-
   <!-- Footer -->
   <footer class="footer">
     <div class="max-w-7xl px-container">
       <div class="footer-inner">
         <a class="nav-logo" data-href="#">
           <svg width="24" height="24" viewBox="0 0 32 32" fill="none"><rect width="32" height="32" rx="8" fill="#6366f1"/><path d="M17.5 7L9 17.5h7L14.5 25 23 14.5h-7L17.5 7z" fill="white"/></svg>
-          <span style="font-weight:600">SecAgentHub</span>
+          <span style="font-weight:600">SecEvo</span>
         </a>
         <div class="footer-links">
           <a href="https://github.com/cxm95/skills4sec" target="_blank" rel="noopener noreferrer">GitHub</a>
@@ -148,8 +81,9 @@
           <a data-href="#agents">浏览智能体</a>
           <a data-href="#submit">提交技能</a>
           <a data-href="#evolution">技能自进化</a>
+          <a data-href="#blog">博客</a>
         </div>
-        <p class="footer-copy">&copy; 2026 SecAgentHub. 保留所有权利。</p>
+        <p class="footer-copy">&copy; 2026 SecEvo. 保留所有权利。</p>
       </div>
     </div>
   </footer>
