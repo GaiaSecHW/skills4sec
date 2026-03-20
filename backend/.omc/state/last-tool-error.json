@@ -1,0 +1,7 @@
+{
+  "tool_name": "Bash",
+  "tool_input_preview": "{\"command\":\"cd \\\"D:/work/skillhub/skills4sec/backend\\\" && python -m pip install pytest pytest-asyncio pytest-cov httpx --quiet 2>&1\",\"description\":\"Install pytest dependencies using python -m pip\"}",
+  "error": "Exit code 49\nPython was not found; run without arguments to install from the Microsoft Store, or disable this shortcut from Settings > Apps > Advanced app settings > App execution aliases.",
+  "timestamp": "2026-03-20T09:27:31.802Z",
+  "retry_count": 3
+}

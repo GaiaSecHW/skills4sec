@@ -14,6 +14,109 @@
   let EVOL_LOGS = [];
   let BLOG_POSTS = [];
 
+  /* ===================== AUTH MODULE ===================== */
+  const Auth = {
+    API_BASE: window.location.hostname === 'localhost' ? 'http://localhost:8125' : '',
+    TOKEN_KEY: 'secevo_access_token',
+    REFRESH_KEY: 'secevo_refresh_token',
+    USER_KEY: 'secevo_user',
+
+    getAccessToken() {
+      return localStorage.getItem(this.TOKEN_KEY);
+    },
+
+    getRefreshToken() {
+      return localStorage.getItem(this.REFRESH_KEY);
+    },
+
+    getUser() {
+      try {
+        const user = localStorage.getItem(this.USER_KEY);
+        return user ? JSON.parse(user) : null;
+      } catch {
+        return null;
+      }
+    },
+
+    isLoggedIn() {
+      return !!this.getAccessToken();
+    },
+
+    async login(employeeId, apiKey) {
+      const res = await fetch(this.API_BASE + '/api/auth/login/new', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ employee_id: employeeId, api_key: apiKey })
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.detail || '登录失败');
+      }
+
+      const data = await res.json();
+      localStorage.setItem(this.TOKEN_KEY, data.access_token);
+      localStorage.setItem(this.REFRESH_KEY, data.refresh_token);
+      localStorage.setItem(this.USER_KEY, JSON.stringify(data.user));
+      return data.user;
+    },
+
+    logout() {
+      localStorage.removeItem(this.TOKEN_KEY);
+      localStorage.removeItem(this.REFRESH_KEY);
+      localStorage.removeItem(this.USER_KEY);
+    },
+
+    async refreshAccessToken() {
+      const refreshToken = this.getRefreshToken();
+      if (!refreshToken) {
+        this.logout();
+        return false;
+      }
+
+      try {
+        const res = await fetch(this.API_BASE + '/api/auth/refresh', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ refresh_token: refreshToken })
+        });
+
+        if (!res.ok) {
+          this.logout();
+          return false;
+        }
+
+        const data = await res.json();
+        localStorage.setItem(this.TOKEN_KEY, data.access_token);
+        return true;
+      } catch {
+        this.logout();
+        return false;
+      }
+    },
+
+    async fetchWithAuth(url, options = {}) {
+      const token = this.getAccessToken();
+      const headers = {
+        ...options.headers,
+        ...(token ? { 'Authorization': 'Bearer ' + token } : {})
+      };
+
+      let res = await fetch(url, { ...options, headers });
+
+      if (res.status === 401 && this.getRefreshToken()) {
+        const refreshed = await this.refreshAccessToken();
+        if (refreshed) {
+          const newToken = this.getAccessToken();
+          headers['Authorization'] = 'Bearer ' + newToken;
+          res = await fetch(url, { ...options, headers });
+        }
+      }
+
+      return res;
+    }
+  };
+
   /* ===================== ROUTER ===================== */
   function getRoute() {
     const hash = location.hash.replace(/^#\/?/, '');
@@ -1167,7 +1270,7 @@
       btn.disabled = true;
 
       try {
-        const API_BASE = window.location.hostname === 'localhost' ? 'http://localhost:8001' : '';
+        const API_BASE = window.location.hostname === 'localhost' ? 'http://localhost:8125' : '';
         const res = await fetch(API_BASE + '/api/submissions', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -1544,4 +1647,708 @@
       }
     });
   }
+
+  /* ===================== AUTH UI ===================== */
+  const loginModal = document.getElementById('login-modal');
+  const loginModalBackdrop = document.getElementById('login-modal-backdrop');
+  const loginModalClose = document.getElementById('login-modal-close');
+  const loginBtn = document.getElementById('login-btn');
+  const loginForm = document.getElementById('login-form');
+  const loginError = document.getElementById('login-error');
+  const logoutBtn = document.getElementById('logout-btn');
+  const authLoggedOut = document.getElementById('auth-logged-out');
+  const authLoggedIn = document.getElementById('auth-logged-in');
+  const userAvatarBtn = document.getElementById('user-avatar-btn');
+  const userDropdown = document.getElementById('user-dropdown');
+  const userDisplayName = document.getElementById('user-display-name');
+  const userEmail = document.getElementById('user-email');
+
+  function showLoginModal() {
+    if (loginModal) {
+      loginModal.style.display = 'flex';
+      document.body.style.overflow = 'hidden';
+      const input = document.getElementById('login-employee-id');
+      if (input) input.focus();
+    }
+  }
+
+  function hideLoginModal() {
+    if (loginModal) {
+      loginModal.style.display = 'none';
+      document.body.style.overflow = '';
+      if (loginForm) loginForm.reset();
+      if (loginError) loginError.style.display = 'none';
+    }
+  }
+
+  const adminLink = document.getElementById('admin-link');
+
+  function updateAuthUI() {
+    const user = Auth.getUser();
+    const isLoggedIn = Auth.isLoggedIn();
+
+    if (authLoggedOut) authLoggedOut.style.display = isLoggedIn ? 'none' : 'flex';
+    if (authLoggedIn) authLoggedIn.style.display = isLoggedIn ? 'block' : 'none';
+
+    if (isLoggedIn && user) {
+      if (userDisplayName) userDisplayName.textContent = user.name || user.employee_id || '用户';
+      if (userEmail) userEmail.textContent = user.department || user.employee_id || '';
+      if (userAvatarBtn) userAvatarBtn.textContent = (user.name || user.employee_id || 'U').charAt(0).toUpperCase();
+
+      // Show admin link for admin/super_admin users
+      const isAdmin = user.role === 'admin' || user.role === 'super_admin';
+      if (adminLink) {
+        adminLink.style.display = isAdmin ? 'block' : 'none';
+        if (isAdmin) {
+          // Pass token to admin page via URL to share auth state
+          const token = Auth.getAccessToken();
+          const refreshToken = Auth.getRefreshToken();
+          adminLink.href = Auth.API_BASE + '/admin?sso_token=' + encodeURIComponent(token) + '&sso_refresh=' + encodeURIComponent(refreshToken);
+        }
+      }
+    } else {
+      if (adminLink) adminLink.style.display = 'none';
+    }
+  }
+
+  // Login button click
+  if (loginBtn) {
+    loginBtn.addEventListener('click', showLoginModal);
+  }
+
+  // Close modal
+  if (loginModalClose) {
+    loginModalClose.addEventListener('click', hideLoginModal);
+  }
+  if (loginModalBackdrop) {
+    loginModalBackdrop.addEventListener('click', hideLoginModal);
+  }
+
+  // ESC key to close modal
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && loginModal && loginModal.style.display === 'flex') {
+      hideLoginModal();
+    }
+  });
+
+  // Login form submit
+  if (loginForm) {
+    loginForm.addEventListener('submit', async function (e) {
+      e.preventDefault();
+      const employeeId = document.getElementById('login-employee-id')?.value.trim();
+      const apiKey = document.getElementById('login-api-key')?.value;
+      const submitBtn = document.getElementById('login-submit-btn');
+
+      if (!employeeId || !apiKey) {
+        if (loginError) {
+          loginError.textContent = '请输入工号和 API 密钥';
+          loginError.style.display = 'block';
+        }
+        return;
+      }
+
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.textContent = '登录中...';
+      }
+
+      try {
+        await Auth.login(employeeId, apiKey);
+        hideLoginModal();
+        updateAuthUI();
+        showToast('登录成功');
+      } catch (err) {
+        if (loginError) {
+          loginError.textContent = err.message || '登录失败';
+          loginError.style.display = 'block';
+        }
+      } finally {
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.textContent = '登录';
+        }
+      }
+    });
+  }
+
+  // User dropdown toggle
+  if (userAvatarBtn && userDropdown) {
+    userAvatarBtn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      const isOpen = userDropdown.style.display === 'block';
+      userDropdown.style.display = isOpen ? 'none' : 'block';
+      userAvatarBtn.setAttribute('aria-expanded', String(!isOpen));
+    });
+
+    // Close dropdown when clicking outside
+    document.addEventListener('click', function (e) {
+      if (!e.target.closest('.user-menu')) {
+        userDropdown.style.display = 'none';
+        userAvatarBtn.setAttribute('aria-expanded', 'false');
+      }
+    });
+  }
+
+  // Logout
+  if (logoutBtn) {
+    logoutBtn.addEventListener('click', function (e) {
+      e.preventDefault();
+      Auth.logout();
+      updateAuthUI();
+      if (userDropdown) userDropdown.style.display = 'none';
+      showToast('已退出登录');
+    });
+  }
+
+  // Initialize auth state on load
+  updateAuthUI();
+
+  /* ===================== SUBMISSIONS MONITOR PAGE ===================== */
+  // 扩展路由
+  const originalGetRoute = getRoute;
+  window.getRoute = function() {
+    const hash = location.hash.replace(/^#\/?/, '');
+    if (hash === 'submissions' || hash.startsWith('submissions?')) return { page: 'submissions' };
+    if (hash.startsWith('submission/')) return { page: 'submission-detail', id: hash.slice(11) };
+    return originalGetRoute();
+  };
+
+  // 提交监控数据
+  let SubmissionData = {
+    stats: null,
+    submissions: [],
+    current: null
+  };
+
+  async function loadSubmissionStats() {
+    try {
+      const res = await Auth.fetchWithAuth(Auth.API_BASE + '/api/admin/submissions/stats');
+      if (res.ok) {
+        const data = await res.json();
+        SubmissionData.stats = data.data;
+      }
+    } catch (e) {
+      console.error('Failed to load submission stats:', e);
+    }
+  }
+
+  async function loadSubmissions(params = {}) {
+    try {
+      const query = new URLSearchParams(params).toString();
+      const res = await Auth.fetchWithAuth(Auth.API_BASE + '/api/admin/submissions?' + query);
+      if (res.ok) {
+        const data = await res.json();
+        SubmissionData.submissions = data.data || [];
+        return data;
+      }
+    } catch (e) {
+      console.error('Failed to load submissions:', e);
+    }
+    return { data: [], total: 0 };
+  }
+
+  async function loadSubmissionDetail(id) {
+    try {
+      const res = await Auth.fetchWithAuth(Auth.API_BASE + '/api/admin/submissions/' + id);
+      if (res.ok) {
+        const data = await res.json();
+        SubmissionData.current = data.data;
+        return data.data;
+      }
+    } catch (e) {
+      console.error('Failed to load submission detail:', e);
+    }
+    return null;
+  }
+
+  async function retrySubmission(id) {
+    try {
+      const res = await Auth.fetchWithAuth(
+        Auth.API_BASE + '/api/admin/submissions/' + id + '/retry',
+        { method: 'POST', headers: { 'Content-Type': 'application/json' } }
+      );
+      return await res.json();
+    } catch (e) {
+      return { success: false, message: e.message };
+    }
+  }
+
+  async function approveSubmission(id) {
+    try {
+      const res = await Auth.fetchWithAuth(
+        Auth.API_BASE + '/api/admin/submissions/' + id + '/approve',
+        { method: 'POST', headers: { 'Content-Type': 'application/json' } }
+      );
+      return await res.json();
+    } catch (e) {
+      return { success: false, message: e.message };
+    }
+  }
+
+  function statusBadge(status) {
+    const config = {
+      pending: { label: '待处理', class: 'status-pending', icon: '⏳' },
+      creating_issue: { label: '创建中', class: 'status-creating', icon: '🔄' },
+      issue_created: { label: '待审批', class: 'status-waiting', icon: '📝' },
+      issue_failed: { label: 'Issue失败', class: 'status-failed', icon: '❌' },
+      approved: { label: '已审批', class: 'status-approved', icon: '✅' },
+      rejected: { label: '已拒绝', class: 'status-rejected', icon: '🚫' },
+      processing: { label: '处理中', class: 'status-processing', icon: '⚙️' },
+      process_failed: { label: '处理失败', class: 'status-failed', icon: '⚠️' },
+      pr_created: { label: 'PR已创建', class: 'status-pr', icon: '🔀' },
+      merged: { label: '已合并', class: 'status-merged', icon: '🎉' },
+      closed: { label: '已关闭', class: 'status-closed', icon: '📁' }
+    };
+    const c = config[status] || { label: status, class: 'status-unknown', icon: '❓' };
+    return `<span class="submission-status ${c.class}">${c.icon} ${c.label}</span>`;
+  }
+
+  function riskBadgeSmall(level) {
+    if (!level) return '<span class="risk-badge risk-unknown">-</span>';
+    const colors = { safe: 'green', low: 'green', medium: 'yellow', high: 'orange', critical: 'red' };
+    return `<span class="risk-badge risk-${level}" style="background:${colors[level] || 'gray'}">${level}</span>`;
+  }
+
+  function renderSubmissionsPage() {
+    const stats = SubmissionData.stats || {};
+    return `
+<div class="submissions-page" style="padding:2rem;max-width:1400px;margin:0 auto">
+  <div class="submissions-header" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2rem">
+    <div>
+      <h1 style="margin:0;font-size:1.75rem">📊 技能提交监控</h1>
+      <p style="margin:.5rem 0 0;color:var(--text-muted)">监控技能提交工作流，管理重试和审批</p>
+    </div>
+    <div style="display:flex;gap:.5rem;align-items:center">
+      <label style="display:flex;align-items:center;gap:.5rem;font-size:.875rem;color:var(--text-muted)">
+        <input type="checkbox" id="auto-refresh" checked style="accent-color:var(--accent)">
+        自动刷新
+      </label>
+      <span id="last-refresh-time" style="font-size:.75rem;color:var(--text-muted)"></span>
+      <button class="btn btn-secondary" id="refresh-submissions">🔄 刷新</button>
+      <button class="btn btn-secondary" id="export-submissions">📥 导出</button>
+    </div>
+  </div>
+
+  <!-- 调度器状态面板 -->
+  <div class="scheduler-panel" style="background:var(--card);padding:1rem;border-radius:8px;margin-bottom:1rem;display:flex;gap:2rem;align-items:center;flex-wrap:wrap">
+    <div style="display:flex;align-items:center;gap:.5rem">
+      <span id="scheduler-indicator" style="width:10px;height:10px;border-radius:50%;background:#10b981"></span>
+      <span style="font-weight:500">调度器</span>
+      <span id="scheduler-status" style="color:var(--text-muted);font-size:.875rem">检查中...</span>
+    </div>
+    <div style="font-size:.875rem;color:var(--text-muted)">
+      任务数: <span id="scheduler-jobs-count">-</span>
+    </div>
+    <div style="display:flex;gap:.5rem">
+      <select id="manual-task-select" style="padding:.25rem .5rem;border-radius:4px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:.75rem">
+        <option value="process_pending_retries">处理待重试</option>
+        <option value="sync_gitea_status">同步Gitea状态</option>
+        <option value="cleanup_old_events">清理过期日志</option>
+      </select>
+      <button class="btn btn-sm btn-secondary" id="run-manual-task">▶ 执行</button>
+    </div>
+  </div>
+
+  <!-- 统计卡片 -->
+  <div class="stats-grid" style="display:grid;grid-template-columns:repeat(5,1fr);gap:1rem;margin-bottom:2rem">
+    <div class="stat-card" style="background:var(--card);padding:1.5rem;border-radius:12px;text-align:center">
+      <div style="font-size:2rem;font-weight:700;color:var(--text)">${stats.total || 0}</div>
+      <div style="color:var(--text-muted);font-size:.875rem">总提交</div>
+    </div>
+    <div class="stat-card" style="background:var(--card);padding:1.5rem;border-radius:12px;text-align:center">
+      <div style="font-size:2rem;font-weight:700;color:#f59e0b">${stats.pending || 0}</div>
+      <div style="color:var(--text-muted);font-size:.875rem">待处理</div>
+    </div>
+    <div class="stat-card" style="background:var(--card);padding:1.5rem;border-radius:12px;text-align:center">
+      <div style="font-size:2rem;font-weight:700;color:#3b82f6">${stats.processing || 0}</div>
+      <div style="color:var(--text-muted);font-size:.875rem">处理中</div>
+    </div>
+    <div class="stat-card" style="background:var(--card);padding:1.5rem;border-radius:12px;text-align:center">
+      <div style="font-size:2rem;font-weight:700;color:#10b981">${stats.completed || 0}</div>
+      <div style="color:var(--text-muted);font-size:.875rem">已完成</div>
+    </div>
+    <div class="stat-card" style="background:var(--card);padding:1.5rem;border-radius:12px;text-align:center">
+      <div style="font-size:2rem;font-weight:700;color:#ef4444">${stats.failed || 0}</div>
+      <div style="color:var(--text-muted);font-size:.875rem">失败</div>
+    </div>
+  </div>
+
+  <!-- 趋势图 -->
+  <div class="trends-panel" style="background:var(--card);padding:1.5rem;border-radius:12px;margin-bottom:1rem">
+    <h3 style="margin:0 0 1rem;font-size:1rem">📈 近7天提交趋势</h3>
+    <div id="trends-chart" style="height:120px;display:flex;align-items:flex-end;gap:8px;justify-content:space-between">加载中...</div>
+  </div>
+
+  <!-- 筛选器 -->
+  <div class="filters" style="background:var(--card);padding:1rem;border-radius:8px;margin-bottom:1rem;display:flex;gap:1rem;flex-wrap:wrap;align-items:center">
+    <select id="filter-status" style="padding:.5rem;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text)">
+      <option value="">全部状态</option>
+      <option value="pending">待处理</option>
+      <option value="issue_created">待审批</option>
+      <option value="processing">处理中</option>
+      <option value="pr_created">PR已创建</option>
+      <option value="merged">已合并</option>
+      <option value="issue_failed">Issue失败</option>
+      <option value="process_failed">处理失败</option>
+    </select>
+    <input type="text" id="filter-keyword" placeholder="搜索技能名称或仓库..." style="padding:.5rem;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text);flex:1;min-width:200px">
+    <button class="btn btn-primary" id="apply-filters">搜索</button>
+  </div>
+
+  <!-- 提交列表 -->
+  <div class="submissions-list" style="background:var(--card);border-radius:12px;overflow:hidden">
+    <table style="width:100%;border-collapse:collapse">
+      <thead>
+        <tr style="background:var(--bg-secondary)">
+          <th style="padding:1rem;text-align:left;border-bottom:1px solid var(--border)">状态</th>
+          <th style="padding:1rem;text-align:left;border-bottom:1px solid var(--border)">技能名称</th>
+          <th style="padding:1rem;text-align:left;border-bottom:1px solid var(--border)">提交者</th>
+          <th style="padding:1rem;text-align:left;border-bottom:1px solid var(--border)">风险</th>
+          <th style="padding:1rem;text-align:left;border-bottom:1px solid var(--border)">重试</th>
+          <th style="padding:1rem;text-align:left;border-bottom:1px solid var(--border)">时间</th>
+          <th style="padding:1rem;text-align:left;border-bottom:1px solid var(--border)">操作</th>
+        </tr>
+      </thead>
+      <tbody id="submissions-tbody">
+        <tr><td colspan="7" style="padding:2rem;text-align:center;color:var(--text-muted)">加载中...</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- 分页 -->
+  <div id="submissions-pagination" style="display:flex;justify-content:center;gap:.5rem;margin-top:1rem"></div>
+</div>
+<style>
+.submission-status { padding:.25rem .5rem; border-radius:4px; font-size:.75rem; font-weight:500; }
+.status-pending { background:#fef3c7; color:#92400e; }
+.status-creating { background:#dbeafe; color:#1e40af; }
+.status-waiting { background:#e0e7ff; color:#3730a3; }
+.status-approved { background:#d1fae5; color:#065f46; }
+.status-rejected { background:#fee2e2; color:#991b1b; }
+.status-processing { background:#dbeafe; color:#1e40af; }
+.status-pr { background:#e0e7ff; color:#3730a3; }
+.status-merged { background:#d1fae5; color:#065f46; }
+.status-closed { background:#f3f4f6; color:#374151; }
+.status-failed { background:#fee2e2; color:#991b1b; }
+.risk-badge { padding:.125rem .375rem; border-radius:4px; font-size:.625rem; font-weight:600; color:white; text-transform:uppercase; }
+</style>`;
+  }
+
+  function renderSubmissionsList(submissions) {
+    const tbody = document.getElementById('submissions-tbody');
+    if (!tbody) return;
+
+    if (!submissions || submissions.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="7" style="padding:2rem;text-align:center;color:var(--text-muted)">暂无数据</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = submissions.map(s => `
+      <tr style="border-bottom:1px solid var(--border)">
+        <td style="padding:1rem">${statusBadge(s.status)}</td>
+        <td style="padding:1rem">
+          <div style="font-weight:500">${escHtml(s.name)}</div>
+          <div style="font-size:.75rem;color:var(--text-muted)">${escHtml(s.repo_url || '').substring(0, 50)}...</div>
+        </td>
+        <td style="padding:1rem">${escHtml(s.submitter_employee_id || '-')}</td>
+        <td style="padding:1rem">${riskBadgeSmall(s.highest_risk)}</td>
+        <td style="padding:1rem">${s.retry_count}/${s.max_retries}</td>
+        <td style="padding:1rem;font-size:.75rem;color:var(--text-muted)">${new Date(s.created_at).toLocaleString('zh-CN')}</td>
+        <td style="padding:1rem">
+          <button class="btn btn-sm btn-secondary" onclick="window.viewSubmission(${s.id})">详情</button>
+          ${s.status === 'issue_failed' || s.status === 'process_failed' ? `<button class="btn btn-sm btn-primary" onclick="window.doRetry(${s.id})">重试</button>` : ''}
+          ${s.status === 'issue_created' ? `<button class="btn btn-sm btn-primary" onclick="window.doApprove(${s.id})">审批</button>` : ''}
+        </td>
+      </tr>
+    `).join('');
+  }
+
+  function bindSubmissionsEvents() {
+    // 自动刷新定时器
+    let autoRefreshTimer = null;
+
+    // 加载调度器状态
+    async function loadSchedulerStatus() {
+      try {
+        const res = await Auth.fetchWithAuth(Auth.API_BASE + '/api/admin/submissions/scheduler/status');
+        if (res.ok) {
+          const data = await res.json();
+          const status = data.data || {};
+          const indicator = document.getElementById('scheduler-indicator');
+          const statusText = document.getElementById('scheduler-status');
+          const jobsCount = document.getElementById('scheduler-jobs-count');
+
+          if (indicator) {
+            indicator.style.background = status.available && status.running ? '#10b981' : '#ef4444';
+          }
+          if (statusText) {
+            statusText.textContent = status.available ? (status.running ? '运行中' : '已停止') : '不可用';
+          }
+          if (jobsCount) {
+            jobsCount.textContent = (status.jobs || []).length;
+          }
+        }
+      } catch (e) {
+        console.error('Failed to load scheduler status:', e);
+      }
+    }
+
+    // 加载趋势图
+    async function loadTrends() {
+      try {
+        const res = await Auth.fetchWithAuth(Auth.API_BASE + '/api/admin/submissions/trends?days=7');
+        if (res.ok) {
+          const data = await res.json();
+          const trends = data.data || [];
+          const chartEl = document.getElementById('trends-chart');
+          if (!chartEl) return;
+
+          const maxCount = Math.max(...trends.map(t => t.count), 1);
+          chartEl.innerHTML = trends.map(t => {
+            const height = Math.max((t.count / maxCount) * 100, 5);
+            const day = new Date(t.date).toLocaleDateString('zh-CN', { weekday: 'short' });
+            return `
+              <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px">
+                <div style="width:100%;height:${height}px;background:linear-gradient(to top,#6366f1,#818cf8);border-radius:4px;min-height:5px" title="${t.count}次提交"></div>
+                <span style="font-size:.625rem;color:var(--text-muted)">${day}</span>
+                <span style="font-size:.625rem;font-weight:600">${t.count}</span>
+              </div>
+            `;
+          }).join('');
+        }
+      } catch (e) {
+        console.error('Failed to load trends:', e);
+      }
+    }
+
+    // 更新最后刷新时间
+    function updateLastRefreshTime() {
+      const el = document.getElementById('last-refresh-time');
+      if (el) {
+        el.textContent = '最后刷新: ' + new Date().toLocaleTimeString('zh-CN');
+      }
+    }
+
+    // 刷新所有数据
+    async function refreshAll() {
+      await Promise.all([
+        loadSubmissionStats(),
+        loadSchedulerStatus(),
+        loadTrends()
+      ]);
+      const data = await loadSubmissions({ limit: 20 });
+      renderSubmissionsList(data.data);
+      updateLastRefreshTime();
+    }
+
+    // 启动自动刷新
+    function startAutoRefresh() {
+      if (autoRefreshTimer) clearInterval(autoRefreshTimer);
+      autoRefreshTimer = setInterval(() => {
+        const checkbox = document.getElementById('auto-refresh');
+        if (checkbox && checkbox.checked) {
+          refreshAll();
+        }
+      }, 30000); // 30秒
+    }
+
+    // 初始加载
+    refreshAll();
+    startAutoRefresh();
+
+    // 刷新按钮
+    document.getElementById('refresh-submissions')?.addEventListener('click', () => {
+      refreshAll();
+      showToast('已刷新');
+    });
+
+    // 导出按钮
+    document.getElementById('export-submissions')?.addEventListener('click', () => {
+      window.open(Auth.API_BASE + '/api/admin/submissions/export/csv', '_blank');
+    });
+
+    // 筛选
+    document.getElementById('apply-filters')?.addEventListener('click', () => {
+      const status = document.getElementById('filter-status').value;
+      const keyword = document.getElementById('filter-keyword').value;
+      loadSubmissions({ limit: 20, status, keyword }).then(data => {
+        renderSubmissionsList(data.data);
+      });
+    });
+
+    // 手动执行任务
+    document.getElementById('run-manual-task')?.addEventListener('click', async () => {
+      const taskName = document.getElementById('manual-task-select')?.value;
+      if (!taskName) return;
+
+      showToast('正在执行任务...');
+      try {
+        const res = await Auth.fetchWithAuth(
+          Auth.API_BASE + '/api/admin/submissions/scheduler/run-task?task_name=' + encodeURIComponent(taskName),
+          { method: 'POST' }
+        );
+        const result = await res.json();
+        if (result.success) {
+          showToast('任务执行完成');
+          refreshAll();
+        } else {
+          showToast(result.message || '任务执行失败', 'error');
+        }
+      } catch (e) {
+        showToast('任务执行失败: ' + e.message, 'error');
+      }
+    });
+  }
+
+  // 全局函数供 onclick 调用
+  window.viewSubmission = function(id) {
+    location.hash = 'submission/' + id;
+  };
+
+  window.doRetry = async function(id) {
+    showToast('正在重试...');
+    const result = await retrySubmission(id);
+    if (result.success) {
+      showToast('重试成功');
+      loadSubmissions({ limit: 20 }).then(data => renderSubmissionsList(data.data));
+    } else {
+      showToast(result.message || '重试失败', 'error');
+    }
+  };
+
+  window.doApprove = async function(id) {
+    if (!confirm('确定要审批通过这个提交吗？')) return;
+    showToast('正在审批...');
+    const result = await approveSubmission(id);
+    if (result.success) {
+      showToast('审批成功');
+      loadSubmissions({ limit: 20 }).then(data => renderSubmissionsList(data.data));
+    } else {
+      showToast(result.message || '审批失败', 'error');
+    }
+  };
+
+  // 提交详情页
+  function renderSubmissionDetailPage(data) {
+    const sub = data.submission;
+    const events = data.events || [];
+
+    return `
+<div class="submission-detail" style="padding:2rem;max-width:1200px;margin:0 auto">
+  <div style="margin-bottom:1rem">
+    <a href="#submissions" data-href="#submissions" style="color:var(--accent);text-decoration:none">← 返回列表</a>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 300px;gap:2rem">
+    <!-- 左侧：提交信息 -->
+    <div>
+      <div style="background:var(--card);padding:1.5rem;border-radius:12px;margin-bottom:1rem">
+        <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:1rem">
+          <div>
+            <h1 style="margin:0;font-size:1.5rem">${escHtml(sub.name)}</h1>
+            <p style="margin:.25rem 0 0;color:var(--text-muted)">${escHtml(sub.repo_url)}</p>
+          </div>
+          ${statusBadge(sub.status)}
+        </div>
+
+        <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:1rem;margin-top:1rem">
+          <div><strong>提交 ID:</strong> <code>${escHtml(sub.submission_id)}</code></div>
+          <div><strong>提交者:</strong> ${escHtml(sub.submitter_employee_id || '-')}</div>
+          <div><strong>Issue:</strong> ${sub.issue_url ? `<a href="${escHtml(sub.issue_url)}" target="_blank">#${sub.issue_number}</a>` : '-'}</div>
+          <div><strong>PR:</strong> ${sub.pr_url ? `<a href="${escHtml(sub.pr_url)}" target="_blank">#${sub.pr_number}</a>` : '-'}</div>
+          <div><strong>风险等级:</strong> ${riskBadgeSmall(sub.highest_risk)}</div>
+          <div><strong>重试次数:</strong> ${sub.retry_count}/${sub.max_retries}</div>
+          <div><strong>创建时间:</strong> ${new Date(sub.created_at).toLocaleString('zh-CN')}</div>
+          <div><strong>更新时间:</strong> ${new Date(sub.updated_at).toLocaleString('zh-CN')}</div>
+        </div>
+
+        ${sub.description ? `<div style="margin-top:1rem"><strong>描述:</strong><p style="margin:.5rem 0;color:var(--text-muted)">${escHtml(sub.description)}</p></div>` : ''}
+
+        ${sub.error_message ? `<div style="margin-top:1rem;padding:1rem;background:#fee2e2;border-radius:8px;color:#991b1b"><strong>错误信息:</strong><br>${escHtml(sub.error_message)}</div>` : ''}
+      </div>
+
+      <!-- 操作按钮 -->
+      <div style="display:flex;gap:.5rem">
+        ${sub.status === 'issue_failed' || sub.status === 'process_failed' ? `<button class="btn btn-primary" onclick="window.doRetry(${sub.id})">🔄 重试</button>` : ''}
+        ${sub.status === 'issue_created' ? `
+          <button class="btn btn-primary" onclick="window.doApprove(${sub.id})">✅ 审批通过</button>
+          <button class="btn btn-danger" onclick="window.doReject(${sub.id})">❌ 拒绝</button>
+        ` : ''}
+      </div>
+    </div>
+
+    <!-- 右侧：事件时间线 -->
+    <div style="background:var(--card);padding:1.5rem;border-radius:12px">
+      <h3 style="margin:0 0 1rem">事件时间线</h3>
+      <div style="border-left:2px solid var(--border);padding-left:1rem">
+        ${events.map(e => `
+          <div style="margin-bottom:1rem;position:relative">
+            <div style="position:absolute;left:-1.25rem;width:.5rem;height:.5rem;background:var(--accent);border-radius:50%"></div>
+            <div style="font-size:.75rem;color:var(--text-muted)">${new Date(e.created_at).toLocaleString('zh-CN')}</div>
+            <div style="font-weight:500">${escHtml(e.message || e.event_type)}</div>
+            ${e.actor_employee_id ? `<div style="font-size:.75rem;color:var(--text-muted)">by ${escHtml(e.actor_employee_id)}</div>` : ''}
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  </div>
+</div>`;
+  }
+
+  function renderSubmissionDetailPageWrapper(id) {
+    loadSubmissionDetail(id).then(data => {
+      if (data) {
+        document.getElementById('main-content').innerHTML = renderSubmissionDetailPage(data);
+      } else {
+        document.getElementById('main-content').innerHTML = '<div style="padding:2rem;text-align:center">提交不存在</div>';
+      }
+    });
+    return '<div style="padding:2rem;text-align:center">加载中...</div>';
+  }
+
+  // 扩展 render 函数
+  const originalRender = render;
+  window.render = function() {
+    const route = window.getRoute();
+    const main = document.getElementById('main-content');
+    if (!main) return;
+
+    if (route.page === 'submissions') {
+      updateNavActive('submissions');
+      main.innerHTML = renderSubmissionsPage();
+      bindSubmissionsEvents();
+    } else if (route.page === 'submission-detail') {
+      updateNavActive('submissions');
+      main.innerHTML = renderSubmissionDetailPageWrapper(route.id);
+    } else {
+      originalRender();
+    }
+  };
+
+  // 添加到导航
+  const navLinks = document.querySelector('.nav-links');
+  if (navLinks && !document.querySelector('[data-nav="submissions"]')) {
+    const submissionsLink = document.createElement('a');
+    submissionsLink.className = 'nav-link';
+    submissionsLink.setAttribute('data-href', '#submissions');
+    submissionsLink.setAttribute('data-nav', 'submissions');
+    submissionsLink.textContent = '提交监控';
+    submissionsLink.style.display = 'none';
+    submissionsLink.id = 'nav-submissions';
+    navLinks.appendChild(submissionsLink);
+  }
+
+  // 更新 updateAuthUI 以显示/隐藏提交监控链接
+  const originalUpdateAuthUI = updateAuthUI;
+  window.updateAuthUI = function() {
+    originalUpdateAuthUI();
+    const user = Auth.getUser();
+    const navSubmissions = document.getElementById('nav-submissions');
+    if (navSubmissions) {
+      navSubmissions.style.display = (user && (user.role === 'admin' || user.role === 'super_admin')) ? '' : 'none';
+    }
+  };
+
+  // 重新初始化
+  updateAuthUI();
 })();
