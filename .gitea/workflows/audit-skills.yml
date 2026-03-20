@@ -1,5 +1,5 @@
 # .gitea/workflows/audit-skills.yml
-# 技能安全审计工作流 - 基于 skill-report-generator 的规则
+# 技能安全审计工作流 - 使用 skill-report-generator 生成完整报告
 name: Audit Skills
 
 on:
@@ -14,7 +14,7 @@ on:
         required: false
         default: ''
       dry_run:
-        description: 'Preview changes without creating PR'
+        description: 'Preview changes without committing'
         required: false
         default: 'false'
   workflow_call:
@@ -30,7 +30,7 @@ on:
         default: ''
         type: string
       dry_run:
-        description: 'Preview changes without creating PR'
+        description: 'Preview changes without committing'
         required: false
         default: 'false'
         type: string
@@ -54,191 +54,81 @@ jobs:
           git clone http://oauth2:${GITEA_TOKEN}@172.28.95.77:3000/${{ github.repository }}.git .
           git checkout ${{ github.sha }}
 
-      - name: Run security audit
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install openai rich pyyaml
+
+      - name: Run security audit with generate.py
         id: audit
         env:
           TARGET: ${{ inputs.target }}
           TARGET_SLUGS: ${{ inputs.slugs }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_BASE_URL: ${{ secrets.OPENAI_BASE_URL }}
+          OPENAI_MODEL: ${{ secrets.OPENAI_MODEL }}
         run: |
           set -euo pipefail
 
-          SEARCH_DIR="$TARGET"
           SKILL_COUNT=0
           UPDATED_COUNT=0
+          AUDITED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 
-          # Security audit rules (from skill-report-generator)
-          declare -A SCRIPT_EXTS
-          SCRIPT_EXTS[".sh"]=1 SCRIPT_EXTS[".py"]=1 SCRIPT_EXTS[".js"]=1
-          SCRIPT_EXTS[".ts"]=1 SCRIPT_EXTS[".mjs"]=1 SCRIPT_EXTS[".ps1"]=1 SCRIPT_EXTS[".bat"]=1
+          # Build config values with defaults
+          API_BASE_URL="${OPENAI_BASE_URL:-https://api.openai.com/v1}"
+          API_KEY="${OPENAI_API_KEY:-}"
+          API_MODEL="${OPENAI_MODEL:-gpt-4o}"
 
-          NETWORK_PATTERNS="http:// https:// fetch( aiohttp requests. axios websocket urllib httpx curl"
-          FILESYSTEM_PATTERNS="open( .write( Path( os.remove os.mkdir os.makedirs shutil. os.path fs.readFile fs.writeFile"
-          ENV_PATTERNS="os.environ process.env dotenv load_dotenv getenv env["
-          COMMAND_PATTERNS="subprocess exec( eval( child_process os.system os.popen commands."
-
-          audit_skill() {
-            local SKILL_DIR="$1"
-            local RISK_FACTORS="[]"
-            local FILES_SCANNED=0
-            local TOTAL_LINES=0
-            local HAS_SCRIPTS=false
-            local HAS_NETWORK=false
-            local HAS_FILESYSTEM=false
-            local HAS_ENV=false
-            local HAS_COMMANDS=false
-
-            # Get skill name from SKILL.md
-            local SKILL_NAME=$(basename "$SKILL_DIR")
-            if [ -f "$SKILL_DIR/SKILL.md" ]; then
-              local MD_NAME=$(grep -E '^name:' "$SKILL_DIR/SKILL.md" 2>/dev/null | head -1 | sed 's/name:[[:space:]]*//' || echo "")
-              [ -n "$MD_NAME" ] && SKILL_NAME="$MD_NAME"
-            fi
-
-            # Generate slug
-            local SLUG=$(echo "$SKILL_NAME" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/-/g' | sed 's/^-*//;s/-*$//;s/--*/-/g')
-
-            # Scan all files in skill directory
-            while IFS= read -r -d '' file_path; do
-              [ ! -f "$file_path" ] && continue
-              local fname=$(basename "$file_path")
-              [[ "$fname" == .* ]] && continue
-              [[ "$fname" == "skill-report.json" ]] && continue
-
-              FILES_SCANNED=$((FILES_SCANNED + 1))
-              local file_ext="${file_path##*.}"
-
-              # Count lines
-              local lines=$(wc -l < "$file_path" 2>/dev/null || echo 0)
-              TOTAL_LINES=$((TOTAL_LINES + lines))
-
-              # Check for script files
-              if [[ -v SCRIPT_EXTS["$file_ext"] ]]; then
-                HAS_SCRIPTS=true
-              fi
-
-              # Read file content for pattern matching
-              local content=$(cat "$file_path" 2>/dev/null || echo "")
-
-              # Check network patterns
-              for pattern in $NETWORK_PATTERNS; do
-                if [[ "$content" == *"$pattern"* ]]; then
-                  HAS_NETWORK=true
-                  break
-                fi
-              done
-
-              # Check filesystem patterns
-              for pattern in $FILESYSTEM_PATTERNS; do
-                if [[ "$content" == *"$pattern"* ]]; then
-                  HAS_FILESYSTEM=true
-                  break
-                fi
-              done
-
-              # Check env patterns
-              for pattern in $ENV_PATTERNS; do
-                if [[ "$content" == *"$pattern"* ]]; then
-                  HAS_ENV=true
-                  break
-                fi
-              done
-
-              # Check command patterns
-              for pattern in $COMMAND_PATTERNS; do
-                if [[ "$content" == *"$pattern"* ]]; then
-                  HAS_COMMANDS=true
-                  break
-                fi
-              done
-
-            done < <(find "$SKILL_DIR" -type f -print0 2>/dev/null)
-
-            # Build risk factors array
-            local RF_ARRAY=""
-            [ "$HAS_SCRIPTS" = true ] && RF_ARRAY="$RF_ARRAY\"scripts\","
-            [ "$HAS_NETWORK" = true ] && RF_ARRAY="$RF_ARRAY\"network\","
-            [ "$HAS_FILESYSTEM" = true ] && RF_ARRAY="$RF_ARRAY\"filesystem\","
-            [ "$HAS_ENV" = true ] && RF_ARRAY="$RF_ARRAY\"env_access\","
-            [ "$HAS_COMMANDS" = true ] && RF_ARRAY="$RF_ARRAY\"external_commands\","
-            RF_ARRAY="[${RF_ARRAY%,}]"
-
-            # Calculate risk level
-            local RISK_LEVEL="safe"
-            local factor_count=0
-            [ "$HAS_SCRIPTS" = true ] && factor_count=$((factor_count + 1))
-            [ "$HAS_NETWORK" = true ] && factor_count=$((factor_count + 1))
-            [ "$HAS_FILESYSTEM" = true ] && factor_count=$((factor_count + 1))
-            [ "$HAS_ENV" = true ] && factor_count=$((factor_count + 1))
-            [ "$HAS_COMMANDS" = true ] && factor_count=$((factor_count + 1))
-
-            if [ "$HAS_COMMANDS" = true ]; then
-              RISK_LEVEL="high"
-            elif [ $factor_count -ge 3 ]; then
-              RISK_LEVEL="medium"
-            elif [ $factor_count -gt 0 ]; then
-              RISK_LEVEL="low"
-            fi
-
-            # Generate summary
-            local SUMMARY=""
-            case "$RISK_LEVEL" in
-              safe) SUMMARY="This skill contains only documentation. No executable code or risky patterns detected." ;;
-              low) SUMMARY="This skill has low-risk features: scripts or basic file operations. No dangerous patterns." ;;
-              medium) SUMMARY="This skill contains multiple risk factors. Review recommended before use." ;;
-              high) SUMMARY="This skill contains external command execution. Careful review required." ;;
-            esac
-
-            # Get current timestamp
-            local AUDITED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-
-            # Generate skill-report.json (create or update)
-            local REPORT_FILE="$SKILL_DIR/skill-report.json"
-
-            cat > "$REPORT_FILE" << EOF
-          {
-            "meta": {
-              "slug": "$SLUG",
-              "name": "$SKILL_NAME",
-              "processed_at": "$AUDITED_AT"
-            },
-            "security_audit": {
-              "risk_level": "$RISK_LEVEL",
-              "is_blocked": false,
-              "safe_to_publish": true,
-              "summary": "$SUMMARY",
-              "risk_factors": $RF_ARRAY,
-              "files_scanned": $FILES_SCANNED,
-              "total_lines": $TOTAL_LINES,
-              "audited_at": "$AUDITED_AT"
-            }
-          }
+          # Create config for generate.py
+          mkdir -p /tmp/audit-config
+          cat > /tmp/audit-config/config.yaml << EOF
+          api:
+            base_url: "$API_BASE_URL"
+            api_key: "$API_KEY"
+            model: "$API_MODEL"
+            timeout: 120
+          generation:
+            concurrent: 1
+            retry: 2
           EOF
 
-            echo "✅ Audited: $SKILL_NAME (risk: $RISK_LEVEL, files: $FILES_SCANNED)"
-            return 0
-          }
-
-          echo "🔍 Auditing skills in: $SEARCH_DIR"
-
-          # Filter by slugs if specified
+          # Build generate.py command arguments
           if [ -n "$TARGET_SLUGS" ]; then
+            # Specific slugs
             IFS=',' read -ra SLUG_ARRAY <<< "$TARGET_SLUGS"
+            SKILL_PATHS=""
             for slug in "${SLUG_ARRAY[@]}"; do
               slug=$(echo "$slug" | xargs)
-              for skill_dir in "$SEARCH_DIR"/*/"$slug"; do
+              for skill_dir in "$TARGET"/*/"$slug"; do
                 if [ -d "$skill_dir" ]; then
                   SKILL_COUNT=$((SKILL_COUNT + 1))
-                  audit_skill "$skill_dir" && UPDATED_COUNT=$((UPDATED_COUNT + 1))
+                  SKILL_PATHS="$SKILL_PATHS $skill_dir"
                 fi
               done
             done
+            if [ -n "$SKILL_PATHS" ]; then
+              python skill-report-generator/generate.py \
+                --input $SKILL_PATHS \
+                --config /tmp/audit-config/config.yaml \
+                --verbose && UPDATED_COUNT=$SKILL_COUNT
+            fi
           else
-            # Audit all skills
-            for skill_md in $(find "$SEARCH_DIR" -name "SKILL.md" -type f 2>/dev/null); do
-              skill_dir=$(dirname "$skill_md")
+            # All skills in target directory
+            for skill_md in $(find "$TARGET" -name "SKILL.md" -type f 2>/dev/null); do
               SKILL_COUNT=$((SKILL_COUNT + 1))
-              audit_skill "$skill_dir" && UPDATED_COUNT=$((UPDATED_COUNT + 1))
             done
+
+            if [ "$SKILL_COUNT" -gt 0 ]; then
+              python skill-report-generator/generate.py \
+                --input "$TARGET" \
+                --scan \
+                --config /tmp/audit-config/config.yaml \
+                --verbose && UPDATED_COUNT=$SKILL_COUNT
+            fi
           fi
 
           echo ""

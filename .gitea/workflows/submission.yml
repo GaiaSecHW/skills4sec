@@ -75,6 +75,11 @@ jobs:
         run: |
           set -euo pipefail
 
+          # Configure git for better network handling
+          git config --global http.postBuffer 524288000
+          git config --global http.lowSpeedLimit 0
+          git config --global http.lowSpeedTime 999999
+
           # Add authentication for private repos
           AUTH_URL="$CLONE_URL"
           if [ -n "$GITEA_SOURCE_TOKEN" ] && [ "$PLATFORM" = "gitea" ]; then
@@ -83,17 +88,30 @@ jobs:
             AUTH_URL="https://oauth2:${GITHUB_TOKEN}@${CLONE_URL#https://}"
           fi
 
-          # Use sparse checkout for large repos with specific skill_path
-          if [ -n "$SKILL_PATH" ]; then
-            echo "🔄 Using sparse checkout for: $SKILL_PATH"
-            git clone --filter=blob:none --sparse --depth 1 "$AUTH_URL" /tmp/source-repo
-            cd /tmp/source-repo
-            git sparse-checkout set "$SKILL_PATH"
-            echo "✅ Sparse cloned: $SKILL_PATH"
-          else
-            git clone --depth 1 "$AUTH_URL" /tmp/source-repo
-            echo "✅ Cloned $CLONE_URL"
-          fi
+          # Clone with retry logic
+          clone_repo() {
+            if [ -n "$SKILL_PATH" ]; then
+              echo "🔄 Using sparse checkout for: $SKILL_PATH"
+              git clone --filter=blob:none --sparse --depth 1 "$AUTH_URL" /tmp/source-repo
+              cd /tmp/source-repo
+              git sparse-checkout set "$SKILL_PATH"
+              echo "✅ Sparse cloned: $SKILL_PATH"
+            else
+              git clone --depth 1 "$AUTH_URL" /tmp/source-repo
+              echo "✅ Cloned $CLONE_URL"
+            fi
+          }
+
+          # Try cloning with retries
+          for i in 1 2 3; do
+            rm -rf /tmp/source-repo 2>/dev/null || true
+            if clone_repo; then
+              echo "✅ Clone successful on attempt $i"
+              break
+            fi
+            echo "⚠️ Clone failed on attempt $i, retrying in 10s..."
+            sleep 10
+          done
 
       - name: Discover SKILL.md files
         id: discover
@@ -144,7 +162,7 @@ jobs:
             # Copy skill files
             cp -r "$SKILL_DIR"/* "$TARGET_DIR/" 2>/dev/null || cp "$skill_md" "$TARGET_DIR/"
 
-            # Generate basic skill-report.json
+            # Generate basic skill-report.json (audit-skills.yml will update with full audit)
             cat > "$TARGET_DIR/skill-report.json" << EOF
           {
             "meta": {
@@ -155,8 +173,8 @@ jobs:
               "processed_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
             },
             "security_audit": {
-              "risk_level": "safe",
-              "summary": "Processed by Gitea workflow"
+              "risk_level": "pending",
+              "summary": "Awaiting security audit"
             }
           }
           EOF
@@ -171,7 +189,7 @@ jobs:
 
       - name: Create Pull Request
         id: pr
-        if: steps.discover.outputs.skill_count != '0'
+        if: steps.discover.outputs.skill_count != '0' && steps.discover.outputs.skill_count != 0
         env:
           GITEA_TOKEN: ${{ secrets.GITEATOKEN }}
           OWNER: ${{ steps.parse.outputs.owner }}
@@ -258,12 +276,126 @@ jobs:
             echo "⚠️ No PR created (no skills found or processing failed)"
           fi
 
-  # Auto-trigger security audit after processing
+  # Run security audit on PR branch and commit results
   audit:
     needs: process
-    if: needs.process.outputs.skill_count != '0'
-    uses: ./.gitea/workflows/audit-skills.yml
-    with:
-      target: 'pending'
-      dry_run: 'false'
-    secrets: inherit
+    if: needs.process.outputs.skill_count != '0' && needs.process.outputs.skill_count != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    outputs:
+      audited_count: ${{ steps.audit.outputs.audited_count }}
+
+    steps:
+      - name: Checkout repository with skill-report-generator
+        env:
+          GITEA_TOKEN: ${{ secrets.GITEATOKEN }}
+          BRANCH_NAME: ${{ needs.process.outputs.branch_name }}
+        run: |
+          # Clone the repository
+          git clone http://oauth2:${GITEA_TOKEN}@172.28.95.77:3000/${{ github.repository }}.git .
+
+          # Save skill-report-generator from main branch
+          git checkout main
+          cp -r skill-report-generator /tmp/skill-report-generator
+
+          # Checkout PR branch for pending skills
+          git checkout "$BRANCH_NAME"
+
+          # Restore skill-report-generator
+          cp -r /tmp/skill-report-generator .
+
+      - name: Install Python and dependencies
+        run: |
+          apt-get update && apt-get install -y python3 python3-pip
+          pip3 install openai rich pyyaml --break-system-packages
+
+      - name: Run security audit
+        id: audit
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_BASE_URL: ${{ secrets.OPENAI_BASE_URL }}
+          OPENAI_MODEL: ${{ secrets.OPENAI_MODEL }}
+        run: |
+          set -euo pipefail
+
+          AUDITED_COUNT=0
+
+          # Build config values with defaults
+          API_BASE_URL="${OPENAI_BASE_URL:-https://api.openai.com/v1}"
+          API_KEY="${OPENAI_API_KEY:-}"
+          API_MODEL="${OPENAI_MODEL:-gpt-4o}"
+
+          # Create config for generate.py
+          mkdir -p /tmp/audit-config
+          cat > /tmp/audit-config/config.yaml << EOF
+          api:
+            base_url: "$API_BASE_URL"
+            api_key: "$API_KEY"
+            model: "$API_MODEL"
+            timeout: 120
+          generation:
+            concurrent: 1
+            retry: 2
+          EOF
+
+          # Count skills
+          SKILL_COUNT=$(find pending -name "SKILL.md" -type f 2>/dev/null | wc -l || echo 0)
+
+          if [ "$SKILL_COUNT" -gt 0 ]; then
+            echo "🔒 Running security audit on $SKILL_COUNT skill(s)..."
+
+            python skill-report-generator/generate.py \
+              --input pending \
+              --scan \
+              --config /tmp/audit-config/config.yaml \
+              --verbose && AUDITED_COUNT=$SKILL_COUNT
+          fi
+
+          echo ""
+          echo "📊 Audit complete: $AUDITED_COUNT/$SKILL_COUNT skills audited"
+          echo "audited_count=$AUDITED_COUNT" >> $GITHUB_OUTPUT
+
+      - name: Commit audit results to PR branch
+        if: steps.audit.outputs.audited_count != '0'
+        env:
+          GITEA_TOKEN: ${{ secrets.GITEATOKEN }}
+          REPOSITORY: ${{ github.repository }}
+          BRANCH_NAME: ${{ needs.process.outputs.branch_name }}
+          AUDITED_COUNT: ${{ steps.audit.outputs.audited_count }}
+        run: |
+          set -euo pipefail
+
+          # Configure git
+          git config user.name "skillstore-bot"
+          git config user.email "bot@local"
+
+          # Stage audit results
+          git add "pending/"*/*/skill-report.json 2>/dev/null || \
+          git add "pending/"*/skill-report.json 2>/dev/null || true
+
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+
+          git commit -m "🔒 Security audit for $AUDITED_COUNT skill(s)"
+
+          # Push to PR branch
+          git push http://oauth2:${GITEA_TOKEN}@172.28.95.77:3000/${REPOSITORY}.git "$BRANCH_NAME"
+
+          echo "✅ Committed audit results to PR branch: $BRANCH_NAME"
+
+      - name: Summary
+        if: always()
+        env:
+          AUDITED_COUNT: ${{ steps.audit.outputs.audited_count }}
+          BRANCH_NAME: ${{ needs.process.outputs.branch_name }}
+        run: |
+          echo "## Security Audit" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Metric | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Branch | ${BRANCH_NAME} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Skills Audited | ${AUDITED_COUNT:-0} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "🔒 Audit results committed to PR branch." >> $GITHUB_STEP_SUMMARY

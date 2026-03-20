@@ -38,14 +38,15 @@ jobs:
           SOURCE_URL=""
           SKILL_PATH=""
 
-          # 尝试从 Issue body 提取 URL
-          if echo "$ISSUE_BODY" | grep -qi "仓库地址"; then
-            FULL_URL=$(echo "$ISSUE_BODY" | grep -oiE "https?://github\.com[^\s\r]*" | head -1)
-          elif echo "$ISSUE_BODY" | grep -qi "repository"; then
-            FULL_URL=$(echo "$ISSUE_BODY" | grep -oiE "https?://github\.com[^\s\r]*" | head -1)
+          # 尝试从 Issue body 提取 URL (移除 \r 避免截断)
+          CLEAN_BODY=$(echo "$ISSUE_BODY" | tr -d '\r')
+          if echo "$CLEAN_BODY" | grep -qi "仓库地址"; then
+            FULL_URL=$(echo "$CLEAN_BODY" | grep -oiE "https?://github\.com[^[:space:]]*" | head -1)
+          elif echo "$CLEAN_BODY" | grep -qi "repository"; then
+            FULL_URL=$(echo "$CLEAN_BODY" | grep -oiE "https?://github\.com[^[:space:]]*" | head -1)
           else
             # 直接查找 GitHub URL
-            FULL_URL=$(echo "$ISSUE_BODY" | grep -oiE "https?://github\.com[^\s\r]*" | head -1)
+            FULL_URL=$(echo "$CLEAN_BODY" | grep -oiE "https?://github\.com[^[:space:]]*" | head -1)
           fi
 
           # 解析 URL，提取仓库地址和技能路径
