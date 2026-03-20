@@ -5,7 +5,6 @@ from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, HttpUrl
 from typing import Optional
 import httpx
-import os
 
 from app.config import settings
 
@@ -29,10 +28,10 @@ class SubmissionResponse(BaseModel):
     issue_number: Optional[int] = None
 
 
-# Gitea 配置 - 从环境变量读取
-GITEA_API_URL = os.getenv("GITEA_API_URL", "http://172.28.95.77:3000/api/v1")
-GITEA_TOKEN = os.getenv("GITEA_TOKEN", "")
-GITEA_REPO = os.getenv("GITEA_REPO", "admin/skills4sec")  # owner/repo
+# Gitea 配置 - 从 settings 读取 (支持 .env 文件)
+GITEA_API_URL = settings.GITEA_API_URL
+GITEA_TOKEN = settings.GITEA_TOKEN
+GITEA_REPO = settings.GITEA_REPO
 
 
 @router.post("", response_model=SubmissionResponse)
