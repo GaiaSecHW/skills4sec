@@ -1,0 +1,184 @@
+# .gitea/workflows/audit-skills.yml
+# 技能安全审计工作流 - 使用 skill-report-generator 生成完整报告
+name: Audit Skills
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'Target directory (pending or skills)'
+        required: false
+        default: 'pending'
+      slugs:
+        description: 'Specific skill slugs (comma-separated, empty for all)'
+        required: false
+        default: ''
+      dry_run:
+        description: 'Preview changes without committing'
+        required: false
+        default: 'false'
+  workflow_call:
+    inputs:
+      target:
+        description: 'Target directory (pending or skills)'
+        required: false
+        default: 'pending'
+        type: string
+      slugs:
+        description: 'Specific skill slugs (comma-separated, empty for all)'
+        required: false
+        default: ''
+        type: string
+      dry_run:
+        description: 'Preview changes without committing'
+        required: false
+        default: 'false'
+        type: string
+
+env:
+  GITEA_API_URL: http://172.28.95.77:3000/api/v1
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    outputs:
+      skill_count: ${{ steps.audit.outputs.skill_count }}
+      updated_count: ${{ steps.audit.outputs.updated_count }}
+
+    steps:
+      - name: Checkout repository
+        env:
+          GITEA_TOKEN: ${{ secrets.GITEATOKEN }}
+        run: |
+          git clone http://oauth2:${GITEA_TOKEN}@172.28.95.77:3000/${{ github.repository }}.git .
+          git checkout ${{ github.sha }}
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install openai rich pyyaml
+
+      - name: Run security audit with generate.py
+        id: audit
+        env:
+          TARGET: ${{ inputs.target }}
+          TARGET_SLUGS: ${{ inputs.slugs }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_BASE_URL: ${{ secrets.OPENAI_BASE_URL }}
+          OPENAI_MODEL: ${{ secrets.OPENAI_MODEL }}
+        run: |
+          set -euo pipefail
+
+          SKILL_COUNT=0
+          UPDATED_COUNT=0
+          AUDITED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+
+          # Build config values with defaults
+          API_BASE_URL="${OPENAI_BASE_URL:-https://api.openai.com/v1}"
+          API_KEY="${OPENAI_API_KEY:-}"
+          API_MODEL="${OPENAI_MODEL:-gpt-4o}"
+
+          # Create config for generate.py
+          mkdir -p /tmp/audit-config
+          cat > /tmp/audit-config/config.yaml << EOF
+          api:
+            base_url: "$API_BASE_URL"
+            api_key: "$API_KEY"
+            model: "$API_MODEL"
+            timeout: 120
+          generation:
+            concurrent: 1
+            retry: 2
+          EOF
+
+          # Build generate.py command arguments
+          if [ -n "$TARGET_SLUGS" ]; then
+            # Specific slugs
+            IFS=',' read -ra SLUG_ARRAY <<< "$TARGET_SLUGS"
+            SKILL_PATHS=""
+            for slug in "${SLUG_ARRAY[@]}"; do
+              slug=$(echo "$slug" | xargs)
+              for skill_dir in "$TARGET"/*/"$slug"; do
+                if [ -d "$skill_dir" ]; then
+                  SKILL_COUNT=$((SKILL_COUNT + 1))
+                  SKILL_PATHS="$SKILL_PATHS $skill_dir"
+                fi
+              done
+            done
+            if [ -n "$SKILL_PATHS" ]; then
+              python skill-report-generator/generate.py \
+                --input $SKILL_PATHS \
+                --config /tmp/audit-config/config.yaml \
+                --verbose && UPDATED_COUNT=$SKILL_COUNT
+            fi
+          else
+            # All skills in target directory
+            for skill_md in $(find "$TARGET" -name "SKILL.md" -type f 2>/dev/null); do
+              SKILL_COUNT=$((SKILL_COUNT + 1))
+            done
+
+            if [ "$SKILL_COUNT" -gt 0 ]; then
+              python skill-report-generator/generate.py \
+                --input "$TARGET" \
+                --scan \
+                --config /tmp/audit-config/config.yaml \
+                --verbose && UPDATED_COUNT=$SKILL_COUNT
+            fi
+          fi
+
+          echo ""
+          echo "📊 Audit complete: $UPDATED_COUNT/$SKILL_COUNT skills audited"
+          echo "skill_count=$SKILL_COUNT" >> $GITHUB_OUTPUT
+          echo "updated_count=$UPDATED_COUNT" >> $GITHUB_OUTPUT
+
+      - name: Commit audit results
+        if: inputs.dry_run != 'true' && steps.audit.outputs.updated_count != '0'
+        env:
+          GITEA_TOKEN: ${{ secrets.GITEATOKEN }}
+          REPOSITORY: ${{ github.repository }}
+          UPDATED_COUNT: ${{ steps.audit.outputs.updated_count }}
+          TARGET: ${{ inputs.target }}
+        run: |
+          set -euo pipefail
+
+          # Configure git
+          git config user.name "skillstore-bot"
+          git config user.email "bot@local"
+
+          # Stage audit results
+          git add "$TARGET/"*/*/skill-report.json 2>/dev/null || \
+          git add "$TARGET/"*/skill-report.json 2>/dev/null || true
+
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+
+          git commit -m "chore(audit): security audit for $UPDATED_COUNT skills"
+
+          # Push
+          git push http://oauth2:${GITEA_TOKEN}@172.28.95.77:3000/${REPOSITORY}.git ${{ github.ref_name }} || \
+          git push http://oauth2:${GITEA_TOKEN}@172.28.95.77:3000/${REPOSITORY}.git main
+
+          echo "✅ Committed audit results"
+
+      - name: Summary
+        if: always()
+        env:
+          SKILL_COUNT: ${{ steps.audit.outputs.skill_count }}
+          UPDATED_COUNT: ${{ steps.audit.outputs.updated_count }}
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          echo "## Security Audit Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Metric | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Target | ${{ inputs.target }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Skills Scanned | ${SKILL_COUNT:-0} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Reports Generated | ${UPDATED_COUNT:-0} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Dry Run | ${DRY_RUN:-false} |" >> $GITHUB_STEP_SUMMARY
