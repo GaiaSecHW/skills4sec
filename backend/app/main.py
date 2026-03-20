@@ -1,6 +1,8 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
+import os
 
 from app.config import settings
 from app.database import init_db, close_db
@@ -8,6 +10,7 @@ from app.api.skills import router as skills_router
 from app.api.auth import router as auth_router
 from app.api.audit import router as audit_router
 from app.api.submissions import router as submissions_router
+from app.api.admin import router as admin_router
 
 
 async def init_super_admin():
@@ -21,7 +24,7 @@ async def init_super_admin():
     if not employee_id or not api_key:
         return  # 未配置则跳过
 
-    existing = await User.filter(employee_id=employee_id).first()
+    existing = await User.get_or_none(employee_id=employee_id)
     if existing:
         # 更新密钥确保与 .env 一致
         existing.api_key_hash = get_password_hash(api_key)
@@ -29,7 +32,7 @@ async def init_super_admin():
         existing.status = "active"
         existing.is_superuser = True
         existing.is_active = True
-        await existing.save()
+        await existing.save(update_fields=["api_key_hash", "role", "status", "is_superuser", "is_active"])
         print(f"[Init] 超级管理员已更新: {employee_id}")
     else:
         # 创建超级管理员
@@ -51,7 +54,14 @@ async def lifespan(app: FastAPI):
     await init_db()
     # 初始化超级管理员
     await init_super_admin()
+    # 启动定时任务调度器
+    from app.tasks.scheduler import setup_scheduler, start_scheduler
+    setup_scheduler()
+    start_scheduler()
     yield
+    # 关闭时停止调度器
+    from app.tasks.scheduler import shutdown_scheduler
+    shutdown_scheduler()
     # 关闭时清理数据库连接
     await close_db()
 
@@ -79,6 +89,7 @@ app.include_router(skills_router, prefix="/api")
 app.include_router(auth_router, prefix="/api")
 app.include_router(audit_router, prefix="/api")
 app.include_router(submissions_router, prefix="/api")
+app.include_router(admin_router, prefix="/api")
 
 
 @app.get("/")
@@ -96,3 +107,19 @@ async def root():
 async def health_check():
     """健康检查"""
     return {"status": "healthy"}
+
+
+# 挂载静态文件（管理后台前端）
+static_dir = os.path.join(os.path.dirname(__file__), "..", "static")
+if os.path.exists(static_dir):
+    app.mount("/static", StaticFiles(directory=static_dir), name="static")
+
+
+@app.get("/admin")
+async def admin_page():
+    """管理后台入口"""
+    from fastapi.responses import FileResponse
+    admin_html = os.path.join(static_dir, "admin", "index.html")
+    if os.path.exists(admin_html):
+        return FileResponse(admin_html)
+    return {"error": "Admin page not found"}

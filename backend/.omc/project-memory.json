@@ -1,0 +1,426 @@
+{
+  "version": "1.0.0",
+  "lastScanned": 1773984796549,
+  "projectRoot": "D:\\work\\skillhub\\skills4sec\\backend",
+  "techStack": {
+    "languages": [
+      {
+        "name": "Python",
+        "version": null,
+        "confidence": "high",
+        "markers": [
+          "pyproject.toml",
+          "requirements.txt"
+        ]
+      }
+    ],
+    "frameworks": [],
+    "packageManager": "pip",
+    "runtime": null
+  },
+  "build": {
+    "buildCommand": null,
+    "testCommand": "pytest",
+    "lintCommand": "ruff check",
+    "devCommand": null,
+    "scripts": {}
+  },
+  "conventions": {
+    "namingStyle": "snake_case",
+    "importStyle": null,
+    "testPattern": null,
+    "fileOrganization": null
+  },
+  "structure": {
+    "isMonorepo": false,
+    "workspaces": [],
+    "mainDirectories": [
+      "app"
+    ],
+    "gitBranches": {
+      "defaultBranch": "main",
+      "branchingStrategy": null
+    }
+  },
+  "customNotes": [],
+  "directoryMap": {
+    "app": {
+      "path": "app",
+      "purpose": "Application code",
+      "fileCount": 4,
+      "lastAccessed": 1773984796535,
+      "keyFiles": [
+        "config.py",
+        "database.py",
+        "main.py",
+        "__init__.py"
+      ]
+    },
+    "venv": {
+      "path": "venv",
+      "purpose": null,
+      "fileCount": 0,
+      "lastAccessed": 1773984796535,
+      "keyFiles": []
+    },
+    "app\\api": {
+      "path": "app\\api",
+      "purpose": "API routes",
+      "fileCount": 5,
+      "lastAccessed": 1773984796536,
+      "keyFiles": [
+        "audit.py",
+        "auth.py",
+        "skills.py"
+      ]
+    },
+    "app\\models": {
+      "path": "app\\models",
+      "purpose": "Data models",
+      "fileCount": 8,
+      "lastAccessed": 1773984796536,
+      "keyFiles": [
+        "admin_log.py",
+        "audit.py",
+        "content.py"
+      ]
+    },
+    "app\\schemas": {
+      "path": "app\\schemas",
+      "purpose": "Schema definitions",
+      "fileCount": 5,
+      "lastAccessed": 1773984796536,
+      "keyFiles": [
+        "audit.py",
+        "log.py",
+        "skill.py"
+      ]
+    },
+    "app\\services": {
+      "path": "app\\services",
+      "purpose": "Business logic services",
+      "fileCount": 1,
+      "lastAccessed": 1773984796537,
+      "keyFiles": [
+        "__init__.py"
+      ]
+    },
+    "app\\utils": {
+      "path": "app\\utils",
+      "purpose": "Utility functions",
+      "fileCount": 3,
+      "lastAccessed": 1773984796537,
+      "keyFiles": [
+        "pagination.py",
+        "security.py",
+        "__init__.py"
+      ]
+    },
+    "venv\\Scripts": {
+      "path": "venv\\Scripts",
+      "purpose": "Build/utility scripts",
+      "fileCount": 1,
+      "lastAccessed": 1773984796537,
+      "keyFiles": [
+        "uvicorn.exe"
+      ]
+    }
+  },
+  "hotPaths": [
+    {
+      "path": "tests\\test_audit_api.py",
+      "accessCount": 30,
+      "lastAccessed": 1773999818811,
+      "type": "file"
+    },
+    {
+      "path": "app\\api\\auth.py",
+      "accessCount": 26,
+      "lastAccessed": 1773997418692,
+      "type": "file"
+    },
+    {
+      "path": "static\\admin\\index.html",
+      "accessCount": 22,
+      "lastAccessed": 1773993748353,
+      "type": "file"
+    },
+    {
+      "path": "app\\main.py",
+      "accessCount": 13,
+      "lastAccessed": 1773998436172,
+      "type": "file"
+    },
+    {
+      "path": "app\\api\\admin.py",
+      "accessCount": 11,
+      "lastAccessed": 1773997562812,
+      "type": "file"
+    },
+    {
+      "path": "tests\\test_skills_api.py",
+      "accessCount": 10,
+      "lastAccessed": 1773999568756,
+      "type": "file"
+    },
+    {
+      "path": ".env",
+      "accessCount": 7,
+      "lastAccessed": 1773990933251,
+      "type": "file"
+    },
+    {
+      "path": "app\\schemas\\user.py",
+      "accessCount": 5,
+      "lastAccessed": 1773992339972,
+      "type": "file"
+    },
+    {
+      "path": "app\\utils\\security.py",
+      "accessCount": 5,
+      "lastAccessed": 1773997418738,
+      "type": "directory"
+    },
+    {
+      "path": "app\\config.py",
+      "accessCount": 4,
+      "lastAccessed": 1773997407374,
+      "type": "directory"
+    },
+    {
+      "path": "requirements.txt",
+      "accessCount": 3,
+      "lastAccessed": 1773997396198,
+      "type": "file"
+    },
+    {
+      "path": "app\\models\\user.py",
+      "accessCount": 3,
+      "lastAccessed": 1773997437627,
+      "type": "file"
+    },
+    {
+      "path": "app\\api\\admin\\__init__.py",
+      "accessCount": 3,
+      "lastAccessed": 1773998391176,
+      "type": "file"
+    },
+    {
+      "path": "app\\api\\audit.py",
+      "accessCount": 3,
+      "lastAccessed": 1773999389999,
+      "type": "file"
+    },
+    {
+      "path": "tests\\test_login_log.py",
+      "accessCount": 3,
+      "lastAccessed": 1774000205742,
+      "type": "file"
+    },
+    {
+      "path": "tests\\test_content.py",
+      "accessCount": 3,
+      "lastAccessed": 1774000351978,
+      "type": "file"
+    },
+    {
+      "path": "",
+      "accessCount": 2,
+      "lastAccessed": 1773993632405,
+      "type": "directory"
+    },
+    {
+      "path": "app\\api\\admin\\submissions.py",
+      "accessCount": 2,
+      "lastAccessed": 1773997628909,
+      "type": "file"
+    },
+    {
+      "path": "tests\\test_security.py",
+      "accessCount": 2,
+      "lastAccessed": 1773999033553,
+      "type": "file"
+    },
+    {
+      "path": "tests\\conftest.py",
+      "accessCount": 2,
+      "lastAccessed": 1773999186466,
+      "type": "file"
+    },
+    {
+      "path": "tests\\test_models.py",
+      "accessCount": 2,
+      "lastAccessed": 1773999945109,
+      "type": "file"
+    },
+    {
+      "path": "tests\\test_pagination.py",
+      "accessCount": 2,
+      "lastAccessed": 1774000053642,
+      "type": "file"
+    },
+    {
+      "path": "tests\\test_admin_log.py",
+      "accessCount": 2,
+      "lastAccessed": 1774000171224,
+      "type": "file"
+    },
+    {
+      "path": "tests\\test_schemas.py",
+      "accessCount": 2,
+      "lastAccessed": 1774000469809,
+      "type": "file"
+    },
+    {
+      "path": "tests\\test_audit_advanced.py",
+      "accessCount": 2,
+      "lastAccessed": 1774000592598,
+      "type": "file"
+    },
+    {
+      "path": "app\\schemas",
+      "accessCount": 1,
+      "lastAccessed": 1773988402937,
+      "type": "directory"
+    },
+    {
+      "path": "app\\utils",
+      "accessCount": 1,
+      "lastAccessed": 1773988484748,
+      "type": "directory"
+    },
+    {
+      "path": "pyproject.toml",
+      "accessCount": 1,
+      "lastAccessed": 1773997396301,
+      "type": "file"
+    },
+    {
+      "path": "app\\database.py",
+      "accessCount": 1,
+      "lastAccessed": 1773997418715,
+      "type": "file"
+    },
+    {
+      "path": "app\\api\\skills.py",
+      "accessCount": 1,
+      "lastAccessed": 1773997418758,
+      "type": "file"
+    },
+    {
+      "path": "app\\api\\submissions.py",
+      "accessCount": 1,
+      "lastAccessed": 1773997437669,
+      "type": "file"
+    },
+    {
+      "path": "app\\models\\skill.py",
+      "accessCount": 1,
+      "lastAccessed": 1773997437690,
+      "type": "file"
+    },
+    {
+      "path": "pytest.ini",
+      "accessCount": 1,
+      "lastAccessed": 1773998898458,
+      "type": "file"
+    },
+    {
+      "path": "tests\\test_auth_api.py",
+      "accessCount": 1,
+      "lastAccessed": 1773998973956,
+      "type": "file"
+    },
+    {
+      "path": "tests",
+      "accessCount": 1,
+      "lastAccessed": 1773999329442,
+      "type": "directory"
+    },
+    {
+      "path": "app\\models\\audit.py",
+      "accessCount": 1,
+      "lastAccessed": 1773999436159,
+      "type": "file"
+    },
+    {
+      "path": "tests\\test_submissions_api.py",
+      "accessCount": 1,
+      "lastAccessed": 1773999893185,
+      "type": "file"
+    },
+    {
+      "path": "tests\\test_main.py",
+      "accessCount": 1,
+      "lastAccessed": 1773999893502,
+      "type": "file"
+    },
+    {
+      "path": "app\\models\\enums.py",
+      "accessCount": 1,
+      "lastAccessed": 1773999921833,
+      "type": "file"
+    },
+    {
+      "path": "tests\\test_security_deps.py",
+      "accessCount": 1,
+      "lastAccessed": 1774000001544,
+      "type": "file"
+    },
+    {
+      "path": "app\\utils\\pagination.py",
+      "accessCount": 1,
+      "lastAccessed": 1774000024101,
+      "type": "file"
+    },
+    {
+      "path": "tests\\test_database.py",
+      "accessCount": 1,
+      "lastAccessed": 1774000118487,
+      "type": "file"
+    },
+    {
+      "path": "app\\models\\login_log.py",
+      "accessCount": 1,
+      "lastAccessed": 1774000147269,
+      "type": "file"
+    },
+    {
+      "path": "app\\models\\admin_log.py",
+      "accessCount": 1,
+      "lastAccessed": 1774000147334,
+      "type": "file"
+    },
+    {
+      "path": "tests\\test_audit_models.py",
+      "accessCount": 1,
+      "lastAccessed": 1774000270766,
+      "type": "file"
+    },
+    {
+      "path": "app\\models\\content.py",
+      "accessCount": 1,
+      "lastAccessed": 1774000299982,
+      "type": "file"
+    },
+    {
+      "path": "tests\\test_submission_model.py",
+      "accessCount": 1,
+      "lastAccessed": 1774000424103,
+      "type": "file"
+    },
+    {
+      "path": "tests\\test_admin_users.py",
+      "accessCount": 1,
+      "lastAccessed": 1774000663319,
+      "type": "file"
+    },
+    {
+      "path": "tests\\test_admin_submissions.py",
+      "accessCount": 1,
+      "lastAccessed": 1774000663716,
+      "type": "file"
+    }
+  ],
+  "userDirectives": []
+}

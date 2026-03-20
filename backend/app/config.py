@@ -32,7 +32,7 @@ class Settings(BaseSettings):
     SUPER_ADMIN_NAME: str = "系统管理员"
 
     # API 密钥安全配置
-    API_KEY_MIN_LENGTH: int = 32
+    API_KEY_MIN_LENGTH: int = 6
 
     # 登录安全配置
     MAX_LOGIN_ATTEMPTS: int = 5

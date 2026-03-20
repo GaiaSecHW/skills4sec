@@ -1,0 +1,159 @@
+{
+  "version": "1.0.0",
+  "lastScanned": 1773735728095,
+  "projectRoot": "D:\\work\\skillhub\\skills4sec\\packages\\skillstore",
+  "techStack": {
+    "languages": [
+      {
+        "name": "JavaScript/TypeScript",
+        "version": ">=18.0.0",
+        "confidence": "high",
+        "markers": [
+          "package.json"
+        ]
+      },
+      {
+        "name": "TypeScript",
+        "version": null,
+        "confidence": "high",
+        "markers": [
+          "tsconfig.json"
+        ]
+      }
+    ],
+    "frameworks": [
+      {
+        "name": "vitest",
+        "version": "3.0.0",
+        "category": "testing"
+      }
+    ],
+    "packageManager": "npm",
+    "runtime": "Node.js 18.0.0"
+  },
+  "build": {
+    "buildCommand": "npm run build",
+    "testCommand": "npm test",
+    "lintCommand": null,
+    "devCommand": "npm run dev",
+    "scripts": {
+      "build": "tsc",
+      "dev": "tsc --watch",
+      "check": "tsc --noEmit",
+      "test": "vitest run",
+      "test:watch": "vitest",
+      "test:coverage": "vitest run --coverage",
+      "prepublishOnly": "npm run build"
+    }
+  },
+  "conventions": {
+    "namingStyle": null,
+    "importStyle": null,
+    "testPattern": "*.test.ts",
+    "fileOrganization": null
+  },
+  "structure": {
+    "isMonorepo": false,
+    "workspaces": [],
+    "mainDirectories": [
+      "src",
+      "tests"
+    ],
+    "gitBranches": {
+      "defaultBranch": "main",
+      "branchingStrategy": null
+    }
+  },
+  "customNotes": [],
+  "directoryMap": {
+    "dist": {
+      "path": "dist",
+      "purpose": "Distribution/build output",
+      "fileCount": 4,
+      "lastAccessed": 1773735728075,
+      "keyFiles": [
+        "index.d.ts",
+        "index.d.ts.map",
+        "index.js",
+        "index.js.map"
+      ]
+    },
+    "src": {
+      "path": "src",
+      "purpose": "Source code",
+      "fileCount": 1,
+      "lastAccessed": 1773735728076,
+      "keyFiles": [
+        "index.ts"
+      ]
+    },
+    "tests": {
+      "path": "tests",
+      "purpose": "Test files",
+      "fileCount": 9,
+      "lastAccessed": 1773735728080,
+      "keyFiles": [
+        "agents.test.ts",
+        "installer.test.ts",
+        "plugin-api.test.ts",
+        "plugin-config.test.ts",
+        "plugin-download.test.ts"
+      ]
+    },
+    "dist\\lib": {
+      "path": "dist\\lib",
+      "purpose": "Library code",
+      "fileCount": 36,
+      "lastAccessed": 1773735728081,
+      "keyFiles": [
+        "agents.d.ts",
+        "agents.d.ts.map",
+        "agents.js"
+      ]
+    },
+    "src\\lib": {
+      "path": "src\\lib",
+      "purpose": "Library code",
+      "fileCount": 9,
+      "lastAccessed": 1773735728081,
+      "keyFiles": [
+        "agents.ts",
+        "installer.ts",
+        "plugin-api.ts"
+      ]
+    }
+  },
+  "hotPaths": [
+    {
+      "path": "",
+      "accessCount": 4,
+      "lastAccessed": 1773735890002,
+      "type": "directory"
+    },
+    {
+      "path": "README.md",
+      "accessCount": 1,
+      "lastAccessed": 1773735889981,
+      "type": "file"
+    },
+    {
+      "path": "package.json",
+      "accessCount": 1,
+      "lastAccessed": 1773735890054,
+      "type": "file"
+    },
+    {
+      "path": "src",
+      "accessCount": 1,
+      "lastAccessed": 1773737448832,
+      "type": "directory"
+    },
+    {
+      "path": "C:\\Users\\Will\\.claude\\projects\\D--work-skillhub-skills4sec\\d4828835-5463-4cbe-a501-7672818d7cab\\tool-results\\call_123797d121b348e1b9aee348.txt",
+      "accessCount": 1,
+      "lastAccessed": 1773742396121,
+      "type": "file"
+    }
+  ],
+  "userDirectives": []
+}

@@ -1,0 +1,413 @@
+{
+  "version": "1.0.0",
+  "lastScanned": 1773973042857,
+  "projectRoot": "D:\\work\\skillhub\\skills4sec",
+  "techStack": {
+    "languages": [
+      {
+        "name": "JavaScript/TypeScript",
+        "version": null,
+        "confidence": "high",
+        "markers": [
+          "package.json"
+        ]
+      }
+    ],
+    "frameworks": [],
+    "packageManager": "npm",
+    "runtime": null
+  },
+  "build": {
+    "buildCommand": "npm run build",
+    "testCommand": null,
+    "lintCommand": null,
+    "devCommand": null,
+    "scripts": {
+      "build:site": "node scripts/build-site.js",
+      "serve": "python3 scripts/serve.py",
+      "build": "node scripts/build-site.js"
+    }
+  },
+  "conventions": {
+    "namingStyle": null,
+    "importStyle": null,
+    "testPattern": null,
+    "fileOrganization": null
+  },
+  "structure": {
+    "isMonorepo": false,
+    "workspaces": [],
+    "mainDirectories": [
+      "docs",
+      "scripts"
+    ],
+    "gitBranches": {
+      "defaultBranch": "main",
+      "branchingStrategy": null
+    }
+  },
+  "customNotes": [],
+  "directoryMap": {
+    "agents": {
+      "path": "agents",
+      "purpose": null,
+      "fileCount": 0,
+      "lastAccessed": 1773973042806,
+      "keyFiles": []
+    },
+    "backend": {
+      "path": "backend",
+      "purpose": null,
+      "fileCount": 9,
+      "lastAccessed": 1773973042807,
+      "keyFiles": [
+        "db.sqlite3",
+        "db.sqlite3-shm",
+        "db.sqlite3-wal",
+        "pyproject.toml",
+        "README.md"
+      ]
+    },
+    "docs": {
+      "path": "docs",
+      "purpose": "Documentation",
+      "fileCount": 2,
+      "lastAccessed": 1773973042818,
+      "keyFiles": [
+        "index.html"
+      ]
+    },
+    "harnesses": {
+      "path": "harnesses",
+      "purpose": null,
+      "fileCount": 0,
+      "lastAccessed": 1773973042819,
+      "keyFiles": []
+    },
+    "md": {
+      "path": "md",
+      "purpose": null,
+      "fileCount": 1,
+      "lastAccessed": 1773973042820,
+      "keyFiles": [
+        "secskills.rules.v0.1.md"
+      ]
+    },
+    "packages": {
+      "path": "packages",
+      "purpose": null,
+      "fileCount": 0,
+      "lastAccessed": 1773973042820,
+      "keyFiles": []
+    },
+    "pending": {
+      "path": "pending",
+      "purpose": null,
+      "fileCount": 1,
+      "lastAccessed": 1773973042821,
+      "keyFiles": []
+    },
+    "schemas": {
+      "path": "schemas",
+      "purpose": "Schema definitions",
+      "fileCount": 1,
+      "lastAccessed": 1773973042821,
+      "keyFiles": [
+        "skill-report.schema.json"
+      ]
+    },
+    "scripts": {
+      "path": "scripts",
+      "purpose": "Build/utility scripts",
+      "fileCount": 4,
+      "lastAccessed": 1773973042822,
+      "keyFiles": [
+        "build-site.js",
+        "count_features.sh",
+        "fix-skill-names.js",
+        "serve.py"
+      ]
+    },
+    "skill-report-generator": {
+      "path": "skill-report-generator",
+      "purpose": null,
+      "fileCount": 5,
+      "lastAccessed": 1773973042822,
+      "keyFiles": [
+        "config.yaml",
+        "config.yaml.example",
+        "generate.py",
+        "README.md",
+        "requirements.txt"
+      ]
+    },
+    "skills": {
+      "path": "skills",
+      "purpose": null,
+      "fileCount": 0,
+      "lastAccessed": 1773973042822,
+      "keyFiles": []
+    },
+    "_tmp": {
+      "path": "_tmp",
+      "purpose": null,
+      "fileCount": 1,
+      "lastAccessed": 1773973042823,
+      "keyFiles": [
+        "test_skills.md"
+      ]
+    },
+    "backend\\app": {
+      "path": "backend\\app",
+      "purpose": "Application code",
+      "fileCount": 4,
+      "lastAccessed": 1773973042824,
+      "keyFiles": [
+        "config.py",
+        "database.py",
+        "main.py"
+      ]
+    },
+    "docs\\assets": {
+      "path": "docs\\assets",
+      "purpose": "Static assets",
+      "fileCount": 3,
+      "lastAccessed": 1773973042825,
+      "keyFiles": [
+        "app.js",
+        "evol-diagram.svg",
+        "style.css"
+      ]
+    },
+    "docs\\data": {
+      "path": "docs\\data",
+      "purpose": "Data files",
+      "fileCount": 4,
+      "lastAccessed": 1773973042825,
+      "keyFiles": [
+        "agents.json",
+        "blog.json",
+        "harnesses.json"
+      ]
+    }
+  },
+  "hotPaths": [
+    {
+      "path": "docs\\assets\\app.js",
+      "accessCount": 36,
+      "lastAccessed": 1773995960614,
+      "type": "file"
+    },
+    {
+      "path": "docs\\superpowers\\specs\\2026-03-20-user-management-design.md",
+      "accessCount": 18,
+      "lastAccessed": 1773977392663,
+      "type": "file"
+    },
+    {
+      "path": "backend\\app\\models\\user.py",
+      "accessCount": 11,
+      "lastAccessed": 1773993563831,
+      "type": "file"
+    },
+    {
+      "path": "backend\\app\\main.py",
+      "accessCount": 11,
+      "lastAccessed": 1773994835677,
+      "type": "file"
+    },
+    {
+      "path": "backend",
+      "accessCount": 10,
+      "lastAccessed": 1773992948243,
+      "type": "directory"
+    },
+    {
+      "path": "backend\\app\\config.py",
+      "accessCount": 8,
+      "lastAccessed": 1773981402860,
+      "type": "file"
+    },
+    {
+      "path": "backend\\app\\utils\\security.py",
+      "accessCount": 8,
+      "lastAccessed": 1773992765818,
+      "type": "file"
+    },
+    {
+      "path": "backend\\static\\admin\\index.html",
+      "accessCount": 8,
+      "lastAccessed": 1773993133858,
+      "type": "file"
+    },
+    {
+      "path": "backend\\app\\api\\auth.py",
+      "accessCount": 8,
+      "lastAccessed": 1773993261572,
+      "type": "file"
+    },
+    {
+      "path": "backend\\app\\models\\__init__.py",
+      "accessCount": 8,
+      "lastAccessed": 1773994347326,
+      "type": "file"
+    },
+    {
+      "path": "backend\\app\\schemas\\user.py",
+      "accessCount": 7,
+      "lastAccessed": 1773992661643,
+      "type": "file"
+    },
+    {
+      "path": "",
+      "accessCount": 6,
+      "lastAccessed": 1773992735180,
+      "type": "directory"
+    },
+    {
+      "path": "docs",
+      "accessCount": 6,
+      "lastAccessed": 1773992948276,
+      "type": "directory"
+    },
+    {
+      "path": "backend\\app\\api\\admin.py",
+      "accessCount": 5,
+      "lastAccessed": 1773993556379,
+      "type": "file"
+    },
+    {
+      "path": "backend\\app\\api\\admin\\submissions.py",
+      "accessCount": 5,
+      "lastAccessed": 1773995736594,
+      "type": "file"
+    },
+    {
+      "path": "backend\\app\\database.py",
+      "accessCount": 4,
+      "lastAccessed": 1773981376250,
+      "type": "file"
+    },
+    {
+      "path": "docs\\index.html",
+      "accessCount": 3,
+      "lastAccessed": 1773993563768,
+      "type": "file"
+    },
+    {
+      "path": "docs\\superpowers\\plans\\2026-03-20-user-management-p1-core.md",
+      "accessCount": 2,
+      "lastAccessed": 1773981098112,
+      "type": "file"
+    },
+    {
+      "path": "backend\\app\\models\\audit.py",
+      "accessCount": 2,
+      "lastAccessed": 1773981428519,
+      "type": "file"
+    },
+    {
+      "path": "backend\\app",
+      "accessCount": 2,
+      "lastAccessed": 1773992765855,
+      "type": "directory"
+    },
+    {
+      "path": "backend\\static",
+      "accessCount": 2,
+      "lastAccessed": 1773992896353,
+      "type": "directory"
+    },
+    {
+      "path": "backend\\app\\api\\submissions.py",
+      "accessCount": 2,
+      "lastAccessed": 1773994724586,
+      "type": "file"
+    },
+    {
+      "path": "backend\\requirements.txt",
+      "accessCount": 1,
+      "lastAccessed": 1773974614900,
+      "type": "file"
+    },
+    {
+      "path": "docs\\superpowers\\plans\\2026-03-20-user-management-p2-admin.md",
+      "accessCount": 1,
+      "lastAccessed": 1773979313582,
+      "type": "file"
+    },
+    {
+      "path": "docs\\superpowers\\plans\\2026-03-20-user-management-p3-enhance.md",
+      "accessCount": 1,
+      "lastAccessed": 1773979544049,
+      "type": "file"
+    },
+    {
+      "path": "backend\\app\\models\\login_log.py",
+      "accessCount": 1,
+      "lastAccessed": 1773981298937,
+      "type": "file"
+    },
+    {
+      "path": "backend\\app\\models\\admin_log.py",
+      "accessCount": 1,
+      "lastAccessed": 1773981331037,
+      "type": "file"
+    },
+    {
+      "path": "backend\\app\\models\\content.py",
+      "accessCount": 1,
+      "lastAccessed": 1773981458655,
+      "type": "file"
+    },
+    {
+      "path": "backend\\app\\schemas\\log.py",
+      "accessCount": 1,
+      "lastAccessed": 1773981643870,
+      "type": "file"
+    },
+    {
+      "path": "docs\\superpowers\\specs\\2025-03-19-gitea-submission-workflow-design.md",
+      "accessCount": 1,
+      "lastAccessed": 1773993271114,
+      "type": "file"
+    },
+    {
+      "path": "backend\\app\\models\\enums.py",
+      "accessCount": 1,
+      "lastAccessed": 1773993847299,
+      "type": "file"
+    },
+    {
+      "path": "backend\\app\\models\\submission.py",
+      "accessCount": 1,
+      "lastAccessed": 1773994321444,
+      "type": "file"
+    },
+    {
+      "path": "backend\\app\\services\\retry_service.py",
+      "accessCount": 1,
+      "lastAccessed": 1773994415947,
+      "type": "file"
+    },
+    {
+      "path": "backend\\app\\services\\gitea_sync_service.py",
+      "accessCount": 1,
+      "lastAccessed": 1773994497745,
+      "type": "file"
+    },
+    {
+      "path": "backend\\app\\tasks\\submission_tasks.py",
+      "accessCount": 1,
+      "lastAccessed": 1773994783167,
+      "type": "file"
+    },
+    {
+      "path": "backend\\app\\tasks\\scheduler.py",
+      "accessCount": 1,
+      "lastAccessed": 1773994813090,
+      "type": "file"
+    }
+  ],
+  "userDirectives": []
+}

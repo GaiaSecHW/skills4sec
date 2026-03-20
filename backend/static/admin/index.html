@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SkillHub 管理后台</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f7fa; }
+
+        /* 登录页面 */
+        .login-container { display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+        .login-box { background: white; padding: 40px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); width: 400px; }
+        .login-box h1 { text-align: center; margin-bottom: 30px; color: #333; }
+        .form-group { margin-bottom: 20px; }
+        .form-group label { display: block; margin-bottom: 8px; color: #666; }
+        .form-group input { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; }
+        .btn { width: 100%; padding: 12px; background: #4a90d9; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; }
+        .btn:hover { background: #357abd; }
+        .btn:disabled { background: #ccc; cursor: not-allowed; }
+        .error-msg { color: #e74c3c; text-align: center; margin-top: 15px; }
+
+        /* 主界面 */
+        .app-container { display: none; }
+        .app-container.active { display: flex; min-height: 100vh; }
+
+        /* 侧边栏 */
+        .sidebar { width: 220px; background: #2c3e50; color: white; padding: 20px 0; }
+        .sidebar h2 { padding: 0 20px 20px; border-bottom: 1px solid #34495e; }
+        .nav-item { padding: 12px 20px; cursor: pointer; transition: background 0.3s; }
+        .nav-item:hover, .nav-item.active { background: #34495e; }
+        .nav-item i { margin-right: 10px; }
+
+        /* 主内容区 */
+        .main-content { flex: 1; padding: 20px; overflow-y: auto; }
+        .page { display: none; }
+        .page.active { display: block; }
+
+        /* 卡片 */
+        .card { background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin-bottom: 20px; }
+        .card-header { padding: 15px 20px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
+        .card-header h3 { font-size: 16px; color: #333; }
+        .card-body { padding: 20px; }
+
+        /* 工具栏 */
+        .toolbar { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+        .toolbar input, .toolbar select { padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; }
+        .toolbar input { width: 200px; }
+        .btn-sm { padding: 8px 16px; font-size: 14px; width: auto; }
+        .btn-primary { background: #4a90d9; }
+        .btn-success { background: #27ae60; }
+        .btn-danger { background: #e74c3c; }
+        .btn-warning { background: #f39c12; }
+
+        /* 表格 */
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #eee; }
+        th { background: #f8f9fa; font-weight: 600; color: #666; }
+        tr:hover { background: #f8f9fa; }
+
+        /* 状态标签 */
+        .badge { padding: 4px 8px; border-radius: 4px; font-size: 12px; }
+        .badge-success { background: #d4edda; color: #155724; }
+        .badge-danger { background: #f8d7da; color: #721c24; }
+        .badge-warning { background: #fff3cd; color: #856404; }
+
+        /* 分页 */
+        .pagination { display: flex; justify-content: center; gap: 5px; margin-top: 20px; }
+        .pagination button { padding: 8px 12px; border: 1px solid #ddd; background: white; cursor: pointer; }
+        .pagination button.active { background: #4a90d9; color: white; border-color: #4a90d9; }
+        .pagination button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        /* 模态框 */
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 1000; }
+        .modal.active { display: flex; }
+        .modal-content { background: white; border-radius: 8px; width: 500px; max-height: 90vh; overflow-y: auto; }
+        .modal-header { padding: 15px 20px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; }
+        .modal-header h3 { font-size: 18px; }
+        .modal-close { background: none; border: none; font-size: 24px; cursor: pointer; color: #999; }
+        .modal-body { padding: 20px; }
+        .modal-footer { padding: 15px 20px; border-top: 1px solid #eee; display: flex; justify-content: flex-end; gap: 10px; }
+
+        /* 用户信息 */
+        .user-info { display: flex; align-items: center; gap: 10px; padding: 15px 20px; border-top: 1px solid #34495e; margin-top: auto; }
+        .user-info span { font-size: 14px; }
+        .logout-btn { background: #e74c3c; padding: 6px 12px; font-size: 12px; }
+
+        /* 表单必填/选填标记 */
+        .required-mark { color: #e74c3c; font-weight: bold; }
+        .optional-mark { color: #999; font-size: 12px; font-weight: normal; }
+        .form-hint { display: block; color: #888; font-size: 12px; margin-top: 4px; }
+    </style>
+</head>
+<body>
+    <!-- 登录页面 -->
+    <div class="login-container" id="loginPage">
+        <div class="login-box">
+            <h1>🔐 SkillHub 管理后台</h1>
+            <form id="loginForm">
+                <div class="form-group">
+                    <label>工号</label>
+                    <input type="text" id="loginEmployeeId" required placeholder="请输入工号">
+                </div>
+                <div class="form-group">
+                    <label>API 密钥</label>
+                    <input type="password" id="loginApiKey" required placeholder="请输入 API 密钥">
+                </div>
+                <button type="submit" class="btn" id="loginBtn">登录</button>
+                <p class="error-msg" id="loginError"></p>
+            </form>
+        </div>
+    </div>
+
+    <!-- 主界面 -->
+    <div class="app-container" id="appContainer">
+        <!-- 侧边栏 -->
+        <div class="sidebar">
+            <h2>📋 管理后台</h2>
+            <div class="nav-item active" data-page="users">👥 用户管理</div>
+            <div class="nav-item" data-page="logs">📊 登录日志</div>
+            <div class="nav-item" data-page="adminLogs">🔧 操作日志</div>
+            <div class="user-info">
+                <span id="currentUserName">管理员</span>
+                <button class="btn logout-btn" onclick="logout()">退出</button>
+            </div>
+        </div>
+
+        <!-- 主内容 -->
+        <div class="main-content">
+            <!-- 用户管理页面 -->
+            <div class="page active" id="usersPage">
+                <div class="card">
+                    <div class="card-header">
+                        <h3>用户列表</h3>
+                        <button class="btn btn-sm btn-success" onclick="showUserModal()">+ 新建用户</button>
+                    </div>
+                    <div class="card-body">
+                        <div class="toolbar">
+                            <input type="text" id="searchKeyword" placeholder="搜索工号/姓名">
+                            <select id="filterRole">
+                                <option value="">全部角色</option>
+                                <option value="user">普通用户</option>
+                                <option value="admin">管理员</option>
+                                <option value="super_admin">超级管理员</option>
+                            </select>
+                            <select id="filterStatus">
+                                <option value="">全部状态</option>
+                                <option value="active">正常</option>
+                                <option value="disabled">禁用</option>
+                            </select>
+                            <button class="btn btn-sm btn-primary" onclick="loadUsers()">搜索</button>
+                            <button class="btn btn-sm btn-warning" onclick="exportUsers()">导出 CSV</button>
+                        </div>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>工号</th>
+                                    <th>姓名</th>
+                                    <th>角色</th>
+                                    <th>状态</th>
+                                    <th>部门</th>
+                                    <th>最后登录</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody id="usersTable"></tbody>
+                        </table>
+                        <div class="pagination" id="usersPagination"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 登录日志页面 -->
+            <div class="page" id="logsPage">
+                <div class="card">
+                    <div class="card-header"><h3>登录日志</h3></div>
+                    <div class="card-body">
+                        <div class="toolbar">
+                            <input type="text" id="logEmployeeId" placeholder="工号筛选">
+                            <select id="logStatus">
+                                <option value="">全部状态</option>
+                                <option value="success">成功</option>
+                                <option value="failed">失败</option>
+                            </select>
+                            <button class="btn btn-sm btn-primary" onclick="loadLoginLogs()">查询</button>
+                        </div>
+                        <table>
+                            <thead>
+                                <tr><th>工号</th><th>时间</th><th>状态</th><th>IP</th><th>失败原因</th></tr>
+                            </thead>
+                            <tbody id="logsTable"></tbody>
+                        </table>
+                        <div class="pagination" id="logsPagination"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 操作日志页面 -->
+            <div class="page" id="adminLogsPage">
+                <div class="card">
+                    <div class="card-header"><h3>管理员操作日志</h3></div>
+                    <div class="card-body">
+                        <table>
+                            <thead>
+                                <tr><th>操作人</th><th>操作</th><th>目标用户</th><th>时间</th><th>IP</th></tr>
+                            </thead>
+                            <tbody id="adminLogsTable"></tbody>
+                        </table>
+                        <div class="pagination" id="adminLogsPagination"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 用户编辑模态框 -->
+    <div class="modal" id="userModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modalTitle">新建用户</h3>
+                <button class="modal-close" onclick="closeUserModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="userForm">
+                    <input type="hidden" id="userId">
+                    <div class="form-group">
+                        <label>工号 <span class="required-mark">*</span></label>
+                        <input type="text" id="userEmployeeId" required placeholder="请输入工号">
+                    </div>
+                    <div class="form-group">
+                        <label>姓名 <span class="required-mark">*</span></label>
+                        <input type="text" id="userName" required placeholder="请输入姓名">
+                    </div>
+                    <div class="form-group">
+                        <label>API 密钥 <span class="required-mark" id="apiKeyRequired">*</span></label>
+                        <input type="text" id="userApiKey" placeholder="至少6位字符">
+                        <small class="form-hint" id="apiKeyHint">新建用户必须设置 API 密钥，至少6位字符</small>
+                    </div>
+                    <div class="form-group">
+                        <label>角色 <span class="optional-mark">(选填)</span></label>
+                        <select id="userRole">
+                            <option value="user">普通用户</option>
+                            <option value="admin">管理员</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>部门 <span class="optional-mark">(选填)</span></label>
+                        <input type="text" id="userDepartment" placeholder="请输入部门名称">
+                    </div>
+                    <div class="form-group">
+                        <label>团队 <span class="optional-mark">(选填)</span></label>
+                        <input type="text" id="userTeam" placeholder="请输入团队名称">
+                    </div>
+                    <div class="form-group">
+                        <label>分组 <span class="optional-mark">(选填)</span></label>
+                        <input type="text" id="userGroupName" placeholder="请输入分组名称">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-sm" onclick="closeUserModal()">取消</button>
+                <button class="btn btn-sm btn-success" onclick="saveUser()">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // API 基础地址
+        const API_BASE = window.location.origin + '/api';
+
+        // 处理 SSO 单点登录（从主站跳转过来）
+        (function handleSSO() {
+            const params = new URLSearchParams(window.location.search);
+            const ssoToken = params.get('sso_token');
+            const ssoRefresh = params.get('sso_refresh');
+
+            if (ssoToken && ssoRefresh) {
+                // 保存 SSO token
+                localStorage.setItem('token', ssoToken);
+                localStorage.setItem('refresh_token', ssoRefresh);
+
+                // 获取用户信息
+                fetch(`${API_BASE}/auth/me`, {
+                    headers: { 'Authorization': 'Bearer ' + ssoToken }
+                })
+                .then(res => {
+                    if (!res.ok) throw new Error('Token无效');
+                    return res.json();
+                })
+                .then(user => {
+                    if (user && user.employee_id) {
+                        // 检查管理员权限
+                        if (user.role !== 'admin' && user.role !== 'super_admin') {
+                            throw new Error('权限不足，需要管理员权限');
+                        }
+                        localStorage.setItem('currentUser', JSON.stringify(user));
+                        // 清理 URL 参数，避免 token 暴露
+                        window.history.replaceState({}, document.title, window.location.pathname);
+                        window.location.reload();
+                    } else {
+                        throw new Error('用户信息无效');
+                    }
+                })
+                .catch(() => {
+                    localStorage.removeItem('token');
+                    localStorage.removeItem('refresh_token');
+                    localStorage.removeItem('currentUser');
+                    // 清理 URL 参数
+                    window.history.replaceState({}, document.title, window.location.pathname);
+                });
+            }
+        })();
+
+        let token = localStorage.getItem('token');
+        let currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
+
+        // 页面初始化
+        document.addEventListener('DOMContentLoaded', () => {
+            if (token) {
+                showApp();
+            }
+
+            // 登录表单
+            document.getElementById('loginForm').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                await login();
+            });
+
+            // 导航切换
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.addEventListener('click', () => {
+                    document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+                    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+                    item.classList.add('active');
+                    document.getElementById(item.dataset.page + 'Page').classList.add('active');
+
+                    // 加载对应数据
+                    if (item.dataset.page === 'users') loadUsers();
+                    else if (item.dataset.page === 'logs') loadLoginLogs();
+                    else if (item.dataset.page === 'adminLogs') loadAdminLogs();
+                });
+            });
+        });
+
+        // 登录
+        async function login() {
+            const employeeId = document.getElementById('loginEmployeeId').value;
+            const apiKey = document.getElementById('loginApiKey').value;
+            const errorEl = document.getElementById('loginError');
+
+            try {
+                const res = await fetch(`${API_BASE}/auth/login/new`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ employee_id: employeeId, api_key: apiKey })
+                });
+
+                const data = await res.json();
+
+                if (data.success) {
+                    token = data.access_token;
+                    currentUser = data.user;
+                    localStorage.setItem('token', token);
+                    localStorage.setItem('currentUser', JSON.stringify(currentUser));
+                    showApp();
+                } else {
+                    errorEl.textContent = data.detail || '登录失败';
+                }
+            } catch (err) {
+                errorEl.textContent = '网络错误，请重试';
+            }
+        }
+
+        // 显示主界面
+        function showApp() {
+            // 检查管理员权限
+            if (!checkAdminPermission()) {
+                document.getElementById('loginError').textContent = '权限不足，需要管理员权限';
+                logout();
+                return;
+            }
+
+            document.getElementById('loginPage').style.display = 'none';
+            document.getElementById('appContainer').classList.add('active');
+            document.getElementById('currentUserName').textContent = currentUser.name || currentUser.employee_id;
+
+            // 根据角色显示/隐藏管理日志菜单
+            const adminLogsNav = document.querySelector('[data-page="adminLogs"]');
+            if (adminLogsNav) {
+                adminLogsNav.style.display = currentUser.role === 'super_admin' ? 'flex' : 'none';
+            }
+
+            loadUsers();
+        }
+
+        // 检查是否有管理员权限
+        function checkAdminPermission() {
+            if (!currentUser || !currentUser.employee_id) {
+                return false;
+            }
+            return currentUser.role === 'admin' || currentUser.role === 'super_admin';
+        }
+
+        // 退出登录
+        function logout() {
+            localStorage.removeItem('token');
+            localStorage.removeItem('currentUser');
+            token = null;
+            currentUser = {};
+            document.getElementById('loginPage').style.display = 'flex';
+            document.getElementById('appContainer').classList.remove('active');
+        }
+
+        // API 请求封装
+        async function api(endpoint, options = {}) {
+            const res = await fetch(`${API_BASE}${endpoint}`, {
+                ...options,
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`,
+                    ...options.headers
+                }
+            });
+
+            if (res.status === 401) {
+                logout();
+                return null;
+            }
+
+            return res.json();
+        }
+
+        // 加载用户列表
+        let usersPage = 0;
+        async function loadUsers(page = 0) {
+            usersPage = page;
+            const keyword = document.getElementById('searchKeyword').value;
+            const role = document.getElementById('filterRole').value;
+            const status = document.getElementById('filterStatus').value;
+
+            let url = `/admin/users?skip=${page * 20}&limit=20`;
+            if (keyword) url += `&keyword=${encodeURIComponent(keyword)}`;
+            if (role) url += `&role=${role}`;
+            if (status) url += `&status=${status}`;
+
+            const data = await api(url);
+            if (!data) return;
+
+            const tbody = document.getElementById('usersTable');
+            tbody.innerHTML = data.data.map(u => `
+                <tr>
+                    <td>${u.employee_id}</td>
+                    <td>${u.name || '-'}</td>
+                    <td>${u.role}</td>
+                    <td><span class="badge ${u.status === 'active' ? 'badge-success' : 'badge-danger'}">${u.status === 'active' ? '正常' : '禁用'}</span></td>
+                    <td>${u.department || '-'}</td>
+                    <td>${u.last_login ? new Date(u.last_login).toLocaleString() : '-'}</td>
+                    <td>
+                        <button class="btn btn-sm btn-primary" onclick="editUser(${u.id})">编辑</button>
+                        <button class="btn btn-sm btn-warning" onclick="resetKey(${u.id})">重置密钥</button>
+                        <button class="btn btn-sm ${u.status === 'active' ? 'btn-danger' : 'btn-success'}" onclick="toggleStatus(${u.id})">${u.status === 'active' ? '禁用' : '启用'}</button>
+                    </td>
+                </tr>
+            `).join('');
+
+            renderPagination('usersPagination', data.total, page, loadUsers);
+        }
+
+        // 渲染分页
+        function renderPagination(id, total, currentPage, callback) {
+            const totalPages = Math.ceil(total / 20);
+            const container = document.getElementById(id);
+            let html = '';
+
+            html += `<button ${currentPage === 0 ? 'disabled' : ''} onclick="${callback.name}(${currentPage - 1})">上一页</button>`;
+            for (let i = 0; i < Math.min(5, totalPages); i++) {
+                const p = Math.max(0, Math.min(currentPage - 2 + i, totalPages - 1));
+                html += `<button class="${p === currentPage ? 'active' : ''}" onclick="${callback.name}(${p})">${p + 1}</button>`;
+            }
+            html += `<button ${currentPage >= totalPages - 1 ? 'disabled' : ''} onclick="${callback.name}(${currentPage + 1})">下一页</button>`;
+
+            container.innerHTML = html;
+        }
+
+        // 显示用户模态框
+        function showUserModal(user = null) {
+            const isNew = !user;
+            document.getElementById('modalTitle').textContent = isNew ? '新建用户' : '编辑用户';
+            document.getElementById('userId').value = user ? user.id : '';
+            document.getElementById('userEmployeeId').value = user ? user.employee_id : '';
+            document.getElementById('userEmployeeId').disabled = !!user;
+            document.getElementById('userName').value = user ? (user.name || '') : '';
+            document.getElementById('userApiKey').value = '';
+            document.getElementById('userRole').value = user ? user.role : 'user';
+            document.getElementById('userDepartment').value = user ? (user.department || '') : '';
+            document.getElementById('userTeam').value = user ? (user.team || '') : '';
+            document.getElementById('userGroupName').value = user ? (user.group_name || '') : '';
+
+            // 根据新建/编辑模式切换提示
+            const apiKeyHint = document.getElementById('apiKeyHint');
+            const apiKeyRequired = document.getElementById('apiKeyRequired');
+            if (isNew) {
+                apiKeyHint.textContent = '新建用户必须设置 API 密钥，至少6位字符';
+                apiKeyRequired.style.display = 'inline';
+            } else {
+                apiKeyHint.textContent = '留空则不修改原有密钥';
+                apiKeyRequired.style.display = 'none';
+            }
+
+            document.getElementById('userModal').classList.add('active');
+        }
+
+        function closeUserModal() {
+            document.getElementById('userModal').classList.remove('active');
+        }
+
+        // 编辑用户
+        async function editUser(id) {
+            const data = await api(`/admin/users/${id}`);
+            if (data && data.success) {
+                showUserModal(data.data);
+            }
+        }
+
+        // 保存用户
+        async function saveUser() {
+            const id = document.getElementById('userId').value;
+            const isNew = !id;
+
+            // 获取并 trim 输入值
+            const employeeId = document.getElementById('userEmployeeId').value.trim();
+            const name = document.getElementById('userName').value.trim();
+            const apiKey = document.getElementById('userApiKey').value.trim();
+            const role = document.getElementById('userRole').value;
+            const department = document.getElementById('userDepartment').value.trim() || null;
+            const team = document.getElementById('userTeam').value.trim() || null;
+            const groupName = document.getElementById('userGroupName').value.trim() || null;
+
+            // 必填验证
+            if (isNew && !employeeId) {
+                return alert('请输入工号');
+            }
+            if (!name) {
+                return alert('请输入姓名');
+            }
+            if (isNew && !apiKey) {
+                return alert('新建用户必须设置 API 密钥');
+            }
+            if (apiKey && apiKey.length < 6) {
+                return alert('API 密钥至少需要6位字符');
+            }
+
+            const userData = {
+                name: name,
+                role: role,
+                department: department,
+                team: team,
+                group_name: groupName
+            };
+
+            if (apiKey) userData.api_key = apiKey;
+
+            let res;
+            if (id) {
+                res = await api(`/admin/users/${id}`, {
+                    method: 'PUT',
+                    body: JSON.stringify(userData)
+                });
+            } else {
+                userData.employee_id = employeeId;
+                res = await api('/admin/users', {
+                    method: 'POST',
+                    body: JSON.stringify(userData)
+                });
+            }
+
+            if (res && res.success) {
+                closeUserModal();
+                loadUsers();
+            } else {
+                // 处理错误信息（可能是字符串或验证错误数组）
+                let errorMsg = '保存失败';
+                if (res?.detail) {
+                    if (typeof res.detail === 'string') {
+                        errorMsg = res.detail;
+                    } else if (Array.isArray(res.detail)) {
+                        errorMsg = res.detail.map(e => e.msg || e.message || JSON.stringify(e)).join('\n');
+                    } else {
+                        errorMsg = JSON.stringify(res.detail);
+                    }
+                }
+                alert(errorMsg);
+            }
+        }
+
+        // 重置密钥
+        async function resetKey(id) {
+            if (!confirm('确定要重置该用户的 API 密钥吗？')) return;
+
+            const res = await api(`/admin/users/${id}/reset-key`, { method: 'POST' });
+            if (res && res.success) {
+                alert(`新 API 密钥: ${res.data.new_api_key}\n请妥善保存！`);
+            }
+        }
+
+        // 切换状态
+        async function toggleStatus(id) {
+            if (!confirm('确定要切换该用户的状态吗？')) return;
+
+            const res = await api(`/admin/users/${id}/toggle-status`, { method: 'POST' });
+            if (res && res.success) {
+                loadUsers();
+            }
+        }
+
+        // 导出用户
+        function exportUsers() {
+            const role = document.getElementById('filterRole').value;
+            const status = document.getElementById('filterStatus').value;
+
+            let url = `${API_BASE}/admin/users/export?token=${token}`;
+            if (role) url += `&role=${role}`;
+            if (status) url += `&status=${status}`;
+
+            window.open(url, '_blank');
+        }
+
+        // 加载登录日志
+        let logsPage = 0;
+        async function loadLoginLogs(page = 0) {
+            logsPage = page;
+            const employeeId = document.getElementById('logEmployeeId').value;
+            const status = document.getElementById('logStatus').value;
+
+            let url = `/admin/login-logs?skip=${page * 50}&limit=50`;
+            if (employeeId) url += `&employee_id=${encodeURIComponent(employeeId)}`;
+            if (status) url += `&status=${status}`;
+
+            const data = await api(url);
+            if (!data) return;
+
+            const tbody = document.getElementById('logsTable');
+            tbody.innerHTML = data.data.map(log => `
+                <tr>
+                    <td>${log.employee_id}</td>
+                    <td>${new Date(log.login_time).toLocaleString()}</td>
+                    <td><span class="badge ${log.status === 'success' ? 'badge-success' : 'badge-danger'}">${log.status === 'success' ? '成功' : '失败'}</span></td>
+                    <td>${log.ip_address || '-'}</td>
+                    <td>${log.failure_reason || '-'}</td>
+                </tr>
+            `).join('');
+
+            renderPagination('logsPagination', data.total, page, loadLoginLogs);
+        }
+
+        // 加载管理员日志
+        let adminLogsPage = 0;
+        async function loadAdminLogs(page = 0) {
+            adminLogsPage = page;
+            const data = await api(`/admin/admin-logs?skip=${page * 50}&limit=50`);
+            if (!data) return;
+
+            const tbody = document.getElementById('adminLogsTable');
+            tbody.innerHTML = data.data.map(log => `
+                <tr>
+                    <td>${log.admin_employee_id}</td>
+                    <td>${log.action}</td>
+                    <td>${log.target_employee_id || '-'}</td>
+                    <td>${new Date(log.created_at).toLocaleString()}</td>
+                    <td>${log.ip_address || '-'}</td>
+                </tr>
+            `).join('');
+
+            renderPagination('adminLogsPagination', data.total, page, loadAdminLogs);
+        }
+    </script>
+</body>
+</html>
