@@ -127,52 +127,149 @@ class AdminLog(Model):
 
 ### 2.4 数据迁移方案
 
+> **重要提示**：现有系统的 `username` 字段可能不符合工号格式（w + 8位数字）。
+> 迁移策略：保留现有 `username` 作为备用登录方式，新系统仅使用 `employee_id`。
+> **生产环境迁移前必须手动映射现有用户到正确的工号。**
+
 ```python
 # backend/app/migrations/user_migration.py
 """
 用户数据迁移脚本
 执行时机：部署新版本前
 
-迁移步骤：
-1. 添加新字段到 users 表
-2. 将现有 username 映射到 employee_id
-3. 将现有 hashed_password 映射到 api_key_hash
-4. 设置默认角色
+迁移策略：
+1. 使用 aerich 生成迁移文件（推荐）
+2. 添加新字段，不删除旧字段（向后兼容）
+3. 提供手动映射 CSV 用于生产环境
+
+手动映射 CSV 格式（migrate_users.csv）：
+old_username,new_employee_id
+admin,w00000001
+user1,w00000002
 """
 
-async def migrate_users():
-    from tortoise import Tortoise
-    from tortoise.connection import connections
+from tortoise import Tortoise
+from tortoise.connection import connections
+import csv
+import os
 
+async def migrate_users_development():
+    """
+    开发环境迁移脚本
+    警告：仅用于开发环境，生产环境请使用 migrate_users_production()
+    """
     conn = connections.get("default")
 
-    # SQLite 语法
-    # 1. 添加新列（如果不存在）
-    await conn.execute_query(
-        "ALTER TABLE users ADD COLUMN employee_id VARCHAR(20)"
-    )
-    await conn.execute_query(
-        "ALTER TABLE users ADD COLUMN api_key_hash VARCHAR(255)"
-    )
-    await conn.execute_query(
-        "ALTER TABLE users ADD COLUMN role VARCHAR(20) DEFAULT 'user'"
-    )
+    # 1. 添加新列（使用事务确保原子性）
+    async with conn.transaction():
+        try:
+            await conn.execute_query(
+                "ALTER TABLE users ADD COLUMN employee_id VARCHAR(20)"
+            )
+        except Exception:
+            pass  # 列已存在
 
-    # 2. 迁移数据
-    await conn.execute_query(
-        "UPDATE users SET employee_id = username WHERE employee_id IS NULL"
-    )
-    await conn.execute_query(
-        "UPDATE users SET api_key_hash = hashed_password WHERE api_key_hash IS NULL"
-    )
-    await conn.execute_query(
-        "UPDATE users SET role = 'admin' WHERE is_superuser = 1"
-    )
+        try:
+            await conn.execute_query(
+                "ALTER TABLE users ADD COLUMN api_key_hash VARCHAR(255)"
+            )
+        except Exception:
+            pass
 
-    # 3. 创建唯一索引
-    await conn.execute_query(
-        "CREATE UNIQUE INDEX IF NOT EXISTS idx_employee_id ON users(employee_id)"
-    )
+        try:
+            await conn.execute_query(
+                "ALTER TABLE users ADD COLUMN role VARCHAR(20) DEFAULT 'user'"
+            )
+        except Exception:
+            pass
+
+        # 2. 开发环境：使用 username 作为临时 employee_id（仅限开发测试）
+        # 生产环境必须使用手动映射
+        await conn.execute_query(
+            """UPDATE users SET
+               employee_id = 'w' || LPAD(id::text, 8, '0'),
+               api_key_hash = hashed_password,
+               role = CASE WHEN is_superuser THEN 'super_admin' ELSE 'user' END
+               WHERE employee_id IS NULL"""
+        )
+
+        # 3. 创建唯一索引
+        try:
+            await conn.execute_query(
+                "CREATE UNIQUE INDEX IF NOT EXISTS idx_employee_id ON users(employee_id)"
+            )
+        except Exception:
+            pass
+
+
+async def migrate_users_production(csv_path: str = "migrate_users.csv"):
+    """
+    生产环境迁移脚本
+    使用 CSV 文件映射 username 到 employee_id
+
+    CSV 格式：
+    old_username,new_employee_id,new_name,role
+    admin,w00000001,系统管理员,super_admin
+    zhangsan,w00000002,张三,user
+    """
+    conn = connections.get("default")
+
+    # 读取映射文件
+    if not os.path.exists(csv_path):
+        raise FileNotFoundError(
+            f"迁移映射文件 {csv_path} 不存在。"
+            "请创建该文件并填写现有用户的工号映射。"
+        )
+
+    mappings = {}
+    with open(csv_path, 'r', encoding='utf-8') as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            mappings[row['old_username']] = {
+                'employee_id': row['new_employee_id'],
+                'name': row.get('new_name', ''),
+                'role': row.get('role', 'user'),
+            }
+
+    # 执行迁移
+    async with conn.transaction():
+        # 添加新列
+        for col_sql in [
+            "ALTER TABLE users ADD COLUMN employee_id VARCHAR(20)",
+            "ALTER TABLE users ADD COLUMN api_key_hash VARCHAR(255)",
+            "ALTER TABLE users ADD COLUMN role VARCHAR(20) DEFAULT 'user'",
+            "ALTER TABLE users ADD COLUMN name VARCHAR(100)",
+        ]:
+            try:
+                await conn.execute_query(col_sql)
+            except Exception:
+                pass
+
+        # 按映射更新
+        for username, mapping in mappings.items():
+            await conn.execute_query(
+                """UPDATE users SET
+                   employee_id = ?,
+                   name = ?,
+                   role = ?,
+                   api_key_hash = COALESCE(api_key_hash, hashed_password)
+                   WHERE username = ?""",
+                [mapping['employee_id'], mapping['name'], mapping['role'], username]
+            )
+
+        # 检查未映射用户
+        unmapped = await conn.execute_query(
+            "SELECT id, username FROM users WHERE employee_id IS NULL"
+        )
+        if unmapped[1]:  # 有未映射的用户
+            raise ValueError(
+                f"以下用户未在映射文件中定义：{[r['username'] for r in unmapped[1]]}"
+            )
+
+        # 创建唯一索引
+        await conn.execute_query(
+            "CREATE UNIQUE INDEX IF NOT EXISTS idx_employee_id ON users(employee_id)"
+        )
 ```
 
 ---
@@ -184,6 +281,7 @@ async def migrate_users():
 | 端点 | 方法 | 权限 | 描述 |
 |------|------|------|------|
 | `/login` | POST | 公开 | 工号 + API 密钥登录 |
+| `/refresh` | POST | 公开 | 刷新 Access Token |
 | `/logout` | POST | 登录 | 退出登录 |
 | `/me` | GET | 登录 | 获取当前用户信息 |
 | `/me/api-key` | PUT | 登录 | 修改自己的 API 密钥 |
@@ -218,6 +316,23 @@ async def migrate_users():
 - 401: 认证失败（工号或密钥错误）
 - 429: 请求过于频繁（触发限流）
 
+**刷新 Token 请求体：**
+```json
+{
+    "refresh_token": "jwt-refresh-token"
+}
+```
+
+**刷新 Token 响应：**
+```json
+{
+    "success": true,
+    "access_token": "new-jwt-access-token",
+    "token_type": "bearer",
+    "expires_in": 1800
+}
+```
+
 ### 3.2 用户管理 `/api/admin/users`（admin/super_admin）
 
 | 端点 | 方法 | 描述 |
@@ -243,6 +358,41 @@ async def migrate_users():
 **批量导入参数：**
 - `conflict_strategy`: 冲突处理策略（skip 跳过 / overwrite 覆盖 / raise 报错，默认 skip）
 - `validate_only`: 仅验证不导入（boolean，默认 false）
+
+**批量导入响应格式：**
+```json
+{
+    "success": true,
+    "total": 15,
+    "created": 12,
+    "updated": 1,
+    "skipped": 2,
+    "errors": [
+        {
+            "row": 3,
+            "employee_id": "w00000001",
+            "reason": "工号已存在（conflict_strategy=skip）"
+        },
+        {
+            "row": 7,
+            "employee_id": "w00000005",
+            "reason": "API 密钥长度不足 32 字符"
+        }
+    ],
+    "message": "成功导入 13 条记录，跳过 2 条"
+}
+```
+
+**validate_only=true 响应格式：**
+```json
+{
+    "success": true,
+    "valid": true,
+    "total": 15,
+    "errors": [],
+    "message": "验证通过，共 15 条记录"
+}
+```
 
 **HTTP 状态码：**
 - 200: 成功
@@ -389,11 +539,20 @@ def validate_api_key(api_key: str) -> tuple[bool, str]:
     if len(api_key) < 32:
         return False, "API 密钥长度至少 32 字符"
 
-    # 检查是否包含常见弱密钥模式
-    weak_patterns = ['123456', 'password', 'admin', 'qwerty']
+    # 检查是否包含常见弱密钥模式（不区分大小写）
+    weak_patterns = ['123456', 'password', 'admin', 'qwerty', 'abcdef', '111111']
+    api_key_lower = api_key.lower()
     for pattern in weak_patterns:
-        if pattern.lower() in api_key.lower():
+        if pattern in api_key_lower:
             return False, f"API 密钥不能包含常见弱密钥模式"
+
+    # 检查连续重复字符（如 aaaa）
+    if re.search(r'(.)\1{3,}', api_key):
+        return False, "API 密钥不能包含 4 个及以上连续相同字符"
+
+    # 检查连续顺序字符（如 1234, abcd）
+    if re.search(r'(0123|1234|2345|3456|4567|5678|6789|7890|abcd|bcde|cdef)', api_key_lower):
+        return False, "API 密钥不能包含连续顺序字符"
 
     return True, ""
 ```
@@ -493,13 +652,14 @@ docs/
 - [ ] 操作审计日志 API
 - [ ] 前端登录页改造
 - [ ] 前端管理后台页面
+- [ ] Refresh Token 刷新机制（`/api/auth/refresh` 端点）
 
 ### P2 - 增强功能（第 3 阶段）
 
 - [ ] 批量导入/导出
-- [ ] 登录限流
+- [ ] 登录限流（内存存储，单实例）
 - [ ] API 密钥重置
-- [ ] Refresh Token 刷新机制
+- [ ] Redis 限流（多实例部署）
 
 ---
 
@@ -509,3 +669,4 @@ docs/
 |------|------|----------|
 | v1.0 | 2026-03-20 | 初始版本 |
 | v1.1 | 2026-03-20 | 根据审查反馈修订：适配 Tortoise ORM、缩短 JWT 有效期、添加操作审计、修正前端 SPA 架构、统一 API 风格 |
+| v1.2 | 2026-03-20 | 添加 `/refresh` 端点、完善数据迁移方案（生产/开发分离）、增强 API 密钥验证、完善批量导入响应格式、Refresh Token 刷新移至 P1 |
