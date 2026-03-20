@@ -21,6 +21,10 @@ npm-debug.log*
 .env.local
 .env.*.local
 
+# Skill report generator config (may contain API keys)
+skill-report-generator/config.yaml
+skill-report-generator/config.local.yaml
+
 # Build artifacts
 dist/
 build/

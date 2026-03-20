@@ -1,0 +1,169 @@
+{
+  "schema_version": "2.0",
+  "meta": {
+    "generated_at": "2026-03-18T07:36:35.846Z",
+    "slug": "unknown-data-engineer",
+    "source_url": "https://github.com/unknown/skills/tree/main/data-engineer",
+    "source_ref": "main",
+    "model": "ep-20260210173421-9vsg8",
+    "analysis_version": "1.0.0",
+    "source_type": "community",
+    "content_hash": "98b272faf7f51e116ba365fbf218482bd16a33192b495a3622cec50689742d7b",
+    "tree_hash": "8242878d91d19c50158bf7ebd834e72809d8a4fdd76af4b668a2c79a792c4bc9"
+  },
+  "skill": {
+    "name": "data-engineer",
+    "description": "Build scalable data pipelines, modern data warehouses, and",
+    "summary": "Build scalable data pipelines, modern data warehouses, and",
+    "icon": "📦",
+    "version": "1.0.0",
+    "author": "unknown",
+    "license": "MIT",
+    "category": "coding",
+    "tags": [],
+    "supported_tools": [
+      "claude",
+      "codex",
+      "claude-code"
+    ],
+    "risk_factors": []
+  },
+  "security_audit": {
+    "risk_level": "safe",
+    "is_blocked": false,
+    "safe_to_publish": true,
+    "summary": "This skill contains only documentation and educational content. No executable code, network access, or file system operations detected.",
+    "risk_factor_evidence": [],
+    "critical_findings": [],
+    "high_findings": [],
+    "medium_findings": [],
+    "low_findings": [],
+    "dangerous_patterns": [],
+    "files_scanned": 2,
+    "total_lines": 407,
+    "audit_model": "ep-20260210173421-9vsg8",
+    "audited_at": "2026-03-18T07:36:35.846Z"
+  },
+  "content": {
+    "user_title": "Build scalable data pipelines and modern data architectures",
+    "value_statement": "Provides expert guidance on designing robust, scalable data pipelines using the modern data stack. Covers batch and streaming processing, data warehousing, and cloud-native platforms for efficient analytics infrastructure.",
+    "seo_keywords": [
+      "data engineering",
+      "Apache Spark",
+      "data pipelines",
+      "dbt",
+      "Apache Airflow",
+      "real-time streaming",
+      "data warehouse",
+      "lakehouse",
+      "ETL/ELT",
+      "cloud data platforms"
+    ],
+    "actual_capabilities": [
+      "Design data lakehouse architectures (Delta Lake, Iceberg, Hudi)",
+      "Implement batch processing with Apache Spark and dbt",
+      "Build real-time streaming pipelines with Kafka and Flink",
+      "Orchestrate workflows using Airflow, Prefect, or Dagster",
+      "Model data warehouses using dimensional and Data Vault techniques",
+      "Deploy cloud-native data solutions on AWS, Azure, and GCP",
+      "Implement data quality, lineage, and governance frameworks"
+    ],
+    "limitations": [
+      "Not suitable for simple exploratory data analysis without engineering needs",
+      "Does not focus on ML model development itself, only the surrounding pipelines",
+      "Requires access to data sources and storage systems to function effectively"
+    ],
+    "use_cases": [
+      {
+        "target_user": "Data Architects",
+        "title": "Design Modern Data Architecture",
+        "description": "Create scalable lakehouse architectures using Delta Lake or Iceberg on cloud storage to unify data warehousing and analytics."
+      },
+      {
+        "target_user": "Data Engineers",
+        "title": "Orchestrate Complex ETL Pipelines",
+        "description": "Build and manage reliable data workflows using Airflow or dbt for batch processing, ensuring data quality and lineage."
+      },
+      {
+        "target_user": "Platform Engineers",
+        "title": "Implement Real-Time Streaming",
+        "description": "Set up event-driven architectures with Kafka and Flink for low-latency analytics and real-time feature engineering."
+      }
+    ],
+    "prompt_templates": [
+      {
+        "title": "Design ETL Pipeline",
+        "scenario": "Moving data from Postgres to Snowflake",
+        "prompt": "Design a batch ETL pipeline using Airflow and dbt to ingest data from PostgreSQL into Snowflake, ensuring data quality checks are applied."
+      },
+      {
+        "title": "Streaming Architecture",
+        "scenario": "Real-time analytics",
+        "prompt": "Architect a real-time data pipeline using Apache Kafka and Flink to process clickstream events and sink results to ClickHouse."
+      }
+    ],
+    "output_examples": [
+      {
+        "input": "Create a dbt model for customer orders",
+        "output": [
+          "-- models/customer_orders.sql",
+          "SELECT",
+          "    order_id,",
+          "    customer_id,",
+          "    order_date,",
+          "    total_amount",
+          "FROM raw_orders",
+          "WHERE status = 'completed'"
+        ]
+      },
+      {
+        "input": "Define an Airflow DAG",
+        "output": [
+          "from airflow import DAG",
+          "from datetime import datetime",
+          "",
+          "with DAG('my_data_pipeline', start_date=datetime(2023, 1, 1)) as dag:",
+          "    # Define tasks here",
+          "    pass"
+        ]
+      }
+    ],
+    "best_practices": [
+      "Define clear data contracts and SLAs before implementation",
+      "Implement data validation and quality checks at every stage",
+      "Use idempotent transformations to ensure reproducibility",
+      "Enforce least-privilege access controls and protect PII",
+      "Monitor pipeline costs and operational reliability continuously"
+    ],
+    "anti_patterns": [
+      "Hardcoding credentials or sensitive data in pipeline code",
+      "Ignoring data skew in distributed processing jobs",
+      "Creating monolithic DAGs that are hard to debug and maintain",
+      "Skipping data quality checks for the sake of speed"
+    ],
+    "faq": [
+      {
+        "question": "When should I use dbt versus Apache Spark?",
+        "answer": "Use dbt for SQL-based transformations within a data warehouse. Use Spark for heavy data processing, ETL across disparate systems, or when complex logic in Python/Scala is required."
+      },
+      {
+        "question": "How do I handle real-time data latency?",
+        "answer": "Utilize streaming technologies like Kafka and Flink, and design your architecture for event-driven processing with minimal state management."
+      }
+    ]
+  },
+  "file_structure": [
+    {
+      "name": "skill-report.json",
+      "type": "file",
+      "path": "skill-report.json",
+      "lines": 183
+    },
+    {
+      "name": "SKILL.md",
+      "type": "file",
+      "path": "SKILL.md",
+      "lines": 224
+    }
+  ]
+}

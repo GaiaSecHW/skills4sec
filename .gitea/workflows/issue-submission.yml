@@ -1,0 +1,175 @@
+# .gitea/workflows/issue-submission.yml
+# 自动处理新创建的技能提交 Issue
+name: Issue Submission Handler
+
+on:
+  issues:
+    types: [opened]
+
+env:
+  GITEA_API_URL: http://172.28.95.77:3000/api/v1
+
+jobs:
+  parse-and-submit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: contains(github.event.issue.labels.*.name, 'skill-submission') || contains(github.event.issue.title, '技能提交') || contains(github.event.issue.title, 'Skill Submission')
+    outputs:
+      source_url: ${{ steps.parse.outputs.source_url }}
+      skill_name: ${{ steps.parse.outputs.skill_name }}
+
+    steps:
+      - name: Parse issue body
+        id: parse
+        env:
+          ISSUE_BODY: ${{ github.event.issue.body }}
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+        run: |
+          set -euo pipefail
+
+          echo "📋 Parsing issue: $ISSUE_TITLE"
+          echo "Body:"
+          echo "$ISSUE_BODY"
+
+          # 提取仓库地址 (支持多种格式)
+          # 格式1: 仓库地址: https://github.com/...
+          # 格式2: Repository URL: https://github.com/...
+          # 格式3: 直接包含 github.com URL
+          SOURCE_URL=""
+          SKILL_PATH=""
+
+          # 尝试从 Issue body 提取 URL (移除 \r 避免截断)
+          CLEAN_BODY=$(echo "$ISSUE_BODY" | tr -d '\r')
+          if echo "$CLEAN_BODY" | grep -qi "仓库地址"; then
+            FULL_URL=$(echo "$CLEAN_BODY" | grep -oiE "https?://github\.com[^[:space:]]*" | head -1)
+          elif echo "$CLEAN_BODY" | grep -qi "repository"; then
+            FULL_URL=$(echo "$CLEAN_BODY" | grep -oiE "https?://github\.com[^[:space:]]*" | head -1)
+          else
+            # 直接查找 GitHub URL
+            FULL_URL=$(echo "$CLEAN_BODY" | grep -oiE "https?://github\.com[^[:space:]]*" | head -1)
+          fi
+
+          # 解析 URL，提取仓库地址和技能路径
+          # 格式: https://github.com/owner/repo/tree/main/skills/user/skill-name
+          if [ -n "$FULL_URL" ]; then
+            if [[ "$FULL_URL" =~ (https://github\.com/[^/]+/[^/]+)(/tree/[^/]+/(.*))? ]]; then
+              SOURCE_URL="${BASH_REMATCH[1]}"
+              if [ -n "${BASH_REMATCH[3]}" ]; then
+                SKILL_PATH="${BASH_REMATCH[3]}"
+              fi
+            else
+              SOURCE_URL="$FULL_URL"
+            fi
+          fi
+
+          # 提取技能名称
+          SKILL_NAME=$(echo "$ISSUE_BODY" | grep -oiE "技能名称.*" | head -1 | sed 's/技能名称[:：]*[[:space:]]*//' | tr -d '\r')
+          [ -z "$SKILL_NAME" ] && SKILL_NAME="$ISSUE_TITLE"
+
+          if [ -z "$SOURCE_URL" ]; then
+            echo "::error::No source URL found in issue body"
+            echo "source_url=" >> $GITHUB_OUTPUT
+            echo "skill_name=" >> $GITHUB_OUTPUT
+            echo "skill_path=" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+
+          echo "✅ Parsed:"
+          echo "   Source URL: $SOURCE_URL"
+          echo "   Skill Path: ${SKILL_PATH:-N/A}"
+          echo "   Skill Name: $SKILL_NAME"
+
+          echo "source_url=$SOURCE_URL" >> $GITHUB_OUTPUT
+          echo "skill_name=$SKILL_NAME" >> $GITHUB_OUTPUT
+          echo "skill_path=$SKILL_PATH" >> $GITHUB_OUTPUT
+
+      - name: Add pending-approval label
+        if: steps.parse.outputs.source_url != ''
+        env:
+          GITEA_TOKEN: ${{ secrets.GITEATOKEN }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          curl -s -X POST "${{ env.GITEA_API_URL }}/repos/${{ github.repository }}/issues/$ISSUE_NUMBER/labels" \
+            -H "Authorization: token $GITEA_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{"labels": ["pending-approval"]}' || true
+
+          echo "🏷️ Added pending-approval label"
+
+      - name: Comment on issue
+        if: steps.parse.outputs.source_url != ''
+        env:
+          GITEA_TOKEN: ${{ secrets.GITEATOKEN }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          SOURCE_URL: ${{ steps.parse.outputs.source_url }}
+        run: |
+          curl -s -X POST "${{ env.GITEA_API_URL }}/repos/${{ github.repository }}/issues/$ISSUE_NUMBER/comments" \
+            -H "Authorization: token $GITEA_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "body": "## 🤖 自动处理中\n\n检测到技能提交：'"$SOURCE_URL"'\n\n正在触发处理工作流...\n\n---\n*由 Gitea Actions 自动处理*"
+            }'
+
+      - name: Trigger submission workflow
+        if: steps.parse.outputs.source_url != ''
+        env:
+          GITEA_TOKEN: ${{ secrets.GITEATOKEN }}
+          SOURCE_URL: ${{ steps.parse.outputs.source_url }}
+          SKILL_PATH: ${{ steps.parse.outputs.skill_path }}
+        run: |
+          set -euo pipefail
+
+          echo "🚀 Triggering submission workflow"
+          echo "   Source URL: $SOURCE_URL"
+          echo "   Skill Path: ${SKILL_PATH:-N/A}"
+
+          # Build JSON payload using jq for proper escaping
+          if command -v jq &> /dev/null; then
+            if [ -n "$SKILL_PATH" ]; then
+              PAYLOAD=$(jq -n --arg url "$SOURCE_URL" --arg path "$SKILL_PATH" '{ref: "main", inputs: {source_url: $url, skill_path: $path}}')
+            else
+              PAYLOAD=$(jq -n --arg url "$SOURCE_URL" '{ref: "main", inputs: {source_url: $url}}')
+            fi
+          else
+            # Fallback without jq
+            if [ -n "$SKILL_PATH" ]; then
+              PAYLOAD='{"ref": "main", "inputs": {"source_url": "'"$SOURCE_URL"'", "skill_path": "'"$SKILL_PATH"'"}}'
+            else
+              PAYLOAD='{"ref": "main", "inputs": {"source_url": "'"$SOURCE_URL"'"}}'
+            fi
+          fi
+
+          echo "   Payload: $PAYLOAD"
+
+          HTTP_CODE=$(curl -s -o /tmp/response.txt -w "%{http_code}" -X POST \
+            "${{ env.GITEA_API_URL }}/repos/${{ github.repository }}/actions/workflows/submission.yml/dispatches" \
+            -H "Authorization: token $GITEA_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "$PAYLOAD")
+
+          RESPONSE=$(cat /tmp/response.txt 2>/dev/null || echo "")
+
+          echo "   HTTP Status: $HTTP_CODE"
+          echo "   Response: ${RESPONSE:-empty}"
+
+          if [ "$HTTP_CODE" -eq 200 ] || [ "$HTTP_CODE" -eq 204 ]; then
+            echo "✅ Workflow triggered successfully"
+          else
+            echo "::error::Failed to trigger workflow (HTTP $HTTP_CODE): $RESPONSE"
+            exit 1
+          fi
+
+      - name: Summary
+        if: always()
+        env:
+          SOURCE_URL: ${{ steps.parse.outputs.source_url }}
+          SKILL_NAME: ${{ steps.parse.outputs.skill_name }}
+        run: |
+          echo "## Issue Submission Handler" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Field | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Issue | #${{ github.event.issue.number }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Skill Name | ${SKILL_NAME:-N/A} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Source URL | ${SOURCE_URL:-Not found} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Status | ${{ job.status }} |" >> $GITHUB_STEP_SUMMARY

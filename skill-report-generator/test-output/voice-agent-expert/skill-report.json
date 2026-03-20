@@ -1,0 +1,535 @@
+{
+  "schema_version": "2.0",
+  "meta": {
+    "generated_at": "2026-03-18T07:32:44.868Z",
+    "slug": "unknown-voice-agent-expert",
+    "source_url": "https://github.com/unknown/skills/tree/main/voice-agent-expert",
+    "source_ref": "main",
+    "model": "ep-20260210173421-9vsg8",
+    "analysis_version": "1.0.0",
+    "source_type": "community",
+    "content_hash": "2959898432fa12387e90e675aeba9d5f9c1ec3486fa0f99963a662d593182d1e",
+    "tree_hash": "d829ab175b37f759141c1b7448747b0ce2d76744c3d0e477b70c343e4485d713"
+  },
+  "skill": {
+    "name": "voice-agent-expert",
+    "description": "This skill is a practical, 'use-it-while-debugging' reference for getting a LiveKit + Letta voice agent working reliably.",
+    "summary": "This skill is a practical, 'use-it-while-debugging' reference for getting a LiveKit + Letta voice ag...",
+    "icon": "📦",
+    "version": "1.0.0",
+    "author": "unknown",
+    "license": "MIT",
+    "category": "coding",
+    "tags": [],
+    "supported_tools": [
+      "claude",
+      "codex",
+      "claude-code"
+    ],
+    "risk_factors": [
+      "network",
+      "scripts",
+      "external_commands",
+      "filesystem",
+      "env_access"
+    ]
+  },
+  "security_audit": {
+    "risk_level": "medium",
+    "is_blocked": false,
+    "safe_to_publish": true,
+    "summary": "This skill contains potentially sensitive patterns: 1 medium-severity pattern(s). Review recommended before use.",
+    "risk_factor_evidence": [
+      {
+        "factor": "network",
+        "evidence": [
+          {
+            "file": "QUICK_REFERENCE.md",
+            "line_start": 109,
+            "line_end": 109
+          }
+        ]
+      },
+      {
+        "factor": "network",
+        "evidence": [
+          {
+            "file": "QUICK_REFERENCE.md",
+            "line_start": 109,
+            "line_end": 109
+          }
+        ]
+      },
+      {
+        "factor": "network",
+        "evidence": [
+          {
+            "file": "QUICK_REFERENCE.md",
+            "line_start": 110,
+            "line_end": 110
+          }
+        ]
+      },
+      {
+        "factor": "network",
+        "evidence": [
+          {
+            "file": "QUICK_REFERENCE.md",
+            "line_start": 110,
+            "line_end": 110
+          }
+        ]
+      },
+      {
+        "factor": "network",
+        "evidence": [
+          {
+            "file": "QUICK_REFERENCE.md",
+            "line_start": 115,
+            "line_end": 115
+          }
+        ]
+      },
+      {
+        "factor": "network",
+        "evidence": [
+          {
+            "file": "README.md",
+            "line_start": 48,
+            "line_end": 48
+          }
+        ]
+      },
+      {
+        "factor": "network",
+        "evidence": [
+          {
+            "file": "SKILL.md",
+            "line_start": 53,
+            "line_end": 53
+          }
+        ]
+      },
+      {
+        "factor": "network",
+        "evidence": [
+          {
+            "file": "SKILL.md",
+            "line_start": 53,
+            "line_end": 53
+          }
+        ]
+      },
+      {
+        "factor": "scripts",
+        "evidence": [
+          {
+            "file": "scripts\\diagnose_voice_system.py",
+            "line_start": 1,
+            "line_end": 124
+          }
+        ]
+      },
+      {
+        "factor": "external_commands",
+        "evidence": [
+          {
+            "file": "scripts\\diagnose_voice_system.py",
+            "line_start": 5,
+            "line_end": 5
+          }
+        ]
+      },
+      {
+        "factor": "external_commands",
+        "evidence": [
+          {
+            "file": "scripts\\diagnose_voice_system.py",
+            "line_start": 11,
+            "line_end": 11
+          }
+        ]
+      },
+      {
+        "factor": "filesystem",
+        "evidence": [
+          {
+            "file": "scripts\\diagnose_voice_system.py",
+            "line_start": 28,
+            "line_end": 28
+          }
+        ]
+      },
+      {
+        "factor": "filesystem",
+        "evidence": [
+          {
+            "file": "scripts\\diagnose_voice_system.py",
+            "line_start": 68,
+            "line_end": 68
+          }
+        ]
+      },
+      {
+        "factor": "filesystem",
+        "evidence": [
+          {
+            "file": "scripts\\diagnose_voice_system.py",
+            "line_start": 69,
+            "line_end": 69
+          }
+        ]
+      },
+      {
+        "factor": "scripts",
+        "evidence": [
+          {
+            "file": "scripts\\generate_token.py",
+            "line_start": 1,
+            "line_end": 66
+          }
+        ]
+      },
+      {
+        "factor": "filesystem",
+        "evidence": [
+          {
+            "file": "scripts\\generate_token.py",
+            "line_start": 9,
+            "line_end": 9
+          }
+        ]
+      },
+      {
+        "factor": "filesystem",
+        "evidence": [
+          {
+            "file": "scripts\\generate_token.py",
+            "line_start": 11,
+            "line_end": 11
+          }
+        ]
+      },
+      {
+        "factor": "env_access",
+        "evidence": [
+          {
+            "file": "scripts\\generate_token.py",
+            "line_start": 16,
+            "line_end": 16
+          }
+        ]
+      },
+      {
+        "factor": "env_access",
+        "evidence": [
+          {
+            "file": "scripts\\generate_token.py",
+            "line_start": 27,
+            "line_end": 27
+          }
+        ]
+      },
+      {
+        "factor": "env_access",
+        "evidence": [
+          {
+            "file": "scripts\\generate_token.py",
+            "line_start": 28,
+            "line_end": 28
+          }
+        ]
+      },
+      {
+        "factor": "env_access",
+        "evidence": [
+          {
+            "file": "scripts\\generate_token.py",
+            "line_start": 29,
+            "line_end": 29
+          }
+        ]
+      },
+      {
+        "factor": "network",
+        "evidence": [
+          {
+            "file": "scripts\\generate_token.py",
+            "line_start": 57,
+            "line_end": 57
+          }
+        ]
+      },
+      {
+        "factor": "scripts",
+        "evidence": [
+          {
+            "file": "scripts\\start_voice_system.py",
+            "line_start": 1,
+            "line_end": 101
+          }
+        ]
+      },
+      {
+        "factor": "external_commands",
+        "evidence": [
+          {
+            "file": "scripts\\start_voice_system.py",
+            "line_start": 5,
+            "line_end": 5
+          }
+        ]
+      },
+      {
+        "factor": "external_commands",
+        "evidence": [
+          {
+            "file": "scripts\\start_voice_system.py",
+            "line_start": 14,
+            "line_end": 14
+          }
+        ]
+      },
+      {
+        "factor": "filesystem",
+        "evidence": [
+          {
+            "file": "scripts\\start_voice_system.py",
+            "line_start": 61,
+            "line_end": 61
+          }
+        ]
+      },
+      {
+        "factor": "filesystem",
+        "evidence": [
+          {
+            "file": "scripts\\start_voice_system.py",
+            "line_start": 63,
+            "line_end": 63
+          }
+        ]
+      },
+      {
+        "factor": "env_access",
+        "evidence": [
+          {
+            "file": "scripts\\start_voice_system.py",
+            "line_start": 68,
+            "line_end": 68
+          }
+        ]
+      },
+      {
+        "factor": "filesystem",
+        "evidence": [
+          {
+            "file": "scripts\\start_voice_system.py",
+            "line_start": 71,
+            "line_end": 71
+          }
+        ]
+      },
+      {
+        "factor": "filesystem",
+        "evidence": [
+          {
+            "file": "scripts\\start_voice_system.py",
+            "line_start": 73,
+            "line_end": 73
+          }
+        ]
+      },
+      {
+        "factor": "env_access",
+        "evidence": [
+          {
+            "file": "scripts\\start_voice_system.py",
+            "line_start": 78,
+            "line_end": 78
+          }
+        ]
+      },
+      {
+        "factor": "network",
+        "evidence": [
+          {
+            "file": "scripts\\start_voice_system.py",
+            "line_start": 85,
+            "line_end": 85
+          }
+        ]
+      }
+    ],
+    "critical_findings": [],
+    "high_findings": [],
+    "medium_findings": [
+      {
+        "title": "Shell injection risk",
+        "description": "Found pattern: subprocess.*shell=True",
+        "locations": [
+          {
+            "file": "scripts\\diagnose_voice_system.py",
+            "line_start": 11,
+            "line_end": 11
+          }
+        ]
+      }
+    ],
+    "low_findings": [],
+    "dangerous_patterns": [],
+    "files_scanned": 7,
+    "total_lines": 1009,
+    "audit_model": "ep-20260210173421-9vsg8",
+    "audited_at": "2026-03-18T07:32:44.868Z"
+  },
+  "content": {
+    "user_title": "Debug LiveKit and Letta Voice Agents Effectively",
+    "value_statement": "Provides a practical debugging reference for LiveKit + Letta voice agents. It resolves common issues like timeouts, audio glitches, and routing failures by enforcing core rules, managing processes, and offering nuclear reset commands to ensure reliable operation.",
+    "seo_keywords": [
+      "LiveKit",
+      "Letta",
+      "Voice Agent",
+      "Debugging",
+      "Process Management",
+      "Real-time Audio",
+      "WebRTC"
+    ],
+    "actual_capabilities": [
+      "Identify and fix incorrect method overrides (e.g., using llm_node vs generate_reply)",
+      "Perform 'nuclear resets' to clear stuck processes and restart services",
+      "Diagnose agent liveness using curl and process checks",
+      "Troubleshoot WebSocket connection issues (double-slash errors)",
+      "Verify Letta routing is active via log markers"
+    ],
+    "limitations": [
+      "Specific to the LiveKit and Letta technology stack",
+      "Commands assume a Unix-like environment (bash, pkill)",
+      "Hardcoded file paths in reset scripts may require adjustment for different user environments"
+    ],
+    "use_cases": [
+      {
+        "target_user": "Voice Agent Developer",
+        "title": "Resolving Unresponsive Agents",
+        "description": "When a voice agent appears alive but fails to route text or respond, this skill provides the specific checks (like verifying the llm_node hook) to fix the routing logic."
+      },
+      {
+        "target_user": "System Integrator",
+        "title": "Recovering from Service Failures",
+        "description": "In scenarios of timeouts or audio cutting out due to stuck processes, the 'nuclear reset' script helps kill zombie processes and cleanly restart LiveKit and the agent."
+      },
+      {
+        "target_user": "QA Engineer",
+        "title": "Validating Local Environment",
+        "description": "Ensures the local testing environment is correctly configured in 'dev' mode and that only one instance of the agent is running to prevent inconsistent behavior."
+      }
+    ],
+    "prompt_templates": [
+      {
+        "title": "Nuclear Reset",
+        "scenario": "The voice agent is stuck, timing out, or behaving erratically.",
+        "prompt": "Execute the nuclear reset procedure: kill all letta_voice_agent and livekit-server processes, wait 2 seconds, then restart LiveKit in dev mode and the voice agent in the background."
+      },
+      {
+        "title": "Liveness Check",
+        "scenario": "Unsure if the services are running correctly.",
+        "prompt": "Check if LiveKit is responding on localhost port 7880 and verify that exactly one letta_voice_agent process is running without duplicates."
+      }
+    ],
+    "output_examples": [
+      {
+        "input": "Why is my agent not processing text?",
+        "output": [
+          "Check if you overrode the correct method.",
+          "The framework calls llm_node, not generate_reply.",
+          "If you overrode the wrong method, your changes won't run."
+        ]
+      },
+      {
+        "input": "Audio keeps cutting out during testing.",
+        "output": [
+          "Check for duplicate voice-agent processes.",
+          "Run: ps aux | grep letta_voice_agent",
+          "If more than one process exists, kill them all and restart."
+        ]
+      }
+    ],
+    "best_practices": [
+      "Always override the llm_node method for voice routing, not generate_reply.",
+      "Ensure only one voice-agent process runs at a time to avoid conflicts.",
+      "Use 'dev' mode for local testing instead of 'start' mode for faster feedback.",
+      "Always kill and restart the running process after making code changes."
+    ],
+    "anti_patterns": [
+      "Overriding generate_reply expecting voice routing to work.",
+      "Running multiple instances of the voice agent simultaneously.",
+      "Using 'start' mode for active local debugging and waiting indefinitely.",
+      "Assuming code changes apply without restarting the Python process."
+    ],
+    "faq": [
+      {
+        "question": "Why does my agent look alive but never route text?",
+        "answer": "You likely overrode the wrong method. The framework calls llm_node, not generate_reply. Ensure your logic is inside llm_node."
+      },
+      {
+        "question": "Why is the audio cutting out or timing out?",
+        "answer": "This is commonly caused by duplicate voice-agent processes running. Kill all instances and ensure only one is running."
+      },
+      {
+        "question": "Why aren't my code changes taking effect?",
+        "answer": "Edits don't apply until you kill and restart the running process. You might be debugging an old process."
+      }
+    ]
+  },
+  "file_structure": [
+    {
+      "name": "QUICK_REFERENCE.md",
+      "type": "file",
+      "path": "QUICK_REFERENCE.md",
+      "lines": 139
+    },
+    {
+      "name": "README.md",
+      "type": "file",
+      "path": "README.md",
+      "lines": 145
+    },
+    {
+      "name": "scripts",
+      "type": "dir",
+      "path": "scripts",
+      "children": [
+        {
+          "name": "diagnose_voice_system.py",
+          "type": "file",
+          "path": "scripts/diagnose_voice_system.py",
+          "lines": 124
+        },
+        {
+          "name": "generate_token.py",
+          "type": "file",
+          "path": "scripts/generate_token.py",
+          "lines": 66
+        },
+        {
+          "name": "start_voice_system.py",
+          "type": "file",
+          "path": "scripts/start_voice_system.py",
+          "lines": 101
+        }
+      ]
+    },
+    {
+      "name": "skill-report.json",
+      "type": "file",
+      "path": "skill-report.json",
+      "lines": 330
+    },
+    {
+      "name": "SKILL.md",
+      "type": "file",
+      "path": "SKILL.md",
+      "lines": 104
+    }
+  ]
+}

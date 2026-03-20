@@ -1,0 +1,10 @@
+[
+  {
+    "slug": "secskill-evo-intro",
+    "title": "secskill-evo：基于 Memento-S 的 Claude Code Skill 演化框架",
+    "date": "2026-03-19",
+    "summary": "介绍 secskill-evo——一个让 AI 技能不再是静态产物，而是可以自主反思、自动改进、版本化迭代的活体演化框架。基于 Memento-S 思路衍生，内置 LLM-as-Judge 评估、Git 版本管理与安全回退机制。",
+    "file": "md/blog/secskill-evo-intro.md",
+    "tags": ["skill", "演化", "Memento-S", "Claude Code"]
+  }
+]
