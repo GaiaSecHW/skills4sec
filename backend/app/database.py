@@ -11,6 +11,8 @@ async def init_db():
                 "app.models.skill",
                 "app.models.audit",
                 "app.models.content",
+                "app.models.login_log",
+                "app.models.admin_log",
             ]
         },
     )
