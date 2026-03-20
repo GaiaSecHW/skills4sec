@@ -1147,7 +1147,7 @@
   function bindSubmitEvents() {
     const btn = document.getElementById('submit-btn');
     if (!btn) return;
-    btn.addEventListener('click', function () {
+    btn.addEventListener('click', async function () {
       const name    = document.getElementById('s-name')?.value.trim();
       const repo    = document.getElementById('s-repo')?.value.trim();
       const desc    = document.getElementById('s-desc')?.value.trim();
@@ -1161,18 +1161,67 @@
       }
       if (errEl) errEl.style.display = 'none';
 
-      const body = [
-        `## 技能名称\n${name}`,
-        `## 仓库地址\n${repo}`,
-        cat ? `## 分类\n${cat}` : '',
-        `## 描述\n${desc}`,
-        contact ? `## 联系方式\n${contact}` : '',
-      ].filter(Boolean).join('\n\n');
+      // 显示加载状态
+      const originalText = btn.innerHTML;
+      btn.innerHTML = '<span class="spinner"></span>提交中...';
+      btn.disabled = true;
 
-      const url = 'https://github.com/cxm95/skills4sec/issues/new?'
-        + new URLSearchParams({ title: `[技能提交] ${name}`, body, labels: 'skill-submission' });
-      window.open(url, '_blank', 'noopener,noreferrer');
+      try {
+        const API_BASE = window.location.hostname === 'localhost' ? 'http://localhost:8000' : '';
+        const res = await fetch(API_BASE + '/api/submissions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: name,
+            repo_url: repo,
+            description: desc,
+            category: cat || null,
+            contact: contact || null
+          })
+        });
+        const data = await res.json();
+
+        if (data.success) {
+          showSubmitSuccessModal(data);
+          // 清空表单
+          document.getElementById('s-name').value = '';
+          document.getElementById('s-repo').value = '';
+          document.getElementById('s-desc').value = '';
+          document.getElementById('s-cat').value = '';
+          document.getElementById('s-contact').value = '';
+        } else {
+          if (errEl) { errEl.textContent = data.detail || data.message || '提交失败，请稍后重试。'; errEl.style.display = 'block'; }
+        }
+      } catch (e) {
+        if (errEl) { errEl.textContent = '网络错误: ' + e.message; errEl.style.display = 'block'; }
+      } finally {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+      }
     });
+  }
+
+  function showSubmitSuccessModal(data) {
+    const modal = document.createElement('div');
+    modal.id = 'submit-success-modal';
+    modal.innerHTML = `
+<div class="modal-overlay" onclick="this.parentElement.remove()">
+  <div class="modal-content" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="modal-icon-success">
+        <circle cx="12" cy="12" r="10"/>
+        <path d="m9 12 2 2 4-4"/>
+      </svg>
+      <h3>提交成功！</h3>
+    </div>
+    <div class="modal-body">
+      <p>技能 <strong>${escHtml(data.issue_number ? '#' + data.issue_number : '')}</strong> 已成功提交，请等待审核。</p>
+      ${data.issue_url ? `<a href="${escHtml(data.issue_url)}" target="_blank" rel="noopener" class="modal-link">查看 Issue 详情 &rarr;</a>` : ''}
+    </div>
+    <button class="modal-close-btn" onclick="this.parentElement.remove()">关闭</button>
+  </div>
+</div>`;
+    document.body.appendChild(modal);
   }
 
   /* ===================== SCHEMA SPEC PAGE ===================== */
