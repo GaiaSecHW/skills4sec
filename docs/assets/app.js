@@ -1167,7 +1167,7 @@
       btn.disabled = true;
 
       try {
-        const API_BASE = window.location.hostname === 'localhost' ? 'http://localhost:8000' : '';
+        const API_BASE = window.location.hostname === 'localhost' ? 'http://localhost:8001' : '';
         const res = await fetch(API_BASE + '/api/submissions', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
