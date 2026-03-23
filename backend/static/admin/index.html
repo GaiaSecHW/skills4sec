@@ -89,9 +89,41 @@
         .required-mark { color: #e74c3c; font-weight: bold; }
         .optional-mark { color: #999; font-size: 12px; font-weight: normal; }
         .form-hint { display: block; color: #888; font-size: 12px; margin-top: 4px; }
+
+        /* Toast 通知 */
+        .toast-container { position: fixed; top: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; }
+        .toast { padding: 14px 20px; border-radius: 8px; color: white; font-size: 14px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); display: flex; align-items: center; gap: 10px; min-width: 280px; max-width: 400px; animation: slideIn 0.3s ease; }
+        .toast.toast-success { background: linear-gradient(135deg, #27ae60, #2ecc71); }
+        .toast.toast-error { background: linear-gradient(135deg, #e74c3c, #c0392b); }
+        .toast.toast-warning { background: linear-gradient(135deg, #f39c12, #e67e22); }
+        .toast.toast-info { background: linear-gradient(135deg, #3498db, #2980b9); }
+        .toast-icon { font-size: 18px; }
+        .toast-message { flex: 1; line-height: 1.4; }
+        .toast-close { background: none; border: none; color: rgba(255,255,255,0.7); cursor: pointer; font-size: 18px; padding: 0; line-height: 1; }
+        .toast-close:hover { color: white; }
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        @keyframes slideOut { from { transform: translateX(0); opacity: 1; } to { transform: translateX(100%); opacity: 0; } }
+        .toast.removing { animation: slideOut 0.3s ease forwards; }
+
+        /* 模态框增强样式 */
+        .modal-content { box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
+        .modal-header { background: #f8f9fa; border-radius: 8px 8px 0 0; }
+        .modal-header h3 { color: #2c3e50; }
+        .modal-body .form-group { margin-bottom: 18px; }
+        .modal-body .form-group label { font-weight: 500; color: #333; margin-bottom: 6px; }
+        .modal-body .form-group input, .modal-body .form-group select, .modal-body .form-group textarea {
+            border: 1px solid #dce0e4; border-radius: 6px; padding: 10px 12px; font-size: 14px; transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        .modal-body .form-group input:focus, .modal-body .form-group select:focus, .modal-body .form-group textarea:focus {
+            outline: none; border-color: #4a90d9; box-shadow: 0 0 0 3px rgba(74,144,217,0.1);
+        }
+        .modal-body .form-group input::placeholder { color: #aaa; }
     </style>
 </head>
 <body>
+    <!-- Toast 通知容器 -->
+    <div class="toast-container" id="toastContainer"></div>
+
     <!-- 登录页面 -->
     <div class="login-container" id="loginPage">
         <div class="login-box">
@@ -117,6 +149,7 @@
         <div class="sidebar">
             <h2>📋 管理后台</h2>
             <div class="nav-item active" data-page="users">👥 用户管理</div>
+            <div class="nav-item" data-page="submissions">📦 提交管理</div>
             <div class="nav-item" data-page="logs">📊 登录日志</div>
             <div class="nav-item" data-page="adminLogs">🔧 操作日志</div>
             <div class="user-info">
@@ -210,6 +243,85 @@
                     </div>
                 </div>
             </div>
+
+            <!-- 提交管理页面 -->
+            <div class="page" id="submissionsPage">
+                <!-- 统计卡片 -->
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin-bottom: 20px;">
+                    <div class="card" style="text-align: center; padding: 15px;">
+                        <div style="font-size: 28px; font-weight: bold; color: #4a90d9;" id="statTotal">0</div>
+                        <div style="color: #666; font-size: 13px;">总提交</div>
+                    </div>
+                    <div class="card" style="text-align: center; padding: 15px;">
+                        <div style="font-size: 28px; font-weight: bold; color: #f39c12;" id="statPending">0</div>
+                        <div style="color: #666; font-size: 13px;">待处理</div>
+                    </div>
+                    <div class="card" style="text-align: center; padding: 15px;">
+                        <div style="font-size: 28px; font-weight: bold; color: #3498db;" id="statProcessing">0</div>
+                        <div style="color: #666; font-size: 13px;">处理中</div>
+                    </div>
+                    <div class="card" style="text-align: center; padding: 15px;">
+                        <div style="font-size: 28px; font-weight: bold; color: #27ae60;" id="statCompleted">0</div>
+                        <div style="color: #666; font-size: 13px;">已完成</div>
+                    </div>
+                    <div class="card" style="text-align: center; padding: 15px;">
+                        <div style="font-size: 28px; font-weight: bold; color: #e74c3c;" id="statFailed">0</div>
+                        <div style="color: #666; font-size: 13px;">失败</div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h3>技能提交列表</h3>
+                        <button class="btn btn-sm btn-warning" onclick="exportSubmissions()">导出 CSV</button>
+                    </div>
+                    <div class="card-body">
+                        <div class="toolbar">
+                            <input type="text" id="subKeyword" placeholder="搜索名称/仓库">
+                            <select id="subStatus">
+                                <option value="">全部状态</option>
+                                <option value="pending">待处理</option>
+                                <option value="creating_issue">创建Issue中</option>
+                                <option value="issue_created">Issue已创建</option>
+                                <option value="approved">已审批</option>
+                                <option value="processing">处理中</option>
+                                <option value="merged">已合并</option>
+                                <option value="closed">已关闭</option>
+                                <option value="issue_failed">Issue失败</option>
+                                <option value="process_failed">处理失败</option>
+                                <option value="rejected">已拒绝</option>
+                            </select>
+                            <select id="subRisk">
+                                <option value="">全部风险</option>
+                                <option value="safe">安全</option>
+                                <option value="low">低</option>
+                                <option value="medium">中</option>
+                                <option value="high">高</option>
+                                <option value="critical">严重</option>
+                            </select>
+                            <button class="btn btn-sm btn-primary" onclick="loadSubmissions()">搜索</button>
+                        </div>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>名称</th>
+                                    <th>状态</th>
+                                    <th>风险</th>
+                                    <th>Issue</th>
+                                    <th>PR</th>
+                                    <th>重试</th>
+                                    <th>提交者</th>
+                                    <th>时间</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody id="submissionsTable"></tbody>
+                        </table>
+                        <div class="pagination" id="submissionsPagination"></div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -264,9 +376,136 @@
         </div>
     </div>
 
+    <!-- 提交详情模态框 -->
+    <div class="modal" id="submissionModal">
+        <div class="modal-content" style="width: 700px;">
+            <div class="modal-header">
+                <h3>提交详情</h3>
+                <button class="modal-close" onclick="closeSubmissionModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="submissionDetail"></div>
+                <h4 style="margin-top: 20px; margin-bottom: 10px;">事件日志</h4>
+                <div id="submissionEvents" style="max-height: 300px; overflow-y: auto;"></div>
+            </div>
+            <div class="modal-footer" id="submissionActions">
+                <!-- 动态生成操作按钮 -->
+            </div>
+        </div>
+    </div>
+
+    <!-- 拒绝原因模态框 -->
+    <div class="modal" id="rejectModal">
+        <div class="modal-content" style="width: 400px;">
+            <div class="modal-header">
+                <h3>拒绝原因</h3>
+                <button class="modal-close" onclick="closeRejectModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="rejectSubmissionId">
+                <div class="form-group">
+                    <label>拒绝原因 <span class="required-mark">*</span></label>
+                    <textarea id="rejectReason" style="width: 100%; height: 100px; padding: 10px; border: 1px solid #ddd; border-radius: 4px;" placeholder="请输入拒绝原因"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-sm" onclick="closeRejectModal()">取消</button>
+                <button class="btn btn-sm btn-danger" onclick="confirmReject()">确认拒绝</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         // API 基础地址
         const API_BASE = window.location.origin + '/api';
+
+        // Toast 通知系统
+        function showToast(message, type = 'info', duration = 4000) {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+
+            const icons = {
+                success: '✓',
+                error: '✕',
+                warning: '⚠',
+                info: 'ℹ'
+            };
+
+            toast.innerHTML = `
+                <span class="toast-icon">${icons[type] || 'ℹ'}</span>
+                <span class="toast-message">${message}</span>
+                <button class="toast-close" onclick="this.parentElement.remove()">×</button>
+            `;
+
+            container.appendChild(toast);
+
+            // 自动移除
+            setTimeout(() => {
+                toast.classList.add('removing');
+                setTimeout(() => toast.remove(), 300);
+            }, duration);
+        }
+
+        // 显示后端错误信息
+        function showError(res, defaultMsg = '操作失败') {
+            let errorMsg = defaultMsg;
+            if (res?.detail) {
+                if (typeof res.detail === 'string') {
+                    errorMsg = res.detail;
+                } else if (res.detail.message) {
+                    errorMsg = res.detail.message;
+                } else if (Array.isArray(res.detail)) {
+                    errorMsg = res.detail.map(e => e.msg || e.message || JSON.stringify(e)).join('\n');
+                } else {
+                    errorMsg = JSON.stringify(res.detail);
+                }
+            } else if (res?.message) {
+                errorMsg = res.message;
+            }
+            showToast(errorMsg, 'error', 6000);
+        }
+
+        // 确认对话框（美化版）
+        function showConfirm(message, onConfirm, onCancel) {
+            const existing = document.getElementById('confirmModal');
+            if (existing) existing.remove();
+
+            const modal = document.createElement('div');
+            modal.id = 'confirmModal';
+            modal.className = 'modal active';
+            modal.innerHTML = `
+                <div class="modal-content" style="width: 400px;">
+                    <div class="modal-header">
+                        <h3>⚠️ 确认操作</h3>
+                    </div>
+                    <div class="modal-body">
+                        <p style="font-size: 15px; color: #333; line-height: 1.6;">${message}</p>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn btn-sm" onclick="closeConfirmModal(false)">取消</button>
+                        <button class="btn btn-sm btn-danger" id="confirmBtn">确认</button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+
+            document.getElementById('confirmBtn').onclick = () => closeConfirmModal(true);
+            modal.onclick = (e) => { if (e.target === modal) closeConfirmModal(false); };
+
+            window._confirmCallback = (result) => {
+                modal.remove();
+                if (result && onConfirm) onConfirm();
+                if (!result && onCancel) onCancel();
+            };
+        }
+
+        function closeConfirmModal(result) {
+            if (window._confirmCallback) {
+                window._confirmCallback(result);
+                window._confirmCallback = null;
+            }
+        }
 
         // 处理 SSO 单点登录（从主站跳转过来）
         (function handleSSO() {
@@ -336,6 +575,7 @@
 
                     // 加载对应数据
                     if (item.dataset.page === 'users') loadUsers();
+                    else if (item.dataset.page === 'submissions') loadSubmissions();
                     else if (item.dataset.page === 'logs') loadLoginLogs();
                     else if (item.dataset.page === 'adminLogs') loadAdminLogs();
                 });
@@ -538,16 +778,16 @@
 
             // 必填验证
             if (isNew && !employeeId) {
-                return alert('请输入工号');
+                return showToast('请输入工号', 'warning');
             }
             if (!name) {
-                return alert('请输入姓名');
+                return showToast('请输入姓名', 'warning');
             }
             if (isNew && !apiKey) {
-                return alert('新建用户必须设置 API 密钥');
+                return showToast('新建用户必须设置 API 密钥', 'warning');
             }
             if (apiKey && apiKey.length < 6) {
-                return alert('API 密钥至少需要6位字符');
+                return showToast('API 密钥至少需要6位字符', 'warning');
             }
 
             const userData = {
@@ -575,42 +815,37 @@
             }
 
             if (res && res.success) {
+                showToast(isNew ? '用户创建成功' : '用户更新成功', 'success');
                 closeUserModal();
                 loadUsers();
             } else {
-                // 处理错误信息（可能是字符串或验证错误数组）
-                let errorMsg = '保存失败';
-                if (res?.detail) {
-                    if (typeof res.detail === 'string') {
-                        errorMsg = res.detail;
-                    } else if (Array.isArray(res.detail)) {
-                        errorMsg = res.detail.map(e => e.msg || e.message || JSON.stringify(e)).join('\n');
-                    } else {
-                        errorMsg = JSON.stringify(res.detail);
-                    }
-                }
-                alert(errorMsg);
+                showError(res, '保存失败');
             }
         }
 
         // 重置密钥
         async function resetKey(id) {
-            if (!confirm('确定要重置该用户的 API 密钥吗？')) return;
-
-            const res = await api(`/admin/users/${id}/reset-key`, { method: 'POST' });
-            if (res && res.success) {
-                alert(`新 API 密钥: ${res.data.new_api_key}\n请妥善保存！`);
-            }
+            showConfirm('确定要重置该用户的 API 密钥吗？', async () => {
+                const res = await api(`/admin/users/${id}/reset-key`, { method: 'POST' });
+                if (res && res.success) {
+                    showToast(`新 API 密钥: ${res.data.new_api_key}，请妥善保存！`, 'success', 10000);
+                } else {
+                    showError(res, '重置密钥失败');
+                }
+            });
         }
 
         // 切换状态
         async function toggleStatus(id) {
-            if (!confirm('确定要切换该用户的状态吗？')) return;
-
-            const res = await api(`/admin/users/${id}/toggle-status`, { method: 'POST' });
-            if (res && res.success) {
-                loadUsers();
-            }
+            showConfirm('确定要切换该用户的状态吗？', async () => {
+                const res = await api(`/admin/users/${id}/toggle-status`, { method: 'POST' });
+                if (res && res.success) {
+                    showToast('状态切换成功', 'success');
+                    loadUsers();
+                } else {
+                    showError(res, '操作失败');
+                }
+            });
         }
 
         // 导出用户
@@ -672,6 +907,177 @@
             `).join('');
 
             renderPagination('adminLogsPagination', data.total, page, loadAdminLogs);
+        }
+
+        // ============ 提交管理 ============
+
+        let submissionsPage = 0;
+
+        async function loadSubmissions(page = 0) {
+            submissionsPage = page;
+            const status = document.getElementById('subStatus').value;
+            const risk = document.getElementById('subRisk').value;
+            const keyword = document.getElementById('subKeyword').value;
+
+            let url = `/admin/submissions?skip=${page * 20}&limit=20`;
+            if (status) url += `&status=${status}`;
+            if (risk) url += `&risk=${risk}`;
+            if (keyword) url += `&keyword=${encodeURIComponent(keyword)}`;
+
+            const data = await api(url);
+            if (!data) return;
+
+            const tbody = document.getElementById('submissionsTable');
+            tbody.innerHTML = data.data.map(s => `
+                <tr>
+                    <td>${s.submission_id.substring(0, 8)}</td>
+                    <td>${s.name}</td>
+                    <td><span class="badge ${getStatusBadgeClass(s.status)}">${getStatusText(s.status)}</span></td>
+                    <td>${s.issue_number ? `<a href="${s.issue_url}" target="_blank">#${s.issue_number}</a>` : '-'}</td>
+                    <td>${s.pr_number ? `<a href="${s.pr_url}" target="_blank">#${s.pr_number}</a>` : '-'}</td>
+                    <td>${s.submitter_employee_id || '-'}</td>
+                    <td>${s.highest_risk || '-'}</td>
+                    <td>${new Date(s.created_at).toLocaleString()}</td>
+                    <td>
+                        <button class="btn btn-sm btn-primary" onclick="viewSubmissionDetail(${s.id})">详情</button>
+                        ${s.status === 'issue_created' ? `<button class="btn btn-sm btn-success" onclick="approveSubmission(${s.id})">审批</button>` : ''}
+                        ${s.status === 'issue_created' ? `<button class="btn btn-sm btn-danger" onclick="showRejectModal(${s.id})">拒绝</button>` : ''}
+                        ${canRetry(s) ? `<button class="btn btn-sm btn-warning" onclick="retrySubmission(${s.id})">重试</button>` : ''}
+                    </td>
+                </tr>
+            `).join('');
+
+            renderPagination('submissionsPagination', data.total, page, loadSubmissions);
+        }
+
+        function getStatusBadgeClass(status) {
+            const map = {
+                'pending': 'badge-warning',
+                'creating_issue': 'badge-warning',
+                'issue_created': 'badge-warning',
+                'approved': 'badge-success',
+                'processing': 'badge-warning',
+                'merged': 'badge-success',
+                'closed': 'badge-success',
+                'rejected': 'badge-danger',
+                'issue_failed': 'badge-danger',
+                'process_failed': 'badge-danger'
+            };
+            return map[status] || 'badge-warning';
+        }
+
+        function getStatusText(status) {
+                const map = {
+                'pending': '待处理',
+                'creating_issue': '创建中',
+                'issue_created': '待审批',
+                'approved': '已审批',
+                'processing': '处理中',
+                'merged': '已合并',
+                'closed': '已关闭',
+                'rejected': '已拒绝',
+                'issue_failed': 'Issue失败',
+                'process_failed': '处理失败'
+            };
+            return map[status] || status;
+        }
+
+        function canRetry(s) {
+            return ['issue_failed', 'process_failed', 'pending'].includes(s.status) && s.retry_count < s.max_retries;
+        }
+
+        async function viewSubmissionDetail(id) {
+            const data = await api(`/admin/submissions/${id}`);
+            if (!data || !data.success) return;
+
+            const s = data.data.submission;
+            const events = data.data.events;
+
+            let html = `
+                <div class="detail-row"><strong>提交ID:</strong> ${s.submission_id}</div>
+                <div class="detail-row"><strong>名称:</strong> ${s.name}</div>
+                <div class="detail-row"><strong>仓库:</strong> <a href="${s.repo_url}" target="_blank">${s.repo_url}</a></div>
+                <div class="detail-row"><strong>状态:</strong> ${getStatusText(s.status)}</div>
+                <div class="detail-row"><strong>提交者:</strong> ${s.submitter_employee_id || '-'}</div>
+                <div class="detail-row"><strong>Issue:</strong> ${s.issue_number ? `<a href="${s.issue_url}" target="_blank">#${s.issue_number}</a>` : '-'}</div>
+                <div class="detail-row"><strong>PR:</strong> ${s.pr_number ? `<a href="${s.pr_url}" target="_blank">#${s.pr_number}</a>` : '-'}</div>
+                <div class="detail-row"><strong>风险等级:</strong> ${s.highest_risk || '-'}</div>
+                <div class="detail-row"><strong>重试次数:</strong> ${s.retry_count}/${s.max_retries}</div>
+                <div class="detail-row"><strong>错误信息:</strong> ${s.error_message || '-'}</div>
+                <div class="detail-row"><strong>创建时间:</strong> ${new Date(s.created_at).toLocaleString()}</div>
+                <h4 style="margin-top: 15px; border-bottom: 1px solid #eee; padding-bottom: 10px;">事件日志</h4>
+            `;
+
+            if (events && events.length > 0) {
+                html += '<table style="font-size: 12px;"><thead><tr><th>时间</th><th>事件</th><th>消息</th><th>操作人</th></tr>';
+                events.forEach(e => {
+                    html += `<tr><td>${new Date(e.created_at).toLocaleString()}</td><td>${e.event_type}</td><td>${e.message || '-'}</td><td>${e.actor_employee_id || '-'}</td></tr>`;
+                });
+                html += '</table>';
+            } else {
+                html += '<p style="color: #999; margin-top: 10px;">暂无事件记录</p>';
+            }
+
+            document.getElementById('submissionDetailContent').innerHTML = html;
+            document.getElementById('submissionDetailModal').classList.add('active');
+        }
+
+        function closeSubmissionDetailModal() {
+            document.getElementById('submissionDetailModal').classList.remove('active');
+        }
+
+        async function approveSubmission(id) {
+            showConfirm('确定审批通过该提交吗？', async () => {
+                const res = await api(`/admin/submissions/${id}/approve`, { method: 'POST' });
+                if (res && res.success) {
+                    showToast('审批成功', 'success');
+                    loadSubmissions(submissionsPage);
+                } else {
+                    showError(res, '审批失败');
+                }
+            });
+        }
+
+        function showRejectModal(id) {
+            document.getElementById('rejectSubmissionId').value = id;
+            document.getElementById('rejectReason').value = '';
+            document.getElementById('rejectModal').classList.add('active');
+        }
+
+        function closeRejectModal() {
+            document.getElementById('rejectModal').classList.remove('active');
+        }
+
+        async function confirmReject() {
+            const id = document.getElementById('rejectSubmissionId').value;
+            const reason = document.getElementById('rejectReason').value.trim();
+            if (!reason) {
+                showToast('请输入拒绝原因', 'warning');
+                return;
+            }
+            const res = await api(`/admin/submissions/${id}/reject`, {
+                method: 'POST',
+                body: JSON.stringify({ reason })
+            });
+            if (res && res.success) {
+                showToast('已拒绝该提交', 'success');
+                closeRejectModal();
+                loadSubmissions(submissionsPage);
+            } else {
+                showError(res, '操作失败');
+            }
+        }
+
+        async function retrySubmission(id) {
+            showConfirm('确定重试该提交吗？', async () => {
+                const res = await api(`/admin/submissions/${id}/retry`, { method: 'POST' });
+                if (res && res.success) {
+                    showToast('重试已触发', 'success');
+                    loadSubmissions(submissionsPage);
+                } else {
+                    showError(res, '重试失败');
+                }
+            });
         }
     </script>
 </body>
