@@ -22,78 +22,130 @@ class AppException(Exception):
         message: str,
         code: str = "INTERNAL_ERROR",
         status_code: int = status.HTTP_500_INTERNAL_SERVER_ERROR,
+        error_code: str = None,  # 新增：分层业务码
         detail: Optional[Any] = None,
+        suggestion: str = None,  # 新增：解决建议
     ):
         self.message = message
         self.code = code
         self.status_code = status_code
+        self.error_code = error_code or f"SYS-{status_code}-01"  # 默认错误码
         self.detail = detail
+        self.suggestion = suggestion
         super().__init__(self.message)
 
 
 class NotFoundError(AppException):
     """资源未找到"""
-    def __init__(self, message: str = "资源未找到", detail: Optional[Any] = None):
+    def __init__(
+        self,
+        message: str = "资源未找到",
+        detail: Optional[Any] = None,
+        error_code: str = None,
+        suggestion: str = None,
+    ):
         super().__init__(
             message=message,
             code="NOT_FOUND",
             status_code=status.HTTP_404_NOT_FOUND,
+            error_code=error_code,
             detail=detail,
+            suggestion=suggestion,
         )
 
 
 class ValidationError(AppException):
     """验证错误"""
-    def __init__(self, message: str = "数据验证失败", detail: Optional[Any] = None):
+    def __init__(
+        self,
+        message: str = "数据验证失败",
+        detail: Optional[Any] = None,
+        error_code: str = None,
+        suggestion: str = None,
+    ):
         super().__init__(
             message=message,
             code="VALIDATION_ERROR",
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            error_code=error_code,
             detail=detail,
+            suggestion=suggestion,
         )
 
 
 class UnauthorizedError(AppException):
     """未授权"""
-    def __init__(self, message: str = "未授权访问", detail: Optional[Any] = None):
+    def __init__(
+        self,
+        message: str = "未授权访问",
+        detail: Optional[Any] = None,
+        error_code: str = None,
+        suggestion: str = None,
+    ):
         super().__init__(
             message=message,
             code="UNAUTHORIZED",
             status_code=status.HTTP_401_UNAUTHORIZED,
+            error_code=error_code,
             detail=detail,
+            suggestion=suggestion,
         )
 
 
 class ForbiddenError(AppException):
     """禁止访问"""
-    def __init__(self, message: str = "权限不足", detail: Optional[Any] = None):
+    def __init__(
+        self,
+        message: str = "权限不足",
+        detail: Optional[Any] = None,
+        error_code: str = None,
+        suggestion: str = None,
+    ):
         super().__init__(
             message=message,
             code="FORBIDDEN",
             status_code=status.HTTP_403_FORBIDDEN,
+            error_code=error_code,
             detail=detail,
+            suggestion=suggestion,
         )
 
 
 class ConflictError(AppException):
     """资源冲突"""
-    def __init__(self, message: str = "资源已存在", detail: Optional[Any] = None):
+    def __init__(
+        self,
+        message: str = "资源已存在",
+        detail: Optional[Any] = None,
+        error_code: str = None,
+        suggestion: str = None,
+    ):
         super().__init__(
             message=message,
             code="CONFLICT",
             status_code=status.HTTP_409_CONFLICT,
+            error_code=error_code,
             detail=detail,
+            suggestion=suggestion,
         )
 
 
 class DatabaseError(AppException):
     """数据库错误"""
-    def __init__(self, message: str = "数据库操作失败", detail: Optional[Any] = None):
+    def __init__(
+        self,
+        message: str = "数据库操作失败",
+        detail: Optional[Any] = None,
+        error_code: str = None,
+        suggestion: str = None,
+    ):
         super().__init__(
             message=message,
             code="DATABASE_ERROR",
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            error_code=error_code,
             detail=detail,
+            suggestion=suggestion,
         )
 
 
