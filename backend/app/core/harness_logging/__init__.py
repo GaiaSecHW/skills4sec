@@ -4,6 +4,7 @@ from app.core.harness_logging.config import LogConfig
 from app.core.harness_logging.handlers import setup_file_handlers
 from app.core.harness_logging.logger import HarnessLogger, trace_id_ctx, span_id_ctx, actor_ctx
 from app.core.harness_logging.middleware import HarnessLoggingMiddleware
+from app.core.harness_logging.processors import mask_sensitive_data
 from app.core.logging import request_id_ctx  # 复用现有上下文
 
 # 版本
@@ -47,4 +48,5 @@ __all__ = [
     "span_id_ctx",
     "actor_ctx",
     "request_id_ctx",  # 复用现有
+    "mask_sensitive_data",  # 新增
 ]
