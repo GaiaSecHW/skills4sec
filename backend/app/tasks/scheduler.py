@@ -1,11 +1,12 @@
 """
 任务调度器 - APScheduler 集成
 """
-import logging
 from typing import Callable, Dict, Any
 from datetime import datetime
 
-logger = logging.getLogger(__name__)
+from app.core.harness_logging import HarnessLogger
+
+logger = HarnessLogger("scheduler")
 
 # 全局调度器实例
 scheduler = None
@@ -35,13 +36,21 @@ def setup_scheduler():
                 max_instances=1,  # 防止并发执行
                 coalesce=True,    # 合并错过的执行
             )
-            logger.info(f"Registered task: {task_func.__name__} (every {interval_seconds}s)")
+            logger.info(
+                "Registered task",
+                event="task_registered",
+                task_name=task_func.__name__,
+                interval_seconds=interval_seconds,
+            )
 
-        logger.info("Scheduler setup completed")
+        logger.info("Scheduler setup completed", event="scheduler_setup_completed")
         return scheduler
 
     except ImportError:
-        logger.warning("APScheduler not installed, scheduled tasks disabled")
+        logger.warning(
+            "APScheduler not installed, scheduled tasks disabled",
+            event="apscheduler_not_installed",
+        )
         return None
 
 
@@ -51,9 +60,9 @@ def start_scheduler():
 
     if scheduler:
         scheduler.start()
-        logger.info("Scheduler started")
+        logger.info("Scheduler started", event="scheduler_started")
     else:
-        logger.warning("Scheduler not available")
+        logger.warning("Scheduler not available", event="scheduler_not_available")
 
 
 def shutdown_scheduler():
@@ -62,7 +71,7 @@ def shutdown_scheduler():
 
     if scheduler and scheduler.running:
         scheduler.shutdown(wait=False)
-        logger.info("Scheduler shutdown")
+        logger.info("Scheduler shutdown", event="scheduler_shutdown")
 
 
 async def run_task_manually(task_name: str) -> Dict[str, Any]:
@@ -97,7 +106,11 @@ async def run_task_manually(task_name: str) -> Dict[str, Any]:
     task_func = tasks[task_name]
 
     try:
-        logger.info(f"Manually running task: {task_name}")
+        logger.info(
+            "Manually running task",
+            event="task_manual_run",
+            task_name=task_name,
+        )
         result = await task_func()
         return {
             "success": True,
@@ -106,7 +119,12 @@ async def run_task_manually(task_name: str) -> Dict[str, Any]:
             "result": result
         }
     except Exception as e:
-        logger.exception(f"Task {task_name} failed")
+        logger.exception(
+            "Task failed",
+            event="task_failed",
+            task_name=task_name,
+            error=e,
+        )
         return {
             "success": False,
             "task": task_name,
