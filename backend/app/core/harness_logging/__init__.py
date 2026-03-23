@@ -14,6 +14,7 @@ from app.core.harness_logging.middleware import HarnessLoggingMiddleware
 from app.core.harness_logging.error_codes import ErrorCode
 from app.core.harness_logging.processors import mask_sensitive_data
 from app.core.logging import request_id_ctx  # 复用现有上下文
+from app.core.harness_logging.audit import AuditLogger
 
 # 版本
 __version__ = "1.0.0"
@@ -54,6 +55,7 @@ async def setup_harness_logging(
 __all__ = [
     "HarnessLogger",
     "HarnessLoggingMiddleware",
+    "AuditLogger",
     "LogConfig",
     "setup_harness_logging",
     "setup_aggregator",
