@@ -6,11 +6,18 @@ from fastapi import HTTPException, Request, status
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
+from app.core.harness_logging.logger import HarnessLogger
+
+# 创建日志器
+logger = HarnessLogger("exception")
+
 
 class ErrorResponse(BaseModel):
     """统一错误响应格式"""
     code: str
     message: str
+    error_code: Optional[str] = None
+    suggestion: Optional[str] = None
     detail: Optional[Any] = None
     request_id: Optional[str] = None
 
@@ -154,12 +161,27 @@ class DatabaseError(AppException):
 async def app_exception_handler(request: Request, exc: AppException) -> JSONResponse:
     """处理自定义异常"""
     request_id = getattr(request.state, "request_id", None)
+
+    # 记录结构化错误日志
+    logger.error(
+        exc.message,
+        event="exception_raised",
+        error_code=exc.error_code,
+        status_code=exc.status_code,
+        detail=exc.detail,
+        suggestion=exc.suggestion,
+        path=request.url.path,
+        method=request.method,
+    )
+
     return JSONResponse(
         status_code=exc.status_code,
         content=ErrorResponse(
             code=exc.code,
             message=exc.message,
+            error_code=exc.error_code,
             detail=exc.detail,
+            suggestion=exc.suggestion,
             request_id=request_id,
         ).model_dump(exclude_none=True),
     )
