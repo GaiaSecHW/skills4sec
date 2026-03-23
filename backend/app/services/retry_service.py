@@ -3,7 +3,6 @@
 """
 import uuid
 import httpx
-import logging
 from datetime import datetime, timedelta
 from typing import Optional, Tuple
 
@@ -14,8 +13,10 @@ from app.models.submission import (
     SubmissionEventType
 )
 from app.config import settings
+from app.core.harness_logging import HarnessLogger
+from app.utils import build_issue_body
 
-logger = logging.getLogger(__name__)
+logger = HarnessLogger("retry")
 
 
 class RetryConfig:
@@ -52,7 +53,11 @@ class RetryService:
             是否成功安排重试
         """
         if submission.retry_count >= submission.max_retries:
-            logger.warning(f"Submission {submission.submission_id} reached max retries")
+            logger.warning(
+    "重试次数已达上限",
+    event="max_retries_reached",
+    business={"submission_id": submission.submission_id, "retry_count": submission.retry_count, "max_retries": submission.max_retries},
+)
             return False
 
         # 计算延迟时间
@@ -81,8 +86,9 @@ class RetryService:
         )
 
         logger.info(
-            f"Scheduled retry #{submission.retry_count + 1} for submission {submission.submission_id} "
-            f"in {delay_seconds}s"
+            "重试已安排",
+            event="retry_scheduled",
+            business={"submission_id": submission.submission_id, "retry_count": submission.retry_count + 1, "delay_seconds": delay_seconds},
         )
         return True
 
@@ -96,7 +102,11 @@ class RetryService:
         Returns:
             (是否成功, 消息)
         """
-        logger.info(f"Executing retry for submission {submission.submission_id}")
+        logger.info(
+            "开始执行重试",
+            event="retry_executing",
+            business={"submission_id": submission.submission_id},
+        )
 
         # 更新状态
         old_status = submission.status
@@ -144,7 +154,11 @@ class RetryService:
                     triggered_by="system"
                 )
 
-                logger.info(f"Retry success for submission {submission.submission_id}")
+                logger.info(
+            "重试成功",
+            event="retry_success",
+            business={"submission_id": submission.submission_id, "issue_number": submission.issue_number, "retry_count": submission.retry_count},
+        )
                 return True, "Issue 创建成功"
 
             else:
@@ -174,8 +188,9 @@ class RetryService:
                     )
 
                     logger.warning(
-                        f"Retry failed for submission {submission.submission_id}, "
-                        f"max retries reached"
+                        "重试失败，已达最大重试次数",
+                        event="retry_max_retries_reached",
+                        business={"submission_id": submission.submission_id, "retry_count": submission.retry_count, "max_retries": submission.max_retries},
                     )
                     return False, f"重试 {submission.retry_count} 次后仍然失败"
 
@@ -183,7 +198,12 @@ class RetryService:
                 return False, f"重试失败，已安排下次重试: {message}"
 
         except Exception as e:
-            logger.exception(f"Retry exception for submission {submission.submission_id}")
+            logger.exception(
+                    "重试异常",
+                    event="retry_exception",
+                    error=e,
+                    business={"submission_id": submission.submission_id},
+                )
             submission.retry_count += 1
             await self.schedule_retry(submission, str(e))
             return False, f"重试异常: {str(e)}"
@@ -201,22 +221,7 @@ class RetryService:
         if not self.gitea_token:
             return False, "Gitea Token 未配置", None
 
-        # 构建 Issue 内容
-        body_parts = [
-            f"## 技能名称\n{submission.name}",
-            f"## 仓库地址\n{submission.repo_url}",
-            f"## 提交 ID\n`{submission.submission_id}`",
-        ]
-
-        if submission.category:
-            body_parts.append(f"## 分类\n{submission.category}")
-
-        body_parts.append(f"## 描述\n{submission.description or '无'}")
-
-        if submission.contact:
-            body_parts.append(f"## 联系方式\n{submission.contact}")
-
-        body = "\n\n".join(body_parts)
+        body = build_issue_body(submission)
 
         async with httpx.AsyncClient(
             timeout=RetryConfig.REQUEST_TIMEOUT,
@@ -301,7 +306,12 @@ class RetryService:
 
             except Exception as e:
                 results["skipped"] += 1
-                logger.exception(f"Error processing retry for {submission.submission_id}")
+                logger.exception(
+                    "处理重试时发生错误",
+                    event="retry_processing_error",
+                    error=e,
+                    business={"submission_id": submission.submission_id},
+                )
                 results["details"].append({
                     "submission_id": submission.submission_id,
                     "name": submission.name,
@@ -310,8 +320,9 @@ class RetryService:
                 })
 
         logger.info(
-            f"Processed pending retries: {results['success']} success, "
-            f"{results['failed']} failed, {results['skipped']} skipped"
+            "批量重试处理完成",
+            event="pending_retries_processed",
+            business={"total": results["total"], "success": results["success"], "failed": results["failed"], "skipped": results["skipped"]},
         )
         return results
 
