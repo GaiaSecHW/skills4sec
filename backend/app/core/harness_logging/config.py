@@ -4,6 +4,20 @@ from typing import Dict, Any
 from app.core.logging import request_id_ctx
 
 
+class AggregatorConfig:
+    """
+    聚合器配置
+
+    注意：
+    - 单 Worker 模式：启用内存聚合
+    - 多 Worker 模式：禁用聚合（每个 Worker 有独立缓存）
+    - 生产环境多 Worker 时设置 AGGREGATION_ENABLED = False
+    """
+    ENABLED = True
+    WINDOW_SECONDS = 60
+    MAX_CACHE = 1000
+
+
 class LogConfig:
     """日志配置"""
 

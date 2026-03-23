@@ -7,7 +7,8 @@ from typing import Any, Dict, Optional
 from contextvars import ContextVar
 import loguru
 
-from app.core.harness_logging.processors import mask_sensitive_data
+from app.core.harness_logging.processors import LogAggregator, mask_sensitive_data
+import asyncio
 
 # 上下文变量
 trace_id_ctx: ContextVar[Optional[str]] = ContextVar("trace_id", default=None)
@@ -16,6 +17,37 @@ actor_ctx: ContextVar[Optional[Dict]] = ContextVar("actor", default=None)
 
 # 日志器实例
 _loggers: Dict[str, loguru.Logger] = {}
+
+# 全局聚合器实例
+_aggregator: Optional[LogAggregator] = None
+
+
+async def setup_aggregator(config) -> LogAggregator:
+    """设置全局聚合器"""
+    global _aggregator
+    if _aggregator is None and config.AGGREGATION_ENABLED:
+        _aggregator = LogAggregator(
+            window_seconds=config.AGGREGATION["window_seconds"],
+            max_cache=config.AGGREGATION["max_cache"],
+        )
+        await _aggregator.start(_aggregator_output)
+    return _aggregator
+
+
+async def _aggregator_output(record: dict) -> None:
+    """聚合器输出回调"""
+    global _loggers
+    module = record.get("name", "aggregator")
+    if module in _loggers:
+        _loggers[module].log(record.get("level", "INFO"), record)
+
+
+async def stop_aggregator() -> None:
+    """停止全局聚合器"""
+    global _aggregator
+    if _aggregator:
+        await _aggregator.stop()
+        _aggregator = None
 
 
 def _get_logger(name: str) -> loguru.Logger:
@@ -31,6 +63,12 @@ class HarnessLogger:
     def __init__(self, module: str):
         self.module = module
         self._logger = _get_logger(module)
+
+    async def _aggregate(self, record: dict) -> Optional[dict]:
+        """处理日志聚合"""
+        if _aggregator is None:
+            return record
+        return await _aggregator.process(record)
 
     def _build_record(self, message: str, level: str, **kwargs) -> Dict[str, Any]:
         """构建日志记录"""
@@ -92,13 +130,23 @@ class HarnessLogger:
 
         return record
 
+    async def _aggregate_and_output(self, record: dict, level: str) -> None:
+        """聚合并输出日志"""
+        result = await self._aggregate(record)
+        if result is not None:
+            self._logger.log(level, result)
+
     def _log(self, level: str, message: str, **kwargs) -> None:
         """内部日志方法"""
         try:
             record = self._build_record(message, level, **kwargs)
             # 添加脱敏处理
             record = mask_sensitive_data(record)
-            self._logger.log(level, record)
+
+            if _aggregator is not None:
+                asyncio.create_task(self._aggregate_and_output(record, level))
+            else:
+                self._logger.log(level, record)
         except Exception as e:
             # 容错：日志系统自身出错，降级到标准输出
             sys.stderr.write(f"[LOG_ERROR] {e}\n")
