@@ -149,7 +149,7 @@ class TestGetSkillDetail:
         response = await client.get("/api/skills/non-existent")
 
         assert response.status_code == 404
-        assert "not found" in response.json()["detail"].lower()
+        assert "not found" in response.json()["message"].lower()
 
 
 class TestCreateSkill:
@@ -193,7 +193,7 @@ class TestCreateSkill:
         )
 
         assert response.status_code == 400
-        assert "already exists" in response.json()["detail"].lower()
+        assert "already exists" in response.json()["message"].lower()
 
     @pytest.mark.asyncio
     async def test_create_skill_with_category(

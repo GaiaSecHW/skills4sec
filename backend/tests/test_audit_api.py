@@ -121,7 +121,7 @@ class TestGetAudit:
         response = await client.get("/api/audit/99999")
 
         assert response.status_code == 404
-        assert "不存在" in response.json()["detail"]
+        assert "不存在" in response.json()["message"]
 
 
 class TestCreateAudit:
@@ -197,7 +197,7 @@ class TestCreateAudit:
         )
 
         assert response.status_code == 400
-        assert "已有" in response.json()["detail"]
+        assert "已有" in response.json()["message"]
 
     @pytest.mark.asyncio
     async def test_create_audit_unauthorized(

@@ -302,6 +302,57 @@ async def list_failed_submissions(
     }
 
 
+# ============ 趋势统计 API (必须在 /{submission_id} 之前) ============
+
+@router.get("/trends", response_model=dict)
+async def get_submission_trends(
+    days: int = Query(7, ge=1, le=30, description="统计天数"),
+    admin: User = Depends(get_current_admin_user)
+):
+    """获取提交趋势数据"""
+    from datetime import date, timedelta
+
+    trends = []
+    today = date.today()
+
+    for i in range(days - 1, -1, -1):
+        d = today - timedelta(days=i)
+        day_start = datetime.combine(d, datetime.min.time())
+        day_end = datetime.combine(d, datetime.max.time())
+
+        count = await Submission.filter(
+            created_at__gte=day_start,
+            created_at__lte=day_end
+        ).count()
+
+        completed = await Submission.filter(
+            created_at__gte=day_start,
+            created_at__lte=day_end,
+            status__in=[SubmissionStatus.MERGED, SubmissionStatus.CLOSED]
+        ).count()
+
+        failed = await Submission.filter(
+            created_at__gte=day_start,
+            created_at__lte=day_end,
+            status__in=[SubmissionStatus.ISSUE_FAILED, SubmissionStatus.PROCESS_FAILED]
+        ).count()
+
+        trends.append({
+            "date": d.isoformat(),
+            "total": count,
+            "completed": completed,
+            "failed": failed
+        })
+
+    return {
+        "success": True,
+        "data": {
+            "trends": trends,
+            "days": days
+        }
+    }
+
+
 @router.get("/{submission_id}", response_model=dict)
 async def get_submission_detail(
     submission_id: int,
@@ -675,55 +726,4 @@ async def run_scheduler_task(
         "success": result.get("success", False),
         "message": "任务执行完成" if result.get("success") else result.get("error", "执行失败"),
         "data": result
-    }
-
-
-# ============ 趋势统计 API ============
-
-@router.get("/trends", response_model=dict)
-async def get_submission_trends(
-    days: int = Query(7, ge=1, le=30, description="统计天数"),
-    admin: User = Depends(get_current_admin_user)
-):
-    """获取提交趋势数据"""
-    from datetime import date, timedelta
-
-    trends = []
-    today = date.today()
-
-    for i in range(days - 1, -1, -1):
-        d = today - timedelta(days=i)
-        day_start = datetime.combine(d, datetime.min.time())
-        day_end = datetime.combine(d, datetime.max.time())
-
-        count = await Submission.filter(
-            created_at__gte=day_start,
-            created_at__lte=day_end
-        ).count()
-
-        completed = await Submission.filter(
-            created_at__gte=day_start,
-            created_at__lte=day_end,
-            status__in=[SubmissionStatus.MERGED, SubmissionStatus.CLOSED]
-        ).count()
-
-        failed = await Submission.filter(
-            created_at__gte=day_start,
-            created_at__lte=day_end,
-            status__in=[SubmissionStatus.ISSUE_FAILED, SubmissionStatus.PROCESS_FAILED]
-        ).count()
-
-        trends.append({
-            "date": d.isoformat(),
-            "total": count,
-            "completed": completed,
-            "failed": failed
-        })
-
-    return {
-        "success": True,
-        "data": {
-            "trends": trends,
-            "days": days
-        }
     }
