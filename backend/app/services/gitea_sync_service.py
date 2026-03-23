@@ -1,10 +1,10 @@
 """
 Gitea 状态同步服务 - 从 Gitea 同步 Issue/PR 状态
+使用结构化日志 + Repository 模式
 """
 import httpx
-import logging
 from datetime import datetime
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Tuple
 
 from app.models.submission import (
     Submission,
@@ -13,8 +13,10 @@ from app.models.submission import (
     SubmissionEventType
 )
 from app.config import settings
+from app.core.harness_logging import HarnessLogger
+from app.repositories import SubmissionRepository
 
-logger = logging.getLogger(__name__)
+logger = HarnessLogger("sync")
 
 
 class GiteaSyncService:
@@ -24,6 +26,14 @@ class GiteaSyncService:
         self.api_url = settings.GITEA_API_URL
         self.token = settings.GITEA_TOKEN
         self.repo = settings.GITEA_REPO
+        self._submission_repo: Optional[SubmissionRepository] = None
+
+    @property
+    def submission_repo(self) -> SubmissionRepository:
+        """延迟初始化 Repository"""
+        if self._submission_repo is None:
+            self._submission_repo = SubmissionRepository()
+        return self._submission_repo
 
     async def get_issue(self, issue_number: int) -> Optional[Dict[str, Any]]:
         """获取 Issue 详情"""
@@ -37,9 +47,18 @@ class GiteaSyncService:
                 )
                 if response.status_code == 200:
                     return response.json()
+                logger.warning(
+    "Issue 获取失败",
+    event="issue_fetch_failed",
+    business={"issue_number": issue_number, "status": response.status_code},
+)
                 return None
             except Exception as e:
-                logger.error(f"Failed to get issue #{issue_number}: {e}")
+                logger.error(
+    "Issue 获取异常",
+    event="issue_fetch_error",
+    error=e,
+)
                 return None
 
     async def get_pr(self, pr_number: int) -> Optional[Dict[str, Any]]:
@@ -54,9 +73,18 @@ class GiteaSyncService:
                 )
                 if response.status_code == 200:
                     return response.json()
+                logger.warning(
+    "PR 获取失败",
+    event="pr_fetch_failed",
+    business={"pr_number": pr_number, "status": response.status_code},
+)
                 return None
             except Exception as e:
-                logger.error(f"Failed to get PR #{pr_number}: {e}")
+                logger.error(
+    "PR 获取异常",
+    event="pr_fetch_error",
+    error=e,
+)
                 return None
 
     async def get_issue_comments(self, issue_number: int) -> List[Dict[str, Any]]:
@@ -73,7 +101,11 @@ class GiteaSyncService:
                     return response.json()
                 return []
             except Exception as e:
-                logger.error(f"Failed to get issue #{issue_number} comments: {e}")
+                logger.error(
+    "Issue 评论获取异常",
+    event="comments_fetch_error",
+    error=e,
+)
                 return []
 
     async def sync_submission(self, submission: Submission) -> bool:
@@ -114,6 +146,12 @@ class GiteaSyncService:
                 triggered_by="scheduler"
             )
             await submission.save()
+
+            logger.info(
+    "提交已同步",
+    event="submission_synced",
+    business={"submission_id": submission.submission_id, "old_status": str(old_status), "new_status": str(submission.status)},
+)
 
         return changed
 
@@ -207,6 +245,13 @@ class GiteaSyncService:
                     actor_employee_id=username,
                     triggered_by="user"
                 )
+
+                logger.info(
+    "提交已审批通过",
+    event="submission_approved",
+    business={"submission_id": submission.submission_id, "approver": username},
+)
+
                 return True
 
             # 检查拒绝命令
@@ -232,6 +277,13 @@ class GiteaSyncService:
                     actor_employee_id=username,
                     triggered_by="user"
                 )
+
+                logger.info(
+    "提交已被拒绝",
+    event="submission_rejected",
+    business={"submission_id": submission.submission_id, "rejector": username, "reason": reason},
+)
+
                 return True
 
         return False
@@ -249,20 +301,8 @@ class GiteaSyncService:
             "errors": 0
         }
 
-        # 获取需要同步的提交
-        # 包括: issue_created, approved, processing, pr_created
-        sync_statuses = [
-            SubmissionStatus.ISSUE_CREATED,
-            SubmissionStatus.APPROVED,
-            SubmissionStatus.PROCESSING,
-            SubmissionStatus.PR_CREATED,
-        ]
-
-        submissions = await Submission.filter(
-            status__in=sync_statuses,
-            issue_number__isnull=False
-        ).all()
-
+        # 使用 Repository 获取需要同步的提交
+        submissions = await self.submission_repo.find_pending_sync()
         results["total"] = len(submissions)
 
         for submission in submissions:
@@ -272,12 +312,18 @@ class GiteaSyncService:
                     results["updated"] += 1
             except Exception as e:
                 results["errors"] += 1
-                logger.exception(f"Error syncing submission {submission.submission_id}")
+                logger.error(
+    "同步失败",
+    event="sync_error",
+    error=e,
+)
 
         logger.info(
-            f"Gitea sync completed: {results['total']} checked, "
-            f"{results['updated']} updated, {results['errors']} errors"
-        )
+    "批量同步完成",
+    event="sync_all_completed",
+    business={"total": results["total"], "updated": results["updated"], "errors": results["errors"]},
+)
+
         return results
 
     async def trigger_workflow(
@@ -328,13 +374,28 @@ class GiteaSyncService:
                         triggered_by="system"
                     )
 
+                    logger.info(
+    "工作流已触发",
+    event="workflow_triggered",
+    business={"submission_id": submission.submission_id, "workflow": workflow_name},
+)
+
                     return True, "工作流已触发", None
                 else:
                     error = response.text[:200]
+                    logger.error(
+    "工作流触发失败",
+    event="workflow_trigger_failed",
+    business={"submission_id": submission.submission_id, "status": response.status_code, "error": error},
+)
                     return False, f"触发失败: {error}", None
 
             except Exception as e:
-                logger.exception(f"Failed to trigger workflow for {submission.submission_id}")
+                logger.error(
+    "工作流触发异常",
+    event="workflow_trigger_error",
+    error=e,
+)
                 return False, str(e), None
 
     async def add_issue_comment(
@@ -353,9 +414,20 @@ class GiteaSyncService:
                     },
                     json={"body": body}
                 )
-                return response.status_code == 201
+                if response.status_code == 201:
+                    logger.info(
+    "评论已添加",
+    event="comment_added",
+    business={"issue_number": issue_number},
+)
+                    return True
+                return False
             except Exception as e:
-                logger.error(f"Failed to add comment to issue #{issue_number}: {e}")
+                logger.error(
+    "评论添加异常",
+    event="comment_add_error",
+    error=e,
+)
                 return False
 
     async def close_issue(
@@ -368,7 +440,7 @@ class GiteaSyncService:
             try:
                 # 先添加评论
                 if reason:
-                    await self.add_issue_comment(issue_number, f"❌ **关闭原因**: {reason}")
+                    await self.add_issue_comment(issue_number, f"**关闭原因**: {reason}")
 
                 # 关闭 Issue
                 response = await client.patch(
@@ -379,14 +451,22 @@ class GiteaSyncService:
                     },
                     json={"state": "closed"}
                 )
-                return response.status_code == 200
+                if response.status_code == 200:
+                    logger.info(
+    "Issue 已关闭",
+    event="issue_closed",
+    business={"issue_number": issue_number, "reason": reason},
+)
+                    return True
+                return False
             except Exception as e:
-                logger.error(f"Failed to close issue #{issue_number}: {e}")
+                logger.error(
+    "Issue 关闭异常",
+    event="issue_close_error",
+    error=e,
+)
                 return False
 
-
-# 需要导入 Tuple
-from typing import Tuple
 
 # 单例
 gitea_sync_service = GiteaSyncService()
