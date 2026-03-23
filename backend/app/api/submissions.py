@@ -20,19 +20,17 @@ from app.config import settings
 from app.core import (
     NotFoundError,
     ValidationError,
-    get_logger,
     atomic,
     get_repository,
 )
+from app.core.harness_logging import HarnessLogger
 from app.repositories import SubmissionRepository
 from app.utils.security import get_current_user
+from app.utils import build_issue_body
 
-logger = get_logger("submissions")
+logger = HarnessLogger("submissions")
 router = APIRouter(prefix="/submissions", tags=["submissions"])
 security = HTTPBearer(auto_error=False)
-
-logger = get_logger("submissions")
-router = APIRouter(prefix="/submissions", tags=["submissions"])
 
 
 class SkillSubmission(BaseModel):
@@ -69,22 +67,7 @@ async def create_gitea_issue(submission: Submission) -> tuple[bool, str, Optiona
     if not GITEA_TOKEN:
         return False, "服务未配置 Gitea Token", None
 
-    # 构建 Issue 内容
-    body_parts = [
-        f"## 技能名称\n{submission.name}",
-        f"## 仓库地址\n{submission.repo_url}",
-        f"## 提交 ID\n`{submission.submission_id}`",
-    ]
-
-    if submission.category:
-        body_parts.append(f"## 分类\n{submission.category}")
-
-    body_parts.append(f"## 描述\n{submission.description or '无'}")
-
-    if submission.contact:
-        body_parts.append(f"## 联系方式\n{submission.contact}")
-
-    body = "\n\n".join(body_parts)
+    body = build_issue_body(submission)
 
     async with httpx.AsyncClient(timeout=30.0, trust_env=False) as client:
         try:
@@ -124,7 +107,7 @@ async def create_gitea_issue(submission: Submission) -> tuple[bool, str, Optiona
                 return False, f"创建 Issue 失败: {error_detail}", None
 
         except Exception as e:
-            logger.error(f'{{"event": "gitea_issue_error", "error": "{str(e)}"}}')
+            logger.error("Gitea Issue 创建错误", event="gitea_issue_error", error=str(e))
             return False, f"网络错误: {str(e)}", None
 
 
@@ -183,7 +166,7 @@ async def submit_skill(
         triggered_by="user"
     )
 
-    logger.info(f'{{"event": "submission_created", "submission_id": "{submission.submission_id}", "name": "{submission.name}"}}')
+    logger.info("技能提交已创建", event="submission_created", business={"submission_id": submission.submission_id, "name": submission.name})
 
     # 尝试创建 Issue
     success, message, issue_data = await create_gitea_issue(submission)
@@ -210,7 +193,7 @@ async def submit_skill(
             triggered_by="system"
         )
 
-        logger.info(f'{{"event": "issue_created", "submission_id": "{submission.submission_id}", "issue_number": {submission.issue_number}}}')
+        logger.info("Issue 创建成功", event="issue_created", business={"submission_id": submission.submission_id, "issue_number": submission.issue_number})
 
         return SubmissionResponse(
             success=True,
@@ -240,7 +223,7 @@ async def submit_skill(
         from app.services.retry_service import retry_service
         await retry_service.schedule_retry(submission, message)
 
-        logger.warning(f'{{"event": "issue_failed", "submission_id": "{submission.submission_id}", "error": "{message}"}}')
+        logger.warning("Issue 创建失败", event="issue_failed", business={"submission_id": submission.submission_id, "error": message})
 
         return SubmissionResponse(
             success=True,

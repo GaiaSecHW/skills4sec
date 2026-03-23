@@ -17,7 +17,6 @@ from app.utils.security import (
     get_password_hash,
     get_current_admin_user,
     get_current_superuser,
-    validate_api_key_complexity,
 )
 from app.core import (
     NotFoundError,
@@ -26,13 +25,13 @@ from app.core import (
     ValidationError,
     PaginationParams,
     get_pagination,
-    get_logger,
     get_repository,
     atomic,
 )
+from app.core.harness_logging import HarnessLogger
 from app.repositories import UserRepository, LoginLogRepository, AdminLogRepository
 
-logger = get_logger("admin.users")
+logger = HarnessLogger("admin.users")
 router = APIRouter(prefix="/admin", tags=["admin"])
 
 
@@ -98,7 +97,7 @@ async def list_users(
             **filters
         )
 
-    logger.info(f'{{"event": "list_users", "admin": "{admin.employee_id}", "total": {total}}}')
+    logger.info("列出用户", event="list_users", business={"admin": admin.employee_id, "total": total})
 
     return {
         "success": True,
@@ -121,11 +120,6 @@ async def create_user(
     # 检查工号是否存在
     if await repo.exists(employee_id=user_data.employee_id):
         raise ConflictError(message="工号已存在", detail={"employee_id": user_data.employee_id})
-
-    # 验证 API 密钥复杂度
-    is_valid, msg = validate_api_key_complexity(user_data.api_key)
-    if not is_valid:
-        raise ValidationError(message=f"API密钥不符合要求: {msg}")
 
     # 权限检查
     if user_data.role in ("admin", "super_admin") and admin.role != "super_admin":
@@ -152,7 +146,7 @@ async def create_user(
         details={"role": user_data.role, "department": user_data.department}
     )
 
-    logger.info(f'{{"event": "user_created", "admin": "{admin.employee_id}", "user": "{user.employee_id}"}}')
+    logger.info("用户已创建", event="user_created", business={"admin": admin.employee_id, "user": user.employee_id})
 
     return {"success": True, "message": "用户创建成功", "data": UserOutNew.model_validate(user)}
 
@@ -201,7 +195,7 @@ async def export_users_csv(
         details={"count": len(users)}
     )
 
-    logger.info(f'{{"event": "export_users", "admin": "{admin.employee_id}", "count": {len(users)}}}')
+    logger.info("导出用户", event="export_users", business={"admin": admin.employee_id, "count": len(users)})
 
     output.seek(0)
     return StreamingResponse(
@@ -274,10 +268,7 @@ async def import_users_csv(
                     failed.append({"employee_id": employee_id, "reason": "缺少 API 密钥"})
                     continue
             else:
-                is_valid, msg = validate_api_key_complexity(api_key)
-                if not is_valid:
-                    failed.append({"employee_id": employee_id, "reason": f"API密钥不符合要求: {msg}"})
-                    continue
+                pass  # 使用用户提供的 API 密钥
 
             user = await repo.create(
                 employee_id=employee_id,
@@ -303,7 +294,7 @@ async def import_users_csv(
         details={"total": len(data_rows), "created": len(created), "failed": len(failed)}
     )
 
-    logger.info(f'{{"event": "import_users", "admin": "{admin.employee_id}", "created": {len(created)}, "failed": {len(failed)}}}')
+    logger.info("导入用户", event="import_users", business={"admin": admin.employee_id, "created": len(created), "failed": len(failed)})
 
     return {
         "success": True,
@@ -330,11 +321,6 @@ async def batch_create_users(
         try:
             if await repo.exists(employee_id=user_data.employee_id):
                 failed.append({"employee_id": user_data.employee_id, "reason": "工号已存在"})
-                continue
-
-            is_valid, msg = validate_api_key_complexity(user_data.api_key)
-            if not is_valid:
-                failed.append({"employee_id": user_data.employee_id, "reason": f"API密钥不符合要求: {msg}"})
                 continue
 
             user = await repo.create(
@@ -410,9 +396,6 @@ async def update_user(
         update_fields["name"] = update_data.name
 
     if update_data.api_key is not None:
-        is_valid, msg = validate_api_key_complexity(update_data.api_key)
-        if not is_valid:
-            raise ValidationError(message=f"API密钥不符合要求: {msg}")
         changes["api_key"] = "updated"
         update_fields["api_key_hash"] = get_password_hash(update_data.api_key)
 
@@ -451,7 +434,7 @@ async def update_user(
         details={"changes": changes}
     )
 
-    logger.info(f'{{"event": "user_updated", "admin": "{admin.employee_id}", "user": "{user.employee_id}"}}')
+    logger.info("用户已更新", event="user_updated", business={"admin": admin.employee_id, "user": user.employee_id})
 
     return {"success": True, "message": "用户信息更新成功", "data": UserOutNew.model_validate(user)}
 
@@ -485,7 +468,7 @@ async def delete_user(
         details={"deleted_employee_id": user.employee_id, "deleted_name": user.name}
     )
 
-    logger.info(f'{{"event": "user_deleted", "admin": "{admin.employee_id}", "user": "{user.employee_id}"}}')
+    logger.info("用户已删除", event="user_deleted", business={"admin": admin.employee_id, "user": user.employee_id})
 
     await repo.delete(user)
     return {"success": True, "message": "用户删除成功"}
@@ -511,7 +494,7 @@ async def reset_user_api_key(
 
     await log_admin_action(request=request, admin=admin, action="reset_api_key", target_user=user)
 
-    logger.info(f'{{"event": "api_key_reset", "admin": "{admin.employee_id}", "user": "{user.employee_id}"}}')
+    logger.info("API密钥已重置", event="api_key_reset", business={"admin": admin.employee_id, "user": user.employee_id})
 
     return {"success": True, "message": "API密钥已重置", "data": {"employee_id": user.employee_id, "new_api_key": new_api_key}}
 
@@ -555,7 +538,7 @@ async def toggle_user_status(
         details={"old_status": old_status, "new_status": new_status}
     )
 
-    logger.info(f'{{"event": "user_status_toggled", "admin": "{admin.employee_id}", "user": "{user.employee_id}", "new_status": "{new_status}"}}')
+    logger.info("用户状态已切换", event="user_status_toggled", business={"admin": admin.employee_id, "user": user.employee_id, "new_status": new_status})
 
     return {"success": True, "message": f"用户状态已切换为 {new_status}", "data": UserOutNew.model_validate(user)}
 
