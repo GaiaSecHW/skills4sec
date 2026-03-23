@@ -7,6 +7,8 @@ from typing import Any, Dict, Optional
 from contextvars import ContextVar
 import loguru
 
+from app.core.harness_logging.processors import mask_sensitive_data
+
 # 上下文变量
 trace_id_ctx: ContextVar[Optional[str]] = ContextVar("trace_id", default=None)
 span_id_ctx: ContextVar[Optional[str]] = ContextVar("span_id", default=None)
@@ -94,6 +96,8 @@ class HarnessLogger:
         """内部日志方法"""
         try:
             record = self._build_record(message, level, **kwargs)
+            # 添加脱敏处理
+            record = mask_sensitive_data(record)
             self._logger.log(level, record)
         except Exception as e:
             # 容错：日志系统自身出错，降级到标准输出

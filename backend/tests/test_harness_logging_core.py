@@ -46,3 +46,17 @@ def test_harness_logger_with_business():
         event="operation_success",
         business={"id": "123", "name": "test"},
     )
+
+
+def test_harness_logger_with_sensitive_data():
+    """测试日志器脱敏"""
+    logger = HarnessLogger("test")
+    logger.info(
+        "user login",
+        event="user_login",
+        params={
+            "api_key": "sk-live-abc123xyz789secret",
+            "phone": "13812345678",
+            "employee_id": "EMP001",  # 白名单，不脱敏
+        },
+    )
