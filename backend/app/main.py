@@ -5,12 +5,17 @@ from contextlib import asynccontextmanager
 import os
 
 from app.config import settings
-from app.database import init_db, close_db
+from app.core.database import init_db, close_db, check_database_health
+from app.core.harness_logging import setup_harness_logging, HarnessLoggingMiddleware
+from app.core.exceptions import register_exception_handlers
 from app.api.skills import router as skills_router
 from app.api.auth import router as auth_router
 from app.api.audit import router as audit_router
 from app.api.submissions import router as submissions_router
 from app.api.admin import router as admin_router
+
+# 初始化日志
+setup_harness_logging(level="DEBUG" if settings.DEBUG else "INFO", log_dir="logs", service_name="SecAgentHub", enable_aggregation=True,)
 
 
 async def init_super_admin():
@@ -75,6 +80,15 @@ app = FastAPI(
     redoc_url="/redoc",
 )
 
+# 注册异常处理器
+register_exception_handlers(app)
+
+# 添加请求日志中间件
+app.add_middleware(
+        HarnessLoggingMiddleware,
+        exclude_paths={"/health", "/metrics", "/", "/favicon.ico"},
+    )
+
 # CORS 配置
 app.add_middleware(
     CORSMiddleware,
@@ -105,8 +119,13 @@ async def root():
 
 @app.get("/health")
 async def health_check():
-    """健康检查"""
-    return {"status": "healthy"}
+    """健康检查（含数据库连接状态）"""
+    db_health = await check_database_health()
+    return {
+        "status": "healthy" if db_health["status"] == "healthy" else "degraded",
+        "database": db_health,
+        "version": settings.APP_VERSION,
+    }
 
 
 # 挂载静态文件（管理后台前端）
