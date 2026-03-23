@@ -1,11 +1,13 @@
 """
-技能提交 API - 通过后端直接调用 Gitea API 创建 Issue
+技能提交 API - 使用 Repository 模式 + 事务管理
 """
-from fastapi import APIRouter, HTTPException, status, Request
-from pydantic import BaseModel, HttpUrl, Field
-from typing import Optional
+from fastapi import APIRouter, Request, Depends
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from pydantic import BaseModel, Field
+from typing import Optional, List
 from datetime import datetime
 import uuid
+import httpx
 
 from app.models.submission import (
     Submission,
@@ -13,8 +15,23 @@ from app.models.submission import (
     SubmissionStatus,
     SubmissionEventType
 )
+from app.models.user import User
 from app.config import settings
+from app.core import (
+    NotFoundError,
+    ValidationError,
+    get_logger,
+    atomic,
+    get_repository,
+)
+from app.repositories import SubmissionRepository
+from app.utils.security import get_current_user
 
+logger = get_logger("submissions")
+router = APIRouter(prefix="/submissions", tags=["submissions"])
+security = HTTPBearer(auto_error=False)
+
+logger = get_logger("submissions")
 router = APIRouter(prefix="/submissions", tags=["submissions"])
 
 
@@ -36,7 +53,7 @@ class SubmissionResponse(BaseModel):
     issue_number: Optional[int] = None
 
 
-# Gitea 配置 - 从 settings 读取 (支持 .env 文件)
+# Gitea 配置
 GITEA_API_URL = settings.GITEA_API_URL
 GITEA_TOKEN = settings.GITEA_TOKEN
 GITEA_REPO = settings.GITEA_REPO
@@ -49,8 +66,6 @@ async def create_gitea_issue(submission: Submission) -> tuple[bool, str, Optiona
     Returns:
         (是否成功, 消息, Issue数据)
     """
-    import httpx
-
     if not GITEA_TOKEN:
         return False, "服务未配置 Gitea Token", None
 
@@ -109,33 +124,39 @@ async def create_gitea_issue(submission: Submission) -> tuple[bool, str, Optiona
                 return False, f"创建 Issue 失败: {error_detail}", None
 
         except Exception as e:
+            logger.error(f'{{"event": "gitea_issue_error", "error": "{str(e)}"}}')
             return False, f"网络错误: {str(e)}", None
 
 
 @router.post("", response_model=SubmissionResponse)
-async def submit_skill(submission_data: SkillSubmission, request: Request):
+@atomic
+async def submit_skill(
+    submission_data: SkillSubmission,
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    repo: SubmissionRepository = get_repository(SubmissionRepository),
+):
     """
     提交技能 - 通过后端调用 Gitea API 创建 Issue
 
-    无需用户登录 Gitea，后端使用配置的 token 代为创建 Issue。
+    需要用户登录，后端使用配置的 token 代为创建 Issue。
     """
     if not GITEA_TOKEN:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="服务未配置 Gitea Token，请联系管理员"
+        raise ValidationError(
+            message="服务未配置 Gitea Token，请联系管理员",
+            detail={"service": "gitea"}
         )
 
     # 获取客户端信息
     client_ip = request.client.host if request.client else None
     user_agent = request.headers.get("user-agent", "")[:500]
 
-    # 从请求头获取提交者信息 (如果已登录)
-    submitter_id = None
-    submitter_employee_id = None
-    # TODO: 从 JWT token 中获取用户信息
+    # 从 JWT token 获取提交者信息
+    submitter_id = current_user.id
+    submitter_employee_id = current_user.employee_id
 
     # 创建提交记录
-    submission = await Submission.create(
+    submission = await repo.create(
         submission_id=str(uuid.uuid4()),
         name=submission_data.name,
         repo_url=submission_data.repo_url,
@@ -162,6 +183,8 @@ async def submit_skill(submission_data: SkillSubmission, request: Request):
         triggered_by="user"
     )
 
+    logger.info(f'{{"event": "submission_created", "submission_id": "{submission.submission_id}", "name": "{submission.name}"}}')
+
     # 尝试创建 Issue
     success, message, issue_data = await create_gitea_issue(submission)
 
@@ -186,6 +209,8 @@ async def submit_skill(submission_data: SkillSubmission, request: Request):
             },
             triggered_by="system"
         )
+
+        logger.info(f'{{"event": "issue_created", "submission_id": "{submission.submission_id}", "issue_number": {submission.issue_number}}}')
 
         return SubmissionResponse(
             success=True,
@@ -215,6 +240,8 @@ async def submit_skill(submission_data: SkillSubmission, request: Request):
         from app.services.retry_service import retry_service
         await retry_service.schedule_retry(submission, message)
 
+        logger.warning(f'{{"event": "issue_failed", "submission_id": "{submission.submission_id}", "error": "{message}"}}')
+
         return SubmissionResponse(
             success=True,
             message="技能已提交，但 Issue 创建暂时失败。系统会自动重试，请稍后查看状态。",
@@ -233,11 +260,17 @@ async def submissions_health():
 
 
 @router.get("/{submission_id}/status")
-async def get_submission_status(submission_id: str):
+async def get_submission_status(
+    submission_id: str,
+    repo: SubmissionRepository = get_repository(SubmissionRepository),
+):
     """获取提交状态 (通过 submission_id)"""
-    submission = await Submission.get_or_none(submission_id=submission_id)
+    submission = await repo.find_by_submission_id(submission_id)
     if not submission:
-        raise HTTPException(status_code=404, detail="提交不存在")
+        raise NotFoundError(
+            message="提交不存在",
+            detail={"submission_id": submission_id}
+        )
 
     return {
         "success": True,
@@ -253,4 +286,41 @@ async def get_submission_status(submission_id: str):
             "created_at": submission.created_at.isoformat() if submission.created_at else None,
             "updated_at": submission.updated_at.isoformat() if submission.updated_at else None,
         }
+    }
+
+
+@router.get("/my")
+async def get_my_submissions(
+    current_user: User = Depends(get_current_user),
+    repo: SubmissionRepository = get_repository(SubmissionRepository),
+):
+    """获取当前用户的提交记录"""
+    submissions = await Submission.filter(
+        submitter_id=current_user.id
+    ).order_by("-created_at").limit(100)
+
+    return {
+        "success": True,
+        "data": [
+            {
+                "id": s.id,
+                "submission_id": s.submission_id,
+                "name": s.name,
+                "repo_url": s.repo_url,
+                "description": s.description,
+                "category": s.category,
+                "status": s.status.value if isinstance(s.status, SubmissionStatus) else s.status,
+                "issue_number": s.issue_number,
+                "issue_url": s.issue_url,
+                "pr_number": s.pr_number,
+                "pr_url": s.pr_url,
+                "highest_risk": s.highest_risk,
+                "retry_count": s.retry_count,
+                "max_retries": s.max_retries,
+                "error_message": s.error_message,
+                "created_at": s.created_at.isoformat() if s.created_at else None,
+                "updated_at": s.updated_at.isoformat() if s.updated_at else None,
+            }
+            for s in submissions
+        ]
     }

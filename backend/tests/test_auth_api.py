@@ -40,7 +40,7 @@ class TestLoginByEmployeeId:
         )
 
         assert response.status_code == 401
-        assert "工号或 API 密钥错误" in response.json()["detail"]
+        assert "工号或 API 密钥错误" in response.json()["message"]
 
     @pytest.mark.asyncio
     async def test_login_invalid_api_key(self, client: AsyncClient, test_user: User):
@@ -54,7 +54,7 @@ class TestLoginByEmployeeId:
         )
 
         assert response.status_code == 401
-        assert "工号或 API 密钥错误" in response.json()["detail"]
+        assert "工号或 API 密钥错误" in response.json()["message"]
 
     @pytest.mark.asyncio
     async def test_login_disabled_user(self, client: AsyncClient, db):
@@ -77,7 +77,7 @@ class TestLoginByEmployeeId:
         )
 
         assert response.status_code == 400
-        assert "已被" in response.json()["detail"]
+        assert "已被" in response.json()["message"]
 
 
 class TestRefreshToken:
@@ -110,7 +110,7 @@ class TestRefreshToken:
         )
 
         assert response.status_code == 401
-        assert "无效的刷新令牌" in response.json()["detail"]
+        assert "无效的刷新令牌" in response.json()["message"]
 
     @pytest.mark.asyncio
     async def test_refresh_token_disabled_user(self, client: AsyncClient, db):
