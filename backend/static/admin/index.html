@@ -448,22 +448,42 @@
         }
 
         // 显示后端错误信息
+        // 显示后端错误信息
         function showError(res, defaultMsg = '操作失败') {
             let errorMsg = defaultMsg;
-            if (res?.detail) {
+
+            // 后端错误格式: {code, message, detail}
+            if (res?.message) {
+                // 优先使用 message 字段
+                errorMsg = res.message;
+                // 如果有 detail，附加显示
+                if (res.detail) {
+                    if (typeof res.detail === 'string') {
+                        errorMsg += ` (${res.detail})`;
+                    } else if (typeof res.detail === 'object') {
+                        const detailStr = Object.entries(res.detail).map(([k,v]) => `${k}: ${v}`).join(', ');
+                        if (detailStr) errorMsg += ` (${detailStr})`;
+                    }
+                }
+            } else if (res?.detail) {
+                // 兼容旧格式
                 if (typeof res.detail === 'string') {
                     errorMsg = res.detail;
                 } else if (res.detail.message) {
                     errorMsg = res.detail.message;
                 } else if (Array.isArray(res.detail)) {
-                    errorMsg = res.detail.map(e => e.msg || e.message || JSON.stringify(e)).join('\n');
+                    // FastAPI 验证错误格式
+                    errorMsg = res.detail.map(e => {
+                        const field = e.loc ? e.loc.join('.') : '';
+                        return field ? `${field}: ${e.msg}` : e.msg;
+                    }).join('\n');
                 } else {
                     errorMsg = JSON.stringify(res.detail);
                 }
-            } else if (res?.message) {
-                errorMsg = res.message;
             }
+
             showToast(errorMsg, 'error', 6000);
+        }
         }
 
         // 确认对话框（美化版）
