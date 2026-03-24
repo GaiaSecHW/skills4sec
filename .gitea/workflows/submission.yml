@@ -38,8 +38,8 @@ jobs:
           set -euo pipefail
           URL="$SOURCE_URL"
 
-          # 提取 Gitea URL 的 host:port 部分
-          GITEA_HOST=$(echo "${{ env.GITEA_URL }}" | sed 's|https\?://||')
+          # Gitea host for pattern matching
+          GITEA_HOST="172.28.95.77:3000"
 
           if [[ "$URL" =~ github\.com[:/]([^/]+)/([^/]+) ]]; then
             PLATFORM="github"
@@ -52,7 +52,7 @@ jobs:
             OWNER="${BASH_REMATCH[1]}"
             REPO="${BASH_REMATCH[2]}"
             REPO="${REPO%.git}"
-            CLONE_URL="${{ env.GITEA_URL }}/${OWNER}/${REPO}.git"
+            CLONE_URL="http://${GITEA_HOST}/${OWNER}/${REPO}.git"
           else
             echo "::error::Unsupported URL format: $URL"
             exit 1
