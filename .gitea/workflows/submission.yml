@@ -154,7 +154,8 @@ jobs:
           for skill_md in $(find "$SEARCH_DIR" -name "SKILL.md" -type f 2>/dev/null); do
             SKILL_DIR=$(dirname "$skill_md")
             SKILL_NAME=$(grep -E '^name:' "$skill_md" 2>/dev/null | head -1 | sed 's/name:[[:space:]]*//' || basename "$SKILL_DIR")
-            SLUG=$(echo "$SKILL_NAME" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/-/g' | sed 's/^-*//;s/-*$//;s/--*/-/g')
+            # Generate slug with max length of 50 chars
+            SLUG=$(echo "$SKILL_NAME" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/-/g' | sed 's/^-*//;s/-*$//;s/--*/-/g' | cut -c1-50)
 
             echo "📦 Processing: $SKILL_NAME ($SLUG)"
 
