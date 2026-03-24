@@ -52,7 +52,7 @@ jobs:
         env:
           GITEA_TOKEN: ${{ secrets.GITEATOKEN }}
         run: |
-          git clone http://oauth2:${GITEA_TOKEN}@${{ env.GITEA_URL }}/${{ github.repository }}.git .
+          git clone http://oauth2:${GITEA_TOKEN}@172.28.95.77:3000/${{ github.repository }}.git .
           git checkout ${{ github.sha }}
 
       - name: Setup Python
@@ -162,8 +162,8 @@ jobs:
           git commit -m "chore(audit): security audit for $UPDATED_COUNT skills"
 
           # Push
-          git push http://oauth2:${GITEA_TOKEN}@${{ env.GITEA_URL }}/${REPOSITORY}.git ${{ github.ref_name }} || \
-          git push http://oauth2:${GITEA_TOKEN}@${{ env.GITEA_URL }}/${REPOSITORY}.git main
+          git push http://oauth2:${GITEA_TOKEN}@172.28.95.77:3000/${REPOSITORY}.git ${{ github.ref_name }} || \
+          git push http://oauth2:${GITEA_TOKEN}@172.28.95.77:3000/${REPOSITORY}.git main
 
           echo "✅ Committed audit results"
 
