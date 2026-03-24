@@ -127,7 +127,7 @@ jobs:
 
           echo "🔍 Searching in: $SEARCH_DIR"
 
-          SKILL_COUNT=$(find "$SEARCH_DIR" -name "SKILL.md" -type f 2>/dev/null | wc -l || echo 0)
+          SKILL_COUNT=$(find "$SEARCH_DIR" -name "SKILL.md" -type f 2>/dev/null | wc -l | tr -d ' ' || echo 0)
           echo "skill_count=$SKILL_COUNT" >> $GITHUB_OUTPUT
           echo "📊 Found $SKILL_COUNT skill(s)"
 
