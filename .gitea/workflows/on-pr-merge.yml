@@ -18,11 +18,9 @@ jobs:
     timeout-minutes: 30
     steps:
       - name: Checkout repository
-        env:
-          GITEA_TOKEN: ${{ secrets.GITEATOKEN }}
-        run: |
-          git clone http://oauth2:${GITEA_TOKEN}@172.28.95.77:3000/${{ github.repository }}.git .
-          git checkout main
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Find and move pending skills
         env:
