@@ -7,7 +7,7 @@ on:
     types: [opened]
 
 env:
-  GITEA_URL: http://172.28.95.77:3000
+  GITEA_URL: 172.28.95.77:3000
   GITEA_API_URL: http://172.28.95.77:3000/api/v1
 
 jobs:
