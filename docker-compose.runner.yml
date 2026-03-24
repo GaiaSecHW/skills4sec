@@ -4,7 +4,8 @@
 # Usage:
 #   1. Get registration token from Gitea UI (Site Admin > Actions > Runners)
 #   2. export REGISTRATION_TOKEN=your-token
-#   3. docker-compose -f docker-compose.runner.yml up -d
+#   3. export GITEA_URL=http://your-gitea-server:3000
+#   4. docker-compose -f docker-compose.runner.yml up -d
 
 version: "3"
 
@@ -13,7 +14,7 @@ services:
     image: gitea/act_runner:latest
     container_name: gitea-act-runner
     environment:
-      - GITEA_INSTANCE_URL=http://172.28.95.77:3000
+      - GITEA_INSTANCE_URL=${GITEA_URL:-http://localhost:3000}
       - GITEA_RUNNER_REGISTRATION_TOKEN=${REGISTRATION_TOKEN}
       - GITEA_RUNNER_NAME=gitea-runner-01
     volumes:
