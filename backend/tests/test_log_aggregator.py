@@ -107,13 +107,27 @@ class TestLogAggregator:
 
     @pytest.mark.asyncio
     async def test_single_occurrence_not_aggregated(self, aggregator):
-        """测试只出现一次的日志不输出聚合"""
+        """测试只出现一次的日志不输出聚合
+
+        设计说明：
+        - 首次出现：process() 立即返回 record（已通过返回值输出）
+        - 重复出现：process() 返回 None（不输出，等待 flush）
+        - flush：只输出重复日志的聚合结果（count > 1）
+
+        因此单次出现的日志在 flush 后 output_records 为空，
+        因为它已经通过 process() 的返回值输出，不需要 flush 输出。
+        """
         agg, output_records = aggregator
 
         record = {"level": "INFO", "module": "test", "event": "event", "message": "msg"}
-        await agg.process(record)
+        result = await agg.process(record)
+
+        # 首次出现，process() 返回原 record
+        assert result is not None
+        assert result["message"] == "msg"
 
         await asyncio.sleep(1.5)
 
-        assert len(output_records) == 1
-        assert "aggregate" not in output_records[0]
+        # 单次出现的日志不会在 flush 时输出（因为已经首次输出了）
+        # output_records 只包含 count > 1 的聚合结果
+        assert len(output_records) == 0
