@@ -8,7 +8,7 @@ on:
     branches: [main]
 
 env:
-  GITEA_URL: http://172.28.95.77:3000
+  GITEA_URL: 172.28.95.77:3000
   GITEA_API_URL: http://172.28.95.77:3000/api/v1
 
 jobs:
@@ -21,7 +21,7 @@ jobs:
         env:
           GITEA_TOKEN: ${{ secrets.GITEATOKEN }}
         run: |
-          git clone oauth2:${GITEA_TOKEN}@${{ env.GITEA_URL }}/${{ github.repository }}.git .
+          git clone http://oauth2:${GITEA_TOKEN}@${{ env.GITEA_URL }}/${{ github.repository }}.git .
           git checkout main
 
       - name: Find and move pending skills
@@ -89,12 +89,12 @@ jobs:
 
             # Push with retry for race conditions
             for i in 1 2 3; do
-              if git push oauth2:${GITEA_TOKEN}@${{ env.GITEA_URL }}/${REPOSITORY}.git main; then
+              if git push http://oauth2:${GITEA_TOKEN}@${{ env.GITEA_URL }}/${REPOSITORY}.git main; then
                 echo "✅ Successfully pushed to main"
                 break
               fi
               echo "Push failed, pulling latest and retrying ($i/3)..."
-              git pull --rebase oauth2:${GITEA_TOKEN}@${{ env.GITEA_URL }}/${REPOSITORY}.git main || {
+              git pull --rebase http://oauth2:${GITEA_TOKEN}@${{ env.GITEA_URL }}/${REPOSITORY}.git main || {
                 git rebase --abort 2>/dev/null || true
                 git reset --hard origin/main
               }
