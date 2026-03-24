@@ -19,6 +19,27 @@ from app.repositories import SubmissionRepository
 logger = HarnessLogger("sync")
 
 
+class WorkflowRunStatus:
+    """工作流运行状态常量"""
+    PENDING = "pending"
+    WAITING = "waiting"
+    RUNNING = "running"
+    SUCCESS = "success"
+    FAILURE = "failure"
+    CANCELLED = "cancelled"
+    SKIPPED = "skipped"
+
+    @classmethod
+    def is_terminal(cls, status: str) -> bool:
+        """是否为终态"""
+        return status in (cls.SUCCESS, cls.FAILURE, cls.CANCELLED, cls.SKIPPED)
+
+    @classmethod
+    def is_success(cls, status: str) -> bool:
+        """是否成功"""
+        return status == cls.SUCCESS
+
+
 class GiteaSyncService:
     """Gitea 状态同步服务"""
 
@@ -131,6 +152,11 @@ class GiteaSyncService:
             pr = await self.get_pr(submission.pr_number)
             if pr:
                 changed = await self._sync_pr_status(submission, pr) or changed
+
+        # 同步工作流运行状态
+        if submission.status == SubmissionStatus.PROCESSING:
+            workflow_changed, _ = await self.sync_workflow_run_status(submission)
+            changed = workflow_changed or changed
 
         # 检查审批/拒绝命令
         if submission.status == SubmissionStatus.ISSUE_CREATED:
@@ -466,6 +492,308 @@ class GiteaSyncService:
     error=e,
 )
                 return False
+
+    # ============ Gitea Actions Workflow Runs API ============
+
+    async def list_workflow_runs(
+        self,
+        workflow_name: Optional[str] = None,
+        status: Optional[str] = None,
+        limit: int = 10
+    ) -> List[Dict[str, Any]]:
+        """
+        获取工作流运行列表
+
+        Args:
+            workflow_name: 可选，按工作流名称筛选
+            status: 可选，按状态筛选 (pending, running, success, failure, etc.)
+            limit: 返回数量限制
+
+        Returns:
+            工作流运行列表
+        """
+        async with httpx.AsyncClient(timeout=30.0, trust_env=False) as client:
+            try:
+                params = {"limit": limit}
+                if status:
+                    params["status"] = status
+
+                response = await client.get(
+                    f"{self.api_url}/repos/{self.repo}/actions/runs",
+                    headers={"Authorization": f"token {self.token}"},
+                    params=params
+                )
+                if response.status_code == 200:
+                    data = response.json()
+                    runs = data.get("workflow_runs", [])
+
+                    # 按工作流名称筛选
+                    if workflow_name:
+                        runs = [
+                            r for r in runs
+                            if r.get("name") == workflow_name or
+                            workflow_name in r.get("path", "")
+                        ]
+                    return runs
+                return []
+            except Exception as e:
+                logger.error(f"Failed to list workflow runs: {e}")
+                return []
+
+    async def get_workflow_run(self, run_id: int) -> Optional[Dict[str, Any]]:
+        """
+        获取单个工作流运行详情
+
+        Args:
+            run_id: 工作流运行 ID
+
+        Returns:
+            工作流运行详情，失败返回 None
+        """
+        async with httpx.AsyncClient(timeout=30.0, trust_env=False) as client:
+            try:
+                response = await client.get(
+                    f"{self.api_url}/repos/{self.repo}/actions/runs/{run_id}",
+                    headers={"Authorization": f"token {self.token}"}
+                )
+                if response.status_code == 200:
+                    return response.json()
+                return None
+            except Exception as e:
+                logger.error(f"Failed to get workflow run {run_id}: {e}")
+                return None
+
+    async def get_workflow_run_jobs(
+        self,
+        run_id: int
+    ) -> List[Dict[str, Any]]:
+        """
+        获取工作流运行的任务列表
+
+        Args:
+            run_id: 工作流运行 ID
+
+        Returns:
+            任务列表
+        """
+        async with httpx.AsyncClient(timeout=30.0, trust_env=False) as client:
+            try:
+                response = await client.get(
+                    f"{self.api_url}/repos/{self.repo}/actions/runs/{run_id}/jobs",
+                    headers={"Authorization": f"token {self.token}"}
+                )
+                if response.status_code == 200:
+                    data = response.json()
+                    return data.get("jobs", [])
+                return []
+            except Exception as e:
+                logger.error(f"Failed to get workflow run {run_id} jobs: {e}")
+                return []
+
+    async def find_workflow_run_by_submission(
+        self,
+        submission_id: str,
+        limit: int = 20
+    ) -> Optional[Dict[str, Any]]:
+        """
+        根据提交 ID 查找工作流运行
+
+        Args:
+            submission_id: 提交 UUID
+            limit: 搜索范围
+
+        Returns:
+            最新的匹配工作流运行，未找到返回 None
+        """
+        runs = await self.list_workflow_runs(limit=limit)
+        for run in runs:
+            # 检查工作流输入参数中的 submission_id
+            inputs = run.get("inputs", {}) or {}
+            if inputs.get("submission_id") == submission_id:
+                return run
+
+            # 检查触发事件的 display_title 或 message
+            display_title = run.get("display_title", "") or ""
+            if submission_id in display_title:
+                return run
+
+        return None
+
+    async def sync_workflow_run_status(
+        self,
+        submission: Submission
+    ) -> Tuple[bool, Optional[str]]:
+        """
+        同步工作流运行状态
+
+        Args:
+            submission: 提交记录
+
+        Returns:
+            (是否有变更, 新状态描述)
+        """
+        if submission.status != SubmissionStatus.PROCESSING:
+            return False, None
+
+        # 优先使用已记录的 run_id
+        run = None
+        if submission.workflow_run_id:
+            run = await self.get_workflow_run(int(submission.workflow_run_id))
+
+        # 如果没有 run_id，尝试通过 submission_id 查找
+        if not run:
+            run = await self.find_workflow_run_by_submission(submission.submission_id)
+
+        if not run:
+            return False, None
+
+        # 更新工作流信息
+        changed = False
+        run_id = str(run.get("id"))
+        run_status = run.get("status", "")
+        run_conclusion = run.get("conclusion") or ""
+        run_url = run.get("html_url", "")
+
+        # 更新 run_id 和 url
+        if run_id and run_id != submission.workflow_run_id:
+            submission.workflow_run_id = run_id
+            submission.workflow_run_url = run_url
+            changed = True
+
+        # 处理工作流状态
+        if WorkflowRunStatus.is_terminal(run_status):
+            if WorkflowRunStatus.is_success(run_status) or run_conclusion == "success":
+                # 工作流成功完成，等待 PR 创建
+                submission.status = SubmissionStatus.PR_CREATED
+                submission.processing_completed_at = datetime.utcnow()
+                changed = True
+
+                await SubmissionEvent.create(
+                    submission=submission,
+                    event_type=SubmissionEventType.PROCESSING_SUCCESS,
+                    old_status=SubmissionStatus.PROCESSING,
+                    new_status=SubmissionStatus.PR_CREATED,
+                    message="工作流执行成功",
+                    details={
+                        "run_id": run_id,
+                        "run_status": run_status,
+                        "run_url": run_url
+                    },
+                    triggered_by="scheduler"
+                )
+            else:
+                # 工作流失败
+                submission.status = SubmissionStatus.PROCESS_FAILED
+                submission.error_message = f"工作流执行失败: {run_conclusion or run_status}"
+                submission.processing_completed_at = datetime.utcnow()
+                changed = True
+
+                await SubmissionEvent.create(
+                    submission=submission,
+                    event_type=SubmissionEventType.PROCESSING_FAILED,
+                    old_status=SubmissionStatus.PROCESSING,
+                    new_status=SubmissionStatus.PROCESS_FAILED,
+                    message=f"工作流执行失败: {run_conclusion or run_status}",
+                    details={
+                        "run_id": run_id,
+                        "run_status": run_status,
+                        "run_conclusion": run_conclusion,
+                        "run_url": run_url
+                    },
+                    triggered_by="scheduler"
+                )
+
+        if changed:
+            await submission.save()
+
+        return changed, run_status
+
+    async def get_workflow_progress(
+        self,
+        submission: Submission
+    ) -> Dict[str, Any]:
+        """
+        获取工作流进度详情（用于前端展示）
+
+        Args:
+            submission: 提交记录
+
+        Returns:
+            工作流进度信息
+        """
+        result = {
+            "has_workflow": False,
+            "run_id": None,
+            "status": None,
+            "conclusion": None,
+            "started_at": None,
+            "completed_at": None,
+            "duration_seconds": None,
+            "url": None,
+            "jobs": []
+        }
+
+        # 获取工作流运行信息
+        run = None
+        if submission.workflow_run_id:
+            run = await self.get_workflow_run(int(submission.workflow_run_id))
+
+        if not run:
+            run = await self.find_workflow_run_by_submission(submission.submission_id)
+
+        if not run:
+            return result
+
+        result["has_workflow"] = True
+        result["run_id"] = str(run.get("id"))
+        result["status"] = run.get("status")
+        result["conclusion"] = run.get("conclusion")
+        result["url"] = run.get("html_url")
+
+        # 解析时间
+        started_at = run.get("started_at") or run.get("run_started_at")
+        if started_at:
+            result["started_at"] = started_at
+            try:
+                start_time = datetime.fromisoformat(started_at.replace("Z", "+00:00"))
+            except Exception:
+                start_time = None
+        else:
+            start_time = None
+
+        completed_at = run.get("completed_at") or run.get("updated_at")
+        if completed_at and WorkflowRunStatus.is_terminal(run.get("status", "")):
+            result["completed_at"] = completed_at
+            try:
+                end_time = datetime.fromisoformat(completed_at.replace("Z", "+00:00"))
+            except Exception:
+                end_time = None
+        else:
+            end_time = None
+
+        # 计算持续时间
+        if start_time:
+            if end_time:
+                result["duration_seconds"] = int((end_time - start_time).total_seconds())
+            elif run.get("status") == "running":
+                result["duration_seconds"] = int((datetime.utcnow() - start_time.replace(tzinfo=None)).total_seconds())
+
+        # 获取任务列表
+        if run.get("id"):
+            jobs = await self.get_workflow_run_jobs(run["id"])
+            result["jobs"] = [
+                {
+                    "id": job.get("id"),
+                    "name": job.get("name"),
+                    "status": job.get("status"),
+                    "conclusion": job.get("conclusion"),
+                    "started_at": job.get("started_at"),
+                    "completed_at": job.get("completed_at"),
+                }
+                for job in jobs
+            ]
+
+        return result
 
 
 # 单例
