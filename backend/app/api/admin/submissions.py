@@ -374,6 +374,25 @@ async def get_submission_detail(
     }
 
 
+@router.get("/{submission_id}/workflow-progress", response_model=dict)
+async def get_submission_workflow_progress(
+    submission_id: int,
+    admin: User = Depends(get_current_admin_user)
+):
+    """获取提交的工作流运行进度"""
+    submission = await Submission.get_or_none(id=submission_id)
+    if not submission:
+        raise HTTPException(status_code=404, detail="提交不存在")
+
+    # 获取工作流运行进度
+    progress = await gitea_sync_service.get_workflow_run_progress(submission)
+
+    return {
+        "success": True,
+        "data": progress
+    }
+
+
 @router.post("/{submission_id}/retry", response_model=dict)
 async def retry_submission(
     request: Request,

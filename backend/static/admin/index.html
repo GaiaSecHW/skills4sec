@@ -292,6 +292,71 @@
             0%, 100% { opacity: 1; }
             50% { opacity: 0.5; }
         }
+
+        /* 工作流运行详情样式 */
+        .workflow-run-detail {
+            margin-top: 15px;
+            padding: 12px;
+            background: #f8fafc;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+        }
+        .workflow-run-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 10px;
+        }
+        .workflow-run-status {
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        .workflow-run-status.pending { background: #e2e8f0; color: #64748b; }
+        .workflow-run-status.active { background: #dbeafe; color: #1d4ed8; }
+        .workflow-run-status.completed { background: #d1fae5; color: #059669; }
+        .workflow-run-status.failed { background: #fee2e2; color: #dc2626; }
+        .workflow-run-duration {
+            font-size: 12px;
+            color: #64748b;
+        }
+        .workflow-run-link {
+            margin-left: auto;
+            font-size: 12px;
+            color: #4a90d9;
+            text-decoration: none;
+        }
+        .workflow-run-link:hover { text-decoration: underline; }
+        .workflow-jobs {
+            border-top: 1px solid #e2e8f0;
+            padding-top: 10px;
+        }
+        .workflow-jobs-title {
+            font-size: 12px;
+            color: #64748b;
+            margin-bottom: 8px;
+        }
+        .workflow-job {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 6px 8px;
+            margin-bottom: 4px;
+            background: white;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+        .workflow-job .job-name { color: #374151; }
+        .workflow-job .job-status {
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 11px;
+        }
+        .workflow-job.pending .job-status { background: #e2e8f0; color: #64748b; }
+        .workflow-job.active .job-status { background: #dbeafe; color: #1d4ed8; }
+        .workflow-job.completed .job-status { background: #d1fae5; color: #059669; }
+        .workflow-job.failed .job-status { background: #fee2e2; color: #dc2626; }
     </style>
 </head>
 <body>
@@ -1254,8 +1319,17 @@
             const s = data.data.submission;
             const events = data.data.events;
 
+            // 获取工作流运行进度（如果处于 processing 状态）
+            let workflowProgress = null;
+            if (s.status === 'processing' || s.status === 'pr_created' || s.status === 'process_failed') {
+                const progressData = await api(`/admin/submissions/${id}/workflow-progress`);
+                if (progressData && progressData.success) {
+                    workflowProgress = progressData.data;
+                }
+            }
+
             // 渲染工作流图
-            const workflowHtml = renderWorkflowChart(s.status, events);
+            const workflowHtml = renderWorkflowChart(s.status, events, workflowProgress);
             document.getElementById('submissionWorkflow').innerHTML = workflowHtml;
 
             let html = `
@@ -1291,7 +1365,7 @@
         }
 
         // 渲染工作流图
-        function renderWorkflowChart(status, events) {
+        function renderWorkflowChart(status, events, workflowProgress = null) {
             // 工作流步骤定义
             const steps = [
                 { id: 'created', label: '提交创建', icon: '1' },
@@ -1362,6 +1436,55 @@
                 `;
             });
 
+            // 生成工作流运行详情HTML
+            let workflowDetailHtml = '';
+            if (workflowProgress && workflowProgress.has_workflow) {
+                const statusLabels = {
+                    'pending': '等待中',
+                    'waiting': '等待资源',
+                    'running': '运行中',
+                    'success': '成功',
+                    'failure': '失败',
+                    'cancelled': '已取消',
+                    'skipped': '已跳过'
+                };
+                const statusClass = {
+                    'pending': 'pending',
+                    'waiting': 'pending',
+                    'running': 'active',
+                    'success': 'completed',
+                    'failure': 'failed',
+                    'cancelled': 'failed',
+                    'skipped': 'pending'
+                };
+
+                const runStatus = workflowProgress.status || 'pending';
+                const runConclusion = workflowProgress.conclusion || '';
+                const displayStatus = runConclusion || runStatus;
+                const duration = workflowProgress.duration_seconds ? formatDuration(workflowProgress.duration_seconds) : '-';
+
+                workflowDetailHtml = `
+                    <div class="workflow-run-detail">
+                        <div class="workflow-run-header">
+                            <span class="workflow-run-status ${statusClass[runStatus] || 'pending'}">${statusLabels[displayStatus] || displayStatus}</span>
+                            <span class="workflow-run-duration">耗时: ${duration}</span>
+                            ${workflowProgress.url ? `<a href="${workflowProgress.url}" target="_blank" class="workflow-run-link">查看详情 →</a>` : ''}
+                        </div>
+                        ${workflowProgress.jobs && workflowProgress.jobs.length > 0 ? `
+                            <div class="workflow-jobs">
+                                <div class="workflow-jobs-title">任务列表</div>
+                                ${workflowProgress.jobs.map(job => `
+                                    <div class="workflow-job ${statusClass[job.status] || 'pending'}">
+                                        <span class="job-name">${job.name || 'unnamed'}</span>
+                                        <span class="job-status">${statusLabels[job.conclusion || job.status] || job.status}</span>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            }
+
             return `
                 <div class="workflow-container">
                     <div class="workflow-title">Gitea 工作流进度</div>
@@ -1371,6 +1494,7 @@
                         </div>
                         ${stepsHtml}
                     </div>
+                    ${workflowDetailHtml}
                     <div class="workflow-legend">
                         <div class="workflow-legend-item">
                             <div class="workflow-legend-dot pending"></div>
@@ -1391,6 +1515,13 @@
                     </div>
                 </div>
             `;
+        }
+
+        // 格式化持续时间
+        function formatDuration(seconds) {
+            if (seconds < 60) return `${seconds}秒`;
+            if (seconds < 3600) return `${Math.floor(seconds / 60)}分${seconds % 60}秒`;
+            return `${Math.floor(seconds / 3600)}时${Math.floor((seconds % 3600) / 60)}分`;
         }
 
         function closeSubmissionDetailModal() {
