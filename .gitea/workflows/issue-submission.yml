@@ -168,12 +168,14 @@ jobs:
         env:
           SOURCE_URL: ${{ steps.parse.outputs.source_url }}
           SKILL_NAME: ${{ steps.parse.outputs.skill_name }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          JOB_STATUS: ${{ job.status }}
         run: |
           echo "## Issue Submission Handler" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Field | Value |" >> $GITHUB_STEP_SUMMARY
           echo "|-------|-------|" >> $GITHUB_STEP_SUMMARY
-          echo "| Issue | #${{ github.event.issue.number }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Issue | #${ISSUE_NUMBER} |" >> $GITHUB_STEP_SUMMARY
           echo "| Skill Name | ${SKILL_NAME:-N/A} |" >> $GITHUB_STEP_SUMMARY
           echo "| Source URL | ${SOURCE_URL:-Not found} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Status | ${{ job.status }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Status | ${JOB_STATUS} |" >> $GITHUB_STEP_SUMMARY
