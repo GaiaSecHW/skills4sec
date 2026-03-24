@@ -1,6 +1,10 @@
 from fastapi import APIRouter, HTTPException, Query
+from fastapi.responses import StreamingResponse
 from typing import Optional, List
 from tortoise.functions import Count
+import zipfile
+import io
+import os
 
 from app.models.skill import Skill, Category, SkillTag, SkillTagRelation
 from app.models.audit import SecurityAudit, SecurityFinding, RiskFactorEvidence
@@ -15,6 +19,9 @@ from app.schemas.skill import (
 from app.config import settings
 
 router = APIRouter(prefix="/skills", tags=["skills"])
+
+# 技能目录路径
+SKILLS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))), "skills")
 
 
 # ============ 辅助函数 ============
@@ -425,3 +432,35 @@ async def get_popular_tags(limit: int = Query(20, ge=1, le=100)):
     ).order_by("-skill_count").limit(limit)
 
     return [TagOut(name=t.name, count=t.skill_count) for t in tags]
+
+
+# ============ 下载接口 ============
+
+@router.get("/{slug}/download")
+async def download_skill(slug: str):
+    """下载技能 ZIP 包"""
+    skill_dir = os.path.join(SKILLS_DIR, slug)
+
+    if not os.path.isdir(skill_dir):
+        raise HTTPException(status_code=404, detail=f"Skill directory not found: {slug}")
+
+    # 创建内存中的 ZIP 文件
+    zip_buffer = io.BytesIO()
+
+    with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zipf:
+        for root, dirs, files in os.walk(skill_dir):
+            for file in files:
+                file_path = os.path.join(root, file)
+                # 保持相对路径结构，以技能名称为根目录
+                arcname = os.path.relpath(file_path, SKILLS_DIR)
+                zipf.write(file_path, arcname)
+
+    zip_buffer.seek(0)
+
+    return StreamingResponse(
+        zip_buffer,
+        media_type="application/zip",
+        headers={
+            "Content-Disposition": f"attachment; filename={slug}.zip"
+        }
+    )
