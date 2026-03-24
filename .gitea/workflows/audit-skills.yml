@@ -35,8 +35,12 @@ on:
         default: 'false'
         type: string
 
+# 在 Gitea 仓库设置中配置以下 Variables:
+# - GITEA_URL: Gitea 服务器地址 (如 http://your-gitea:3000)
+# - GITEA_API_URL: Gitea API 地址 (如 http://your-gitea:3000/api/v1)
 env:
-  GITEA_API_URL: http://172.28.95.77:3000/api/v1
+  GITEA_URL: ${{ vars.GITEA_URL }}
+  GITEA_API_URL: ${{ vars.GITEA_API_URL }}
 
 jobs:
   audit:
@@ -51,7 +55,7 @@ jobs:
         env:
           GITEA_TOKEN: ${{ secrets.GITEATOKEN }}
         run: |
-          git clone http://oauth2:${GITEA_TOKEN}@172.28.95.77:3000/${{ github.repository }}.git .
+          git clone http://oauth2:${GITEA_TOKEN}@${{ env.GITEA_URL }}/${{ github.repository }}.git .
           git checkout ${{ github.sha }}
 
       - name: Setup Python
@@ -162,8 +166,8 @@ jobs:
           git commit -m "chore(audit): security audit for $UPDATED_COUNT skills"
 
           # Push
-          git push http://oauth2:${GITEA_TOKEN}@172.28.95.77:3000/${REPOSITORY}.git ${{ github.ref_name }} || \
-          git push http://oauth2:${GITEA_TOKEN}@172.28.95.77:3000/${REPOSITORY}.git main
+          git push http://oauth2:${GITEA_TOKEN}@${{ env.GITEA_URL }}/${REPOSITORY}.git ${{ github.ref_name }} || \
+          git push http://oauth2:${GITEA_TOKEN}@${{ env.GITEA_URL }}/${REPOSITORY}.git main
 
           echo "✅ Committed audit results"
 

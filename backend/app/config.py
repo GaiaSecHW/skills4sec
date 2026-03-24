@@ -22,9 +22,10 @@ class Settings(BaseSettings):
     MAX_PAGE_SIZE: int = 100
 
     # Gitea 配置 (用于技能提交)
-    GITEA_API_URL: str = "http://172.28.95.77:3000/api/v1"
+    # 通过 .env 配置: GITEA_API_URL=http://your-gitea:3000/api/v1
+    GITEA_API_URL: str = ""
     GITEA_TOKEN: str = ""
-    GITEA_REPO: str = "admin/skills4sec"  # owner/repo
+    GITEA_REPO: str = ""  # owner/repo
 
     # 超级管理员配置
     SUPER_ADMIN_EMPLOYEE_ID: str = ""

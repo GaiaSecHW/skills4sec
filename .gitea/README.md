@@ -1,5 +1,28 @@
 # Gitea Actions Workflows
 
+## Configuration
+
+### Required Variables
+
+在 Gitea 仓库设置中配置以下 Variables（Settings → Actions → Variables）：
+
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `GITEA_URL` | Gitea 服务器地址 | `http://your-gitea:3000` |
+| `GITEA_API_URL` | Gitea API 地址 | `http://your-gitea:3000/api/v1` |
+
+### Required Secrets
+
+| Secret | Description | Required For |
+|--------|-------------|--------------|
+| `GITEATOKEN` | Token with repo permission | All workflows |
+| `GITEA_SOURCE_TOKEN` | For private Gitea sources | submission.yml |
+| `GITHUB_TOKEN` | For private GitHub sources | submission.yml |
+
+**Note:** Gitea secrets cannot contain underscores. Use `GITEATOKEN` not `GITEA_TOKEN`.
+
+---
+
 ## Available Workflows
 
 ### 1. submission.yml - 技能提交处理
@@ -74,18 +97,6 @@ Dry Run: false
 
 ---
 
-## Required Secrets
-
-| Secret | Description | Required For |
-|--------|-------------|--------------|
-| `GITEATOKEN` | Token with repo permission | All workflows |
-| `GITEA_SOURCE_TOKEN` | For private Gitea sources | submission.yml |
-| `GITHUB_TOKEN` | For private GitHub sources | submission.yml |
-
-**Note:** Gitea secrets cannot contain underscores. Use `GITEATOKEN` not `GITEA_TOKEN`.
-
----
-
 ## Runner Setup
 
 ### 1. Get Registration Token
@@ -96,6 +107,7 @@ From Gitea UI: **Site Administration → Actions → Runners → Create new Runn
 
 ```bash
 export REGISTRATION_TOKEN=your-token
+export GITEA_URL=http://your-gitea-server:3000
 docker-compose -f docker-compose.runner.yml up -d
 ```
 
@@ -106,7 +118,7 @@ If runner needs to access GitHub, use host network mode:
 ```bash
 docker run -d --name gitea-act-runner \
   --network host \
-  -e GITEA_INSTANCE_URL=http://172.28.95.77:3000 \
+  -e GITEA_INSTANCE_URL=http://your-gitea-server:3000 \
   -e GITEA_RUNNER_REGISTRATION_TOKEN=${REGISTRATION_TOKEN} \
   -e GITEA_RUNNER_NAME=gitea-runner-01 \
   -v /var/run/docker.sock:/var/run/docker.sock \

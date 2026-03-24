@@ -12,8 +12,12 @@ on:
         required: false
         default: ''
 
+# 在 Gitea 仓库设置中配置以下 Variables:
+# - GITEA_URL: Gitea 服务器地址 (如 http://your-gitea:3000)
+# - GITEA_API_URL: Gitea API 地址 (如 http://your-gitea:3000/api/v1)
 env:
-  GITEA_API_URL: http://172.28.95.77:3000/api/v1
+  GITEA_URL: ${{ vars.GITEA_URL }}
+  GITEA_API_URL: ${{ vars.GITEA_API_URL }}
 
 jobs:
   process:
@@ -28,7 +32,7 @@ jobs:
         env:
           GITEA_TOKEN: ${{ secrets.GITEATOKEN }}
         run: |
-          git clone http://oauth2:${GITEA_TOKEN}@172.28.95.77:3000/${{ github.repository }}.git .
+          git clone http://oauth2:${GITEA_TOKEN}@${{ env.GITEA_URL }}/${{ github.repository }}.git .
           git checkout ${{ github.sha }}
 
       - name: Parse source URL
@@ -39,18 +43,21 @@ jobs:
           set -euo pipefail
           URL="$SOURCE_URL"
 
+          # 提取 Gitea URL 的 host:port 部分
+          GITEA_HOST=$(echo "${{ env.GITEA_URL }}" | sed 's|https\?://||')
+
           if [[ "$URL" =~ github\.com[:/]([^/]+)/([^/]+) ]]; then
             PLATFORM="github"
             OWNER="${BASH_REMATCH[1]}"
             REPO="${BASH_REMATCH[2]}"
             REPO="${REPO%.git}"
             CLONE_URL="https://github.com/${OWNER}/${REPO}.git"
-          elif [[ "$URL" =~ 172\.28\.95\.77:3000[:/]([^/]+)/([^/]+) ]]; then
+          elif [[ "$URL" =~ ${GITEA_HOST}[:/]([^/]+)/([^/]+) ]]; then
             PLATFORM="gitea"
             OWNER="${BASH_REMATCH[1]}"
             REPO="${BASH_REMATCH[2]}"
             REPO="${REPO%.git}"
-            CLONE_URL="http://172.28.95.77:3000/${OWNER}/${REPO}.git"
+            CLONE_URL="${{ env.GITEA_URL }}/${OWNER}/${REPO}.git"
           else
             echo "::error::Unsupported URL format: $URL"
             exit 1
@@ -240,7 +247,7 @@ jobs:
               -H "Content-Type: application/json" \
               -d '{"labels": ["pending-review"]}' || true
 
-            echo "pr_url=http://172.28.95.77:3000/${{ github.repository }}/pulls/$PR_NUMBER" >> $GITHUB_OUTPUT
+            echo "pr_url=${{ env.GITEA_URL }}/${{ github.repository }}/pulls/$PR_NUMBER" >> $GITHUB_OUTPUT
           else
             echo "::error::Failed to create PR: $PR_RESPONSE"
             exit 1
@@ -292,7 +299,7 @@ jobs:
           BRANCH_NAME: ${{ needs.process.outputs.branch_name }}
         run: |
           # Clone the repository
-          git clone http://oauth2:${GITEA_TOKEN}@172.28.95.77:3000/${{ github.repository }}.git .
+          git clone http://oauth2:${GITEA_TOKEN}@${{ env.GITEA_URL }}/${{ github.repository }}.git .
 
           # Save skill-report-generator from main branch
           git checkout main
@@ -381,7 +388,7 @@ jobs:
           git commit -m "🔒 Security audit for $AUDITED_COUNT skill(s)"
 
           # Push to PR branch
-          git push http://oauth2:${GITEA_TOKEN}@172.28.95.77:3000/${REPOSITORY}.git "$BRANCH_NAME"
+          git push http://oauth2:${GITEA_TOKEN}@${{ env.GITEA_URL }}/${REPOSITORY}.git "$BRANCH_NAME"
 
           echo "✅ Committed audit results to PR branch: $BRANCH_NAME"
 
