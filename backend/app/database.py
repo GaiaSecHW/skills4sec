@@ -1,24 +1,7 @@
-from tortoise import Tortoise
-from app.config import settings
+"""
+数据库模块 - 向后兼容导出
+"""
+# 从 core 模块导出，保持向后兼容
+from app.core.database import init_db, close_db, transaction, atomic
 
-
-async def init_db():
-    await Tortoise.init(
-        db_url=settings.DATABASE_URL,
-        modules={
-            "models": [
-                "app.models.user",
-                "app.models.skill",
-                "app.models.audit",
-                "app.models.content",
-                "app.models.login_log",
-                "app.models.admin_log",
-            ]
-        },
-    )
-    # 生成数据库表结构
-    await Tortoise.generate_schemas()
-
-
-async def close_db():
-    await Tortoise.close_connections()
+__all__ = ["init_db", "close_db", "transaction", "atomic"]

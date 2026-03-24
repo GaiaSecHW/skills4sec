@@ -1,4 +1,4 @@
-from app.models.user import User, Role, UserRole
+from app.models.user import User
 from app.models.skill import Skill
 from app.models.audit import SecurityAudit, SecurityFinding, RiskFactorEvidence
 from app.models.content import SkillContent, UseCase, PromptTemplate, OutputExample, FAQ
@@ -8,8 +8,6 @@ from app.models.submission import Submission, SubmissionEvent, SubmissionStatus,
 
 __all__ = [
     "User",
-    "Role",
-    "UserRole",
     "Skill",
     "SecurityAudit",
     "SecurityFinding",

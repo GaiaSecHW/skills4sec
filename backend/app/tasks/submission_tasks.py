@@ -1,12 +1,12 @@
 """
 提交相关定时任务 - 重试处理和状态同步
 """
-import logging
 from datetime import datetime, timedelta
 
 from app.models.submission import Submission, SubmissionEvent, SubmissionStatus, SubmissionEventType
+from app.core import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger("submission_tasks")
 
 
 async def process_pending_retries():
