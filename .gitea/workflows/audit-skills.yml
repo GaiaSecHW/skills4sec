@@ -82,18 +82,17 @@ jobs:
           UPDATED_COUNT=0
           AUDITED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 
-          # Build config values with defaults
+          # Build config values with defaults (api_key passed via env var placeholder)
           API_BASE_URL="${OPENAI_BASE_URL:-https://api.openai.com/v1}"
-          API_KEY="${OPENAI_API_KEY:-}"
           API_MODEL="${OPENAI_MODEL:-gpt-4o}"
 
-          # Create config for generate.py
+          # Create config for generate.py (use env var placeholder for security)
           mkdir -p /tmp/audit-config
           cat > /tmp/audit-config/config.yaml << EOF
           api:
-            base_url: "$API_BASE_URL"
-            api_key: "$API_KEY"
-            model: "$API_MODEL"
+            base_url: "${OPENAI_BASE_URL:-https://api.openai.com/v1}"
+            api_key: "${OPENAI_API_KEY}"
+            model: "${OPENAI_MODEL:-gpt-4o}"
             timeout: 120
           generation:
             concurrent: 1
