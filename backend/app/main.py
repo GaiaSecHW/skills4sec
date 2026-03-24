@@ -6,7 +6,7 @@ import os
 
 from app.config import settings
 from app.core.database import init_db, close_db, check_database_health
-from app.core.harness_logging import setup_harness_logging, HarnessLoggingMiddleware
+from app.core.harness_logging import setup_harness_logging, HarnessLoggingMiddleware, setup_aggregator, stop_aggregator
 from app.core.exceptions import register_exception_handlers
 from app.api.skills import router as skills_router
 from app.api.auth import router as auth_router
@@ -59,6 +59,10 @@ async def lifespan(app: FastAPI):
     await init_db()
     # 初始化超级管理员
     await init_super_admin()
+    # 启动日志聚合器
+    from app.core.harness_logging.config import LogConfig
+    if LogConfig.AGGREGATION_ENABLED:
+        await setup_aggregator(LogConfig)
     # 启动定时任务调度器
     from app.tasks.scheduler import setup_scheduler, start_scheduler
     setup_scheduler()
@@ -67,6 +71,8 @@ async def lifespan(app: FastAPI):
     # 关闭时停止调度器
     from app.tasks.scheduler import shutdown_scheduler
     shutdown_scheduler()
+    # 关闭时停止日志聚合器
+    await stop_aggregator()
     # 关闭时清理数据库连接
     await close_db()
 

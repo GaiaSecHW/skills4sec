@@ -20,7 +20,7 @@ from app.core.harness_logging.audit import AuditLogger
 __version__ = "1.0.0"
 
 
-async def setup_harness_logging(
+def setup_harness_logging(
     level: str = "INFO",
     log_dir: str = "logs",
     service_name: str = "SecAgentHub",
@@ -33,7 +33,7 @@ async def setup_harness_logging(
         level: 日志级别 (DEBUG, INFO, WARNING, ERROR)
         log_dir: 日志目录
         service_name: 服务名称
-        enable_aggregation: 是否启用日志聚合
+        enable_aggregation: 是否启用日志聚合（聚合器延迟到 lifespan 中启动）
     """
     from pathlib import Path
 
@@ -47,9 +47,7 @@ async def setup_harness_logging(
     # 设置文件 handlers
     setup_file_handlers(LogConfig)
 
-    # 启动聚合器
-    if enable_aggregation:
-        await setup_aggregator(LogConfig)
+    # 注意：聚合器需要在 lifespan 中通过 setup_aggregator() 启动
 
 
 __all__ = [
