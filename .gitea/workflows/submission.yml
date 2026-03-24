@@ -161,8 +161,11 @@ jobs:
             TARGET_DIR="pending/$OWNER/$SLUG"
             mkdir -p "$TARGET_DIR"
 
-            # Copy skill files
-            cp -r "$SKILL_DIR"/* "$TARGET_DIR/" 2>/dev/null || cp "$skill_md" "$TARGET_DIR/"
+            # Copy skill files (handle filenames with spaces)
+            if [ -d "$SKILL_DIR" ]; then
+              find "$SKILL_DIR" -mindepth 1 -maxdepth 1 ! -name "SKILL.md" -exec cp -r {} "$TARGET_DIR/" \; 2>/dev/null || true
+              cp "$skill_md" "$TARGET_DIR/" 2>/dev/null || true
+            fi
 
             # Generate basic skill-report.json (audit-skills.yml will update with full audit)
             cat > "$TARGET_DIR/skill-report.json" << EOF
