@@ -16,7 +16,7 @@
 
   /* ===================== AUTH MODULE ===================== */
   const Auth = {
-    API_BASE: window.location.hostname === 'localhost' ? 'http://localhost:8125' : '',
+    API_BASE: AppConfig.API_BASE,
     TOKEN_KEY: 'secevo_access_token',
     REFRESH_KEY: 'secevo_refresh_token',
     USER_KEY: 'secevo_user',
@@ -128,6 +128,7 @@
     if (hash === 'agents' || hash.startsWith('agents?')) return { page: 'agents' };
     if (hash.startsWith('agent/')) return { page: 'agent-detail', slug: hash.slice(6) };
     if (hash === 'submit') return { page: 'submit' };
+    if (hash === 'my-submissions') return { page: 'my-submissions' };
     if (hash === 'schema-spec') return { page: 'schema-spec' };
     if (hash === 'evolution') return { page: 'evolution' };
     if (hash === 'blog' || hash.startsWith('blog?')) return { page: 'blog' };
@@ -242,6 +243,9 @@
     } else if (route.page === 'blog-post') {
       main.innerHTML = renderBlogPostPage(route.slug);
       loadBlogPostContent(route.slug);
+    } else if (route.page === 'my-submissions') {
+      main.innerHTML = renderMySubmissionsPage();
+      bindMySubmissionsEvents();
     }
 
     window.scrollTo(0, 0);
@@ -1270,8 +1274,7 @@
       btn.disabled = true;
 
       try {
-        const API_BASE = window.location.hostname === 'localhost' ? 'http://localhost:8125' : '';
-        const res = await fetch(API_BASE + '/api/submissions', {
+        const res = await fetch(AppConfig.API_BASE + '/api/submissions', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -1809,6 +1812,7 @@
   window.getRoute = function() {
     const hash = location.hash.replace(/^#\/?/, '');
     if (hash === 'submissions' || hash.startsWith('submissions?')) return { page: 'submissions' };
+    if (hash === 'my-submissions') return { page: 'my-submissions' };
     if (hash.startsWith('submission/')) return { page: 'submission-detail', id: hash.slice(11) };
     return originalGetRoute();
   };
@@ -2306,6 +2310,94 @@
     return '<div style="padding:2rem;text-align:center">加载中...</div>';
   }
 
+  /* ===================== MY SUBMISSIONS PAGE ===================== */
+  let MySubmissionsData = [];
+
+  async function loadMySubmissions() {
+    try {
+      const res = await Auth.fetchWithAuth(Auth.API_BASE + '/api/submissions/my');
+      if (res.ok) {
+        const data = await res.json();
+        MySubmissionsData = data.data || [];
+        renderMySubmissionsList();
+      }
+    } catch (e) {
+      console.error('Failed to load my submissions:', e);
+    }
+  }
+
+  function renderMySubmissionsPage() {
+    setTimeout(loadMySubmissions, 0);
+    return `
+<div style="padding:2rem;max-width:1200px;margin:0 auto">
+  <h1 style="font-size:1.5rem;font-weight:600;margin-bottom:1.5rem">我的提交</h1>
+
+  <!-- 提交列表 -->
+  <div style="background:var(--card);border-radius:12px;overflow:hidden">
+    <table style="width:100%;border-collapse:collapse">
+      <thead>
+        <tr style="background:var(--bg-secondary)">
+          <th style="padding:1rem;text-align:left;border-bottom:1px solid var(--border)">状态</th>
+          <th style="padding:1rem;text-align:left;border-bottom:1px solid var(--border)">技能名称</th>
+          <th style="padding:1rem;text-align:left;border-bottom:1px solid var(--border)">分类</th>
+          <th style="padding:1rem;text-align:left;border-bottom:1px solid var(--border)">提交时间</th>
+          <th style="padding:1rem;text-align:left;border-bottom:1px solid var(--border)">操作</th>
+        </tr>
+      </thead>
+      <tbody id="my-submissions-tbody">
+        <tr><td colspan="5" style="padding:2rem;text-align:center;color:var(--text-muted)">加载中...</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+<style>
+.submission-status { padding:.25rem .5rem; border-radius:4px; font-size:.75rem; font-weight:500; }
+.status-pending { background:#fef3c7; color:#92400e; }
+.status-creating { background:#dbeafe; color:#1e40af; }
+.status-waiting { background:#e0e7ff; color:#3730a3; }
+.status-approved { background:#d1fae5; color:#065f46; }
+.status-rejected { background:#fee2e2; color:#991b1b; }
+.status-processing { background:#dbeafe; color:#1e40af; }
+.status-pr { background:#e0e7ff; color:#3730a3; }
+.status-merged { background:#d1fae5; color:#065f46; }
+.status-closed { background:#f3f4f6; color:#374151; }
+.status-failed { background:#fee2e2; color:#991b1b; }
+.status-issue_created { background:#e0e7ff; color:#3730a3; }
+.status-pr_created { background:#e0e7ff; color:#3730a3; }
+.status-issue_failed, .status-process_failed { background:#fee2e2; color:#991b1b; }
+</style>`;
+  }
+
+  function renderMySubmissionsList() {
+    const tbody = document.getElementById('my-submissions-tbody');
+    if (!tbody) return;
+
+    if (!MySubmissionsData || MySubmissionsData.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="5" style="padding:2rem;text-align:center;color:var(--text-muted)">暂无提交记录，<a href="#submit">去提交技能</a></td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = MySubmissionsData.map(s => `
+      <tr style="border-bottom:1px solid var(--border)">
+        <td style="padding:1rem">${statusBadge(s.status)}</td>
+        <td style="padding:1rem">
+          <div style="font-weight:500">${escHtml(s.name)}</div>
+          <div style="font-size:.75rem;color:var(--text-muted)">${escHtml(s.repo_url || '').substring(0, 50)}${s.repo_url && s.repo_url.length > 50 ? '...' : ''}</div>
+        </td>
+        <td style="padding:1rem">${escHtml(s.category || '-')}</td>
+        <td style="padding:1rem;font-size:.75rem;color:var(--text-muted)">${new Date(s.created_at).toLocaleString('zh-CN')}</td>
+        <td style="padding:1rem">
+          ${s.issue_url ? `<a href="${escHtml(s.issue_url)}" target="_blank" class="btn btn-sm btn-secondary">Issue</a>` : ''}
+          ${s.pr_url ? `<a href="${escHtml(s.pr_url)}" target="_blank" class="btn btn-sm btn-secondary" style="margin-left:.5rem">PR</a>` : ''}
+        </td>
+      </tr>
+    `).join('');
+  }
+
+  function bindMySubmissionsEvents() {
+    // 页面加载时自动加载数据（已在 renderMySubmissionsPage 中通过 setTimeout 调用）
+  }
+
   // 扩展 render 函数
   const originalRender = render;
   window.render = function() {
@@ -2317,6 +2409,10 @@
       updateNavActive('submissions');
       main.innerHTML = renderSubmissionsPage();
       bindSubmissionsEvents();
+    } else if (route.page === 'my-submissions') {
+      updateNavActive('');
+      main.innerHTML = renderMySubmissionsPage();
+      bindMySubmissionsEvents();
     } else if (route.page === 'submission-detail') {
       updateNavActive('submissions');
       main.innerHTML = renderSubmissionDetailPageWrapper(route.id);
