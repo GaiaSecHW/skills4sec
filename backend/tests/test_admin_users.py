@@ -402,7 +402,7 @@ class TestAdminUserCreate:
             json={
                 "employee_id": f"WEAK_{unique_id}",
                 "name": "Weak Key User",
-                "api_key": "123456",  # Too weak
+                "api_key": "12345",  # Only 5 chars, below min_length=6
                 "role": "user",
             },
             headers=super_auth_headers,
