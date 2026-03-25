@@ -31,19 +31,19 @@ async def init_super_admin():
 
     existing = await User.get_or_none(employee_id=employee_id)
     if existing:
-        # 更新密钥确保与 .env 一致
-        existing.api_key_hash = get_password_hash(api_key)
+        # 更新密钥确保与 .env 一致（明文存储）
+        existing.api_key = api_key
         existing.role = "super_admin"
         existing.status = "active"
         existing.is_superuser = True
         existing.is_active = True
-        await existing.save(update_fields=["api_key_hash", "role", "status", "is_superuser", "is_active"])
+        await existing.save(update_fields=["api_key", "role", "status", "is_superuser", "is_active"])
         print(f"[Init] 超级管理员已更新: {employee_id}")
     else:
-        # 创建超级管理员
+        # 创建超级管理员（明文存储 API Key）
         await User.create(
             employee_id=employee_id,
-            api_key_hash=get_password_hash(api_key),
+            api_key=api_key,
             name=settings.SUPER_ADMIN_NAME or "系统管理员",
             role="super_admin",
             status="active",

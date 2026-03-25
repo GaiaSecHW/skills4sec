@@ -44,14 +44,9 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
 
 # ============ API 密钥相关函数 ============
 
-def hash_api_key(api_key: str) -> str:
-    """生成 API 密钥哈希（与密码哈希使用相同算法）"""
-    return get_password_hash(api_key)
-
-
-def verify_api_key(plain_key: str, hashed_key: str) -> bool:
-    """验证 API 密钥"""
-    return verify_password(plain_key, hashed_key)
+def verify_api_key(plain_key: str, stored_key: str) -> bool:
+    """验证 API 密钥（明文比较）"""
+    return plain_key == stored_key
 
 
 def validate_api_key_complexity(api_key: str) -> tuple[bool, str]:

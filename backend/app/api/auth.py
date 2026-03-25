@@ -56,8 +56,8 @@ async def login_by_employee_id(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    # 验证 API 密钥
-    if not user.api_key_hash or not verify_api_key(user_data.api_key, user.api_key_hash):
+    # 验证 API 密钥（明文比较）
+    if not user.api_key or not verify_api_key(user_data.api_key, user.api_key):
         await log_failure("API 密钥错误")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

@@ -6,7 +6,6 @@ from typing import Any, Set, Tuple, Callable, Dict, List
 # 白名单字段（不脱敏）
 SKIP_MASK_FIELDS: Set[str] = {
     # 哈希值（已不可逆）
-    "api_key_hash",
     "password_hash",
     "token_hash",
     "secret_hash",
