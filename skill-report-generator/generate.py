@@ -20,7 +20,8 @@ import sys
 if sys.platform == 'win32':
     sys.stdout.reconfigure(encoding='utf-8')
     sys.stderr.reconfigure(encoding='utf-8')
-from concurrent.futures import ThreadPoolExecutor
+import concurrent.futures
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
@@ -77,14 +78,25 @@ DEFAULT_CONFIG = {
 
 
 def load_config(config_path: Optional[str] = None) -> dict:
-    """加载配置文件"""
+    """加载配置文件，默认查找 config.yaml"""
     config = DEFAULT_CONFIG.copy()
 
-    if config_path and Path(config_path).exists():
-        with open(config_path, 'r', encoding='utf-8') as f:
-            user_config = yaml.safe_load(f)
-            if user_config:
-                config = deep_merge(config, user_config)
+    # 默认配置文件路径
+    default_config_path = Path(__file__).parent / "config.yaml"
+
+    # 优先级：指定路径 > 默认 config.yaml
+    paths_to_try = []
+    if config_path:
+        paths_to_try.append(Path(config_path))
+    paths_to_try.append(default_config_path)
+
+    for path in paths_to_try:
+        if path.exists():
+            with open(path, 'r', encoding='utf-8') as f:
+                user_config = yaml.safe_load(f)
+                if user_config:
+                    config = deep_merge(config, user_config)
+            break  # 只加载第一个找到的配置文件
 
     return config
 
@@ -141,13 +153,27 @@ def parse_skill_md(skill_dir: Path) -> dict:
 
     if content.strip().startswith('---'):
         parts = content.split('---', 2)
-        if len(parts) >= 2:
+        if len(parts) >= 3:
             frontmatter = parts[1].strip()
-            for line in frontmatter.split('\n'):
-                if ':' in line:
-                    key, value = line.split(':', 1)
-                    metadata[key.strip()] = value.strip()
-            content = '---'.join(parts[2:]) if len(parts) > 2 else ''
+            try:
+                metadata = yaml.safe_load(frontmatter) or {}
+            except yaml.YAMLError:
+                # 回退到简单解析
+                for line in frontmatter.split('\n'):
+                    if ':' in line:
+                        key, value = line.split(':', 1)
+                        metadata[key.strip()] = value.strip()
+            content = parts[2].strip()
+
+    # 处理 tags 可能是字符串或列表的情况
+    tags = metadata.get("tags", [])
+    if isinstance(tags, str):
+        tags = [t.strip() for t in tags.split(",")]
+
+    # 处理 supported_tools 可能是字符串或列表的情况
+    supported_tools = metadata.get("supported_tools", ["claude", "codex", "claude-code"])
+    if isinstance(supported_tools, str):
+        supported_tools = [t.strip() for t in supported_tools.split(",")]
 
     return {
         "name": metadata.get("name", skill_dir.name),
@@ -157,8 +183,8 @@ def parse_skill_md(skill_dir: Path) -> dict:
         "author": metadata.get("author", "unknown"),
         "license": metadata.get("license", "MIT"),
         "category": metadata.get("category", "coding"),
-        "tags": metadata.get("tags", "").split(",") if metadata.get("tags") else [],
-        "supported_tools": metadata.get("supported_tools", "claude, codex, claude-code").split(", ") if metadata.get("supported_tools") else ["claude", "codex", "claude-code"],
+        "tags": tags,
+        "supported_tools": supported_tools,
         "content": content,
     }
 
@@ -204,26 +230,57 @@ def scan_file_structure(skill_dir: Path) -> list[dict]:
 
 
 # ============================================================================
+# 公共工具函数
+# ============================================================================
+
+def get_file_stats(skill_dir: Path) -> tuple[int, int]:
+    """统计文件数和行数"""
+    files_scanned = 0
+    total_lines = 0
+    for f in skill_dir.rglob("*"):
+        if f.is_file() and not f.name.startswith('.'):
+            files_scanned += 1
+            try:
+                total_lines += len(f.read_text(encoding='utf-8').splitlines())
+            except:
+                pass
+    return files_scanned, total_lines
+
+
+def resolve_api_key(api_key: str) -> str:
+    """解析 API Key，支持环境变量和明文"""
+    if api_key.startswith("${") and api_key.endswith("}"):
+        env_var = api_key[2:-1]
+        return os.environ.get(env_var, "")
+    return api_key
+
+
+def clean_json_response(content_text: str) -> str:
+    """清理 AI 返回的 JSON 文本"""
+    if content_text.startswith("```"):
+        content_text = re.sub(r'^```(?:json)?\s*\n', '', content_text)
+        content_text = re.sub(r'\n```\s*$', '', content_text)
+    return content_text.strip()
+
+
+# ============================================================================
 # 安全审计
 # ============================================================================
 
-def analyze_security_with_ai(skill_dir: Path, skill_data: dict, config: dict, verbose: bool = False) -> dict:
+def analyze_security_with_ai(skill_dir: Path, skill_data: dict, config: dict, client: Optional[OpenAI] = None, verbose: bool = False) -> dict:
     """使用 AI 进行智能安全审计"""
     api_config = config.get("api", {})
     base_url = api_config.get("base_url", "https://api.openai.com/v1")
-    api_key = api_config.get("api_key", "")
+    api_key = resolve_api_key(api_config.get("api_key", ""))
     model = api_config.get("model", "gpt-4o")
     timeout = api_config.get("timeout", 120)
-
-    # 处理环境变量
-    if api_key.startswith("${") and api_key.endswith("}"):
-        env_var = api_key[2:-1]
-        api_key = os.environ.get(env_var, "")
 
     if not api_key:
         raise ValueError("API key not configured for security audit")
 
-    client = OpenAI(base_url=base_url, api_key=api_key, timeout=timeout)
+    if client is None:
+        client = OpenAI(base_url=base_url, api_key=api_key, timeout=timeout,
+                default_headers={"Authorization": f"Bearer {api_key}"})
 
     # 收集所有代码文件内容
     code_files = {}
@@ -241,16 +298,8 @@ def analyze_security_with_ai(skill_dir: Path, skill_data: dict, config: dict, ve
             except:
                 pass
 
-    # 统计文件数和行数
-    files_scanned = 0
-    total_lines = 0
-    for f in skill_dir.rglob("*"):
-        if f.is_file() and not f.name.startswith('.'):
-            files_scanned += 1
-            try:
-                total_lines += len(f.read_text(encoding='utf-8').splitlines())
-            except:
-                pass
+    # 使用公共函数统计文件数和行数
+    files_scanned, total_lines = get_file_stats(skill_dir)
 
     if not code_files:
         return {
@@ -322,13 +371,7 @@ def analyze_security_with_ai(skill_dir: Path, skill_data: dict, config: dict, ve
                 if chunk.choices[0].delta.content:
                     content_chunks.append(chunk.choices[0].delta.content)
 
-        content_text = "".join(content_chunks).strip()
-
-        # 清理 markdown 代码块
-        if content_text.startswith("```"):
-            content_text = re.sub(r'^```(?:json)?\s*\n', '', content_text)
-            content_text = re.sub(r'\n```\s*$', '', content_text)
-
+        content_text = clean_json_response("".join(content_chunks))
         result = json.loads(content_text)
 
         # 添加审计元数据
@@ -352,7 +395,8 @@ def analyze_security_with_ai(skill_dir: Path, skill_data: dict, config: dict, ve
 def analyze_security(skill_dir: Path, config: dict) -> dict:
     """安全审计 - 规则匹配"""
     risk_factors = []
-    risk_factor_evidence = []
+    # 使用字典按因子分组收集证据，避免重复
+    evidence_by_factor: dict[str, list[dict]] = {}
     critical_findings = []
     high_findings = []
     medium_findings = []
@@ -375,56 +419,43 @@ def analyze_security(skill_dir: Path, config: dict) -> dict:
         relative_file = str(file_path.relative_to(skill_dir))
         file_ext = file_path.suffix.lower()
 
+        def add_evidence(factor: str, line_start: int, line_end: int):
+            """添加证据到对应因子的列表"""
+            if factor not in risk_factors:
+                risk_factors.append(factor)
+            if factor not in evidence_by_factor:
+                evidence_by_factor[factor] = []
+            evidence_by_factor[factor].append({
+                "file": relative_file,
+                "line_start": line_start,
+                "line_end": line_end
+            })
+
         # 检查脚本文件
         if file_ext in rules.get("scripts", {}).get("extensions", []):
-            if "scripts" not in risk_factors:
-                risk_factors.append("scripts")
-            risk_factor_evidence.append({
-                "factor": "scripts",
-                "evidence": [{"file": relative_file, "line_start": 1, "line_end": len(lines)}]
-            })
+            add_evidence("scripts", 1, len(lines))
 
         # 检查各种风险模式
         for line_num, line in enumerate(lines, 1):
             # 网络模式
             for pattern in rules.get("network", {}).get("patterns", []):
                 if pattern in line:
-                    if "network" not in risk_factors:
-                        risk_factors.append("network")
-                    risk_factor_evidence.append({
-                        "factor": "network",
-                        "evidence": [{"file": relative_file, "line_start": line_num, "line_end": line_num}]
-                    })
+                    add_evidence("network", line_num, line_num)
 
             # 文件系统模式
             for pattern in rules.get("filesystem", {}).get("patterns", []):
                 if pattern in line:
-                    if "filesystem" not in risk_factors:
-                        risk_factors.append("filesystem")
-                    risk_factor_evidence.append({
-                        "factor": "filesystem",
-                        "evidence": [{"file": relative_file, "line_start": line_num, "line_end": line_num}]
-                    })
+                    add_evidence("filesystem", line_num, line_num)
 
             # 环境变量访问
             for pattern in rules.get("env_access", {}).get("patterns", []):
                 if pattern in line:
-                    if "env_access" not in risk_factors:
-                        risk_factors.append("env_access")
-                    risk_factor_evidence.append({
-                        "factor": "env_access",
-                        "evidence": [{"file": relative_file, "line_start": line_num, "line_end": line_num}]
-                    })
+                    add_evidence("env_access", line_num, line_num)
 
             # 外部命令
             for pattern in rules.get("external_commands", {}).get("patterns", []):
                 if pattern in line:
-                    if "external_commands" not in risk_factors:
-                        risk_factors.append("external_commands")
-                    risk_factor_evidence.append({
-                        "factor": "external_commands",
-                        "evidence": [{"file": relative_file, "line_start": line_num, "line_end": line_num}]
-                    })
+                    add_evidence("external_commands", line_num, line_num)
 
             # 危险模式
             for dp in config.get("dangerous_patterns", []):
@@ -439,6 +470,12 @@ def analyze_security(skill_dir: Path, config: dict) -> dict:
                     else:
                         medium_findings.append(finding)
 
+    # 转换 evidence_by_factor 为 risk_factor_evidence 格式
+    risk_factor_evidence = [
+        {"factor": factor, "evidence": evidence_list}
+        for factor, evidence_list in evidence_by_factor.items()
+    ]
+
     # 计算风险等级
     risk_level = "safe"
     if len(critical_findings) > 0:
@@ -450,16 +487,8 @@ def analyze_security(skill_dir: Path, config: dict) -> dict:
     elif len(risk_factors) > 0:
         risk_level = "low"
 
-    # 统计文件数和行数
-    files_scanned = 0
-    total_lines = 0
-    for f in skill_dir.rglob("*"):
-        if f.is_file() and not f.name.startswith('.'):
-            files_scanned += 1
-            try:
-                total_lines += len(f.read_text(encoding='utf-8').splitlines())
-            except:
-                pass
+    # 使用公共函数统计文件数和行数
+    files_scanned, total_lines = get_file_stats(skill_dir)
 
     return {
         "risk_level": risk_level,
@@ -501,23 +530,20 @@ def generate_security_summary(risk_level: str, risk_factors: list, high_findings
 # AI 内容生成
 # ============================================================================
 
-def generate_content_with_ai(skill_data: dict, file_structure: list, config: dict, verbose: bool = False) -> dict:
+def generate_content_with_ai(skill_data: dict, file_structure: list, config: dict, client: Optional[OpenAI] = None, verbose: bool = False) -> dict:
     """使用 AI 生成内容"""
     api_config = config.get("api", {})
     base_url = api_config.get("base_url", "https://api.openai.com/v1")
-    api_key = api_config.get("api_key", "")
+    api_key = resolve_api_key(api_config.get("api_key", ""))
     model = api_config.get("model", "gpt-4o")
     timeout = api_config.get("timeout", 120)
-
-    # 处理环境变量
-    if api_key.startswith("${") and api_key.endswith("}"):
-        env_var = api_key[2:-1]
-        api_key = os.environ.get(env_var, "")
 
     if not api_key:
         raise ValueError("API key not configured. Set OPENAI_API_KEY environment variable or configure in config.yaml")
 
-    client = OpenAI(base_url=base_url, api_key=api_key, timeout=timeout)
+    if client is None:
+        client = OpenAI(base_url=base_url, api_key=api_key, timeout=timeout,
+                default_headers={"Authorization": f"Bearer {api_key}"})
 
     # 读取主要文件内容
     file_contents = {}
@@ -609,13 +635,7 @@ Skill 名称: {skill_data.get('name', 'Unknown')}
                             console.print(text, end="", style="dim")
 
             console.print()  # 换行
-            content_text = "".join(content_chunks).strip()
-
-            # 清理可能的 markdown 代码块
-            if content_text.startswith("```"):
-                content_text = re.sub(r'^```(?:json)?\s*\n', '', content_text)
-                content_text = re.sub(r'\n```\s*$', '', content_text)
-
+            content_text = clean_json_response("".join(content_chunks))
             return json.loads(content_text)
 
         except json.JSONDecodeError as e:
@@ -653,18 +673,23 @@ def compute_hashes(skill_dir: Path) -> tuple:
     return content_hash.hexdigest(), tree_hash.hexdigest()
 
 
-def generate_slug(skill_data: dict, skill_dir: Path) -> str:
-    """生成 slug"""
+def generate_slug(skill_data: dict, skill_dir: Path, max_length: int = 50) -> str:
+    """生成 slug，限制最大长度"""
     name = skill_data.get("name", skill_dir.name)
     author = skill_data.get("author", "")
 
     namespace = re.sub(r'[^a-z0-9]', '-', author.lower()).strip('-') if author else "unknown"
     slug = re.sub(r'[^a-z0-9]', '-', name.lower()).strip('-')
 
-    return f"{namespace}-{slug}"
+    result = f"{namespace}-{slug}"
+    # 限制总长度
+    if len(result) > max_length:
+        result = result[:max_length].rstrip('-')
+
+    return result
 
 
-def generate_report(skill_dir: Path, config: dict, verbose: bool = False) -> dict:
+def generate_report(skill_dir: Path, config: dict, client: Optional[OpenAI] = None, verbose: bool = False) -> dict:
     """生成完整的 skill-report.json"""
 
     if verbose:
@@ -681,7 +706,7 @@ def generate_report(skill_dir: Path, config: dict, verbose: bool = False) -> dic
     use_ai_security = config.get("security", {}).get("use_ai_audit", True)  # 默认启用 AI 审计
     if use_ai_security:
         try:
-            security_audit = analyze_security_with_ai(skill_dir, skill_data, config, verbose)
+            security_audit = analyze_security_with_ai(skill_dir, skill_data, config, client, verbose)
         except Exception as e:
             if verbose:
                 console.print(f"[yellow]AI安全审计失败，使用规则匹配: {e}[/yellow]")
@@ -690,7 +715,7 @@ def generate_report(skill_dir: Path, config: dict, verbose: bool = False) -> dic
         security_audit = analyze_security(skill_dir, config)
 
     # 4. AI 生成内容
-    ai_content = generate_content_with_ai(skill_data, file_structure, config, verbose)
+    ai_content = generate_content_with_ai(skill_data, file_structure, config, client, verbose)
 
     # 5. 计算 hash
     content_hash, tree_hash = compute_hashes(skill_dir)
@@ -807,6 +832,20 @@ def main():
 
     console.print(f"Found [green]{len(skills)}[/green] skill(s)\n")
 
+    # 创建共享的 OpenAI client
+    api_config = config.get("api", {})
+    api_key = resolve_api_key(api_config.get("api_key", ""))
+    if not api_key:
+        console.print("[red]Error: API key not configured[/red]")
+        sys.exit(1)
+
+    shared_client = OpenAI(
+        base_url=api_config.get("base_url", "https://api.openai.com/v1"),
+        api_key=api_key,
+        timeout=api_config.get("timeout", 120),
+        default_headers={"Authorization": f"Bearer {api_key}"}
+    )
+
     # 处理 skills
     output_dir = Path(args.output) if args.output else None
     concurrent = config.get("generation", {}).get("concurrent", 3)
@@ -823,14 +862,14 @@ def main():
 
         def process_skill(skill_dir: Path) -> tuple:
             try:
-                report = generate_report(skill_dir, config, args.verbose)
+                report = generate_report(skill_dir, config, shared_client, args.verbose)
                 return (skill_dir, report, None)
             except Exception as e:
                 return (skill_dir, None, str(e))
 
         with ThreadPoolExecutor(max_workers=concurrent) as executor:
-            futures = [executor.submit(process_skill, s) for s in skills]
-            for future in futures:
+            futures = {executor.submit(process_skill, s): s for s in skills}
+            for future in as_completed(futures):
                 skill_dir, report, error = future.result()
                 progress.update(task, advance=1, description=f"Processed {skill_dir.name}")
 
