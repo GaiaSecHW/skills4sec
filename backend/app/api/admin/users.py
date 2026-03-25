@@ -128,7 +128,7 @@ async def create_user(
     user = await repo.create(
         employee_id=user_data.employee_id,
         name=user_data.name,
-        api_key_hash=get_password_hash(user_data.api_key),
+        api_key=user_data.api_key,
         role=user_data.role,
         status="active",
         is_active=True,
@@ -273,7 +273,7 @@ async def import_users_csv(
             user = await repo.create(
                 employee_id=employee_id,
                 name=name,
-                api_key_hash=get_password_hash(api_key),
+                api_key=api_key,
                 role=role,
                 status="active",
                 is_active=True,
@@ -326,7 +326,7 @@ async def batch_create_users(
             user = await repo.create(
                 employee_id=user_data.employee_id,
                 name=user_data.name,
-                api_key_hash=get_password_hash(user_data.api_key),
+                api_key=user_data.api_key,
                 role=user_data.role,
                 status="active",
                 is_active=True,
@@ -397,7 +397,7 @@ async def update_user(
 
     if update_data.api_key is not None:
         changes["api_key"] = "updated"
-        update_fields["api_key_hash"] = get_password_hash(update_data.api_key)
+        update_fields["api_key"] = update_data.api_key
 
     if update_data.role is not None:
         if update_data.role in ("admin", "super_admin") and admin.role != "super_admin":
@@ -490,7 +490,7 @@ async def reset_user_api_key(
         raise ForbiddenError(message="只有超级管理员可以重置管理员的API密钥")
 
     new_api_key = generate_api_key()
-    await repo.update(user, api_key_hash=get_password_hash(new_api_key))
+    await repo.update(user, api_key=new_api_key)
 
     await log_admin_action(request=request, admin=admin, action="reset_api_key", target_user=user)
 

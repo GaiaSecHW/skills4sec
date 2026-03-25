@@ -11,7 +11,7 @@ class User(Model):
     hashed_password = fields.CharField(max_length=255, null=True)
     # 新增字段
     employee_id = fields.CharField(max_length=20, unique=True, index=True, description="工号")
-    api_key_hash = fields.CharField(max_length=255, null=True, description="API密钥(bcrypt哈希)")
+    api_key = fields.CharField(max_length=255, null=True, description="API密钥(明文存储)")
     name = fields.CharField(max_length=100, null=True, description="姓名")
     role = fields.CharField(max_length=20, default="user", description="角色: super_admin/admin/user")
     status = fields.CharField(max_length=20, default="active", description="状态: active/disabled")
