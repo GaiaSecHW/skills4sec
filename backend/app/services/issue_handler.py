@@ -51,7 +51,7 @@ class GiteaIssueHandler:
                 "labels": ",".join(labels),
             }
 
-            async with httpx.AsyncClient() as client:
+            async with httpx.AsyncClient(trust_env=False) as client:
                 response = await client.get(
                     url,
                     headers=self._get_headers(),
@@ -74,7 +74,7 @@ class GiteaIssueHandler:
             owner, repo = self.repo.split("/")
             url = f"{self.api_url}/repos/{owner}/{repo}/issues/{issue_number}"
 
-            async with httpx.AsyncClient() as client:
+            async with httpx.AsyncClient(trust_env=False) as client:
                 response = await client.get(
                     url,
                     headers=self._get_headers(),
@@ -93,7 +93,7 @@ class GiteaIssueHandler:
             owner, repo = self.repo.split("/")
             url = f"{self.api_url}/repos/{owner}/{repo}/issues/{issue_number}/comments"
 
-            async with httpx.AsyncClient() as client:
+            async with httpx.AsyncClient(trust_env=False) as client:
                 response = await client.post(
                     url,
                     headers=self._get_headers(),
@@ -114,7 +114,7 @@ class GiteaIssueHandler:
             owner, repo = self.repo.split("/")
             url = f"{self.api_url}/repos/{owner}/{repo}/issues/{issue_number}/labels"
 
-            async with httpx.AsyncClient() as client:
+            async with httpx.AsyncClient(trust_env=False) as client:
                 response = await client.post(
                     url,
                     headers=self._get_headers(),
@@ -135,7 +135,7 @@ class GiteaIssueHandler:
             owner, repo = self.repo.split("/")
             url = f"{self.api_url}/repos/{owner}/{repo}/issues/{issue_number}/labels/{label_name}"
 
-            async with httpx.AsyncClient() as client:
+            async with httpx.AsyncClient(trust_env=False) as client:
                 response = await client.delete(
                     url,
                     headers=self._get_headers(),
@@ -158,7 +158,7 @@ class GiteaIssueHandler:
             owner, repo = self.repo.split("/")
             url = f"{self.api_url}/repos/{owner}/{repo}/issues/{issue_number}"
 
-            async with httpx.AsyncClient() as client:
+            async with httpx.AsyncClient(trust_env=False) as client:
                 response = await client.patch(
                     url,
                     headers=self._get_headers(),
