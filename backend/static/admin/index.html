@@ -29,11 +29,10 @@
         .sidebar h2 { padding: 0 20px 20px; border-bottom: 1px solid #34495e; }
         .nav-item { padding: 12px 20px; cursor: pointer; transition: background 0.3s; }
         .nav-item:hover, .nav-item.active { background: #34495e; }
-        .nav-item i { margin-right: 10px; }
 
         /* 主内容区 */
         .main-content { flex: 1; padding: 0; overflow-y: auto; display: flex; flex-direction: column; }
-        .top-bar { display: flex; justify-content: flex-end; align-items: center; padding: 12px 20px; background: white; border-bottom: 1px solid #eee; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+        .top-bar { display: flex; justify-content: flex-end; align-items: center; padding: 12px 20px; background: white; border-bottom: 1px solid #eee; }
         .top-bar .user-info { display: flex; align-items: center; gap: 12px; }
         .top-bar .user-info span { font-size: 14px; color: #666; }
         .top-bar .logout-btn { background: #e74c3c; padding: 6px 16px; font-size: 13px; width: auto; }
@@ -68,6 +67,7 @@
         .badge-success { background: #d4edda; color: #155724; }
         .badge-danger { background: #f8d7da; color: #721c24; }
         .badge-warning { background: #fff3cd; color: #856404; }
+        .badge-info { background: #d1ecf1; color: #0c5460; }
 
         /* 详情行 */
         .detail-row { padding: 8px 0; border-bottom: 1px solid #f0f0f0; font-size: 14px; color: #555; }
@@ -91,16 +91,6 @@
         .modal-body { padding: 20px; }
         .modal-footer { padding: 15px 20px; border-top: 1px solid #eee; display: flex; justify-content: flex-end; gap: 10px; }
 
-        /* 用户信息 */
-        .user-info { display: flex; align-items: center; gap: 10px; padding: 15px 20px; border-top: 1px solid #34495e; margin-top: auto; }
-        .user-info span { font-size: 14px; }
-        .logout-btn { background: #e74c3c; padding: 6px 12px; font-size: 12px; }
-
-        /* 表单必填/选填标记 */
-        .required-mark { color: #e74c3c; font-weight: bold; }
-        .optional-mark { color: #999; font-size: 12px; font-weight: normal; }
-        .form-hint { display: block; color: #888; font-size: 12px; margin-top: 4px; }
-
         /* Toast 通知 */
         .toast-container { position: fixed; top: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; }
         .toast { padding: 14px 20px; border-radius: 8px; color: white; font-size: 14px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); display: flex; align-items: center; gap: 10px; min-width: 280px; max-width: 400px; animation: slideIn 0.3s ease; }
@@ -115,248 +105,6 @@
         @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
         @keyframes slideOut { from { transform: translateX(0); opacity: 1; } to { transform: translateX(100%); opacity: 0; } }
         .toast.removing { animation: slideOut 0.3s ease forwards; }
-
-        /* 模态框增强样式 */
-        .modal-content { box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
-        .modal-header { background: #f8f9fa; border-radius: 8px 8px 0 0; }
-        .modal-header h3 { color: #2c3e50; }
-        .modal-body .form-group { margin-bottom: 18px; }
-        .modal-body .form-group label { font-weight: 500; color: #333; margin-bottom: 6px; }
-        .modal-body .form-group input, .modal-body .form-group select, .modal-body .form-group textarea {
-            border: 1px solid #dce0e4; border-radius: 6px; padding: 10px 12px; font-size: 14px; transition: border-color 0.2s, box-shadow 0.2s;
-        }
-        .modal-body .form-group input:focus, .modal-body .form-group select:focus, .modal-body .form-group textarea:focus {
-            outline: none; border-color: #4a90d9; box-shadow: 0 0 0 3px rgba(74,144,217,0.1);
-        }
-        .modal-body .form-group input::placeholder { color: #aaa; }
-
-        /* 工作流进度图样式 */
-        .workflow-container {
-            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
-            border-radius: 12px;
-            padding: 20px 15px;
-            margin-bottom: 20px;
-            border: 1px solid #e2e8f0;
-        }
-        .workflow-title {
-            font-size: 13px;
-            font-weight: 600;
-            color: #64748b;
-            margin-bottom: 16px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        .workflow-title::before {
-            content: '';
-            display: inline-block;
-            width: 4px;
-            height: 16px;
-            background: linear-gradient(180deg, #4a90d9, #3b82f6);
-            border-radius: 2px;
-        }
-        .workflow-steps {
-            display: flex;
-            align-items: flex-start;
-            justify-content: space-between;
-            position: relative;
-        }
-        .workflow-step {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            flex: 1;
-            position: relative;
-            z-index: 1;
-        }
-        .workflow-step-icon {
-            width: 44px;
-            height: 44px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 18px;
-            font-weight: bold;
-            transition: all 0.3s ease;
-            position: relative;
-            background: white;
-            border: 3px solid #cbd5e1;
-            color: #94a3b8;
-        }
-        .workflow-step.completed .workflow-step-icon {
-            background: linear-gradient(135deg, #10b981, #059669);
-            border-color: #10b981;
-            color: white;
-            box-shadow: 0 4px 14px rgba(16, 185, 129, 0.4);
-        }
-        .workflow-step.active .workflow-step-icon {
-            background: linear-gradient(135deg, #4a90d9, #3b82f6);
-            border-color: #4a90d9;
-            color: white;
-            box-shadow: 0 0 0 0 rgba(74, 144, 217, 0.4);
-            animation: pulse 2s infinite;
-        }
-        .workflow-step.failed .workflow-step-icon {
-            background: linear-gradient(135deg, #ef4444, #dc2626);
-            border-color: #ef4444;
-            color: white;
-            box-shadow: 0 4px 14px rgba(239, 68, 68, 0.4);
-        }
-        .workflow-step.pending .workflow-step-icon {
-            background: #f1f5f9;
-            border-color: #e2e8f0;
-            color: #94a3b8;
-        }
-        @keyframes pulse {
-            0% {
-                box-shadow: 0 0 0 0 rgba(74, 144, 217, 0.4);
-            }
-            70% {
-                box-shadow: 0 0 0 12px rgba(74, 144, 217, 0);
-            }
-            100% {
-                box-shadow: 0 0 0 0 rgba(74, 144, 217, 0);
-            }
-        }
-        .workflow-step-label {
-            margin-top: 10px;
-            font-size: 12px;
-            font-weight: 500;
-            color: #64748b;
-            text-align: center;
-            max-width: 80px;
-            line-height: 1.3;
-        }
-        .workflow-step.completed .workflow-step-label,
-        .workflow-step.active .workflow-step-label {
-            color: #334155;
-        }
-        .workflow-step.active .workflow-step-label {
-            color: #4a90d9;
-            font-weight: 600;
-        }
-        .workflow-step-time {
-            font-size: 10px;
-            color: #94a3b8;
-            margin-top: 4px;
-        }
-        .workflow-connector {
-            position: absolute;
-            top: 22px;
-            left: 10%;
-            right: 10%;
-            height: 3px;
-            background: #e2e8f0;
-            z-index: 0;
-        }
-        .workflow-connector-progress {
-            height: 100%;
-            background: linear-gradient(90deg, #10b981, #059669);
-            transition: width 0.5s ease;
-            border-radius: 2px;
-        }
-        .workflow-step-info {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            margin-top: 4px;
-        }
-        .workflow-legend {
-            display: flex;
-            justify-content: center;
-            gap: 20px;
-            margin-top: 16px;
-            padding-top: 12px;
-            border-top: 1px solid #e2e8f0;
-        }
-        .workflow-legend-item {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            font-size: 11px;
-            color: #64748b;
-        }
-        .workflow-legend-dot {
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-        }
-        .workflow-legend-dot.pending { background: #cbd5e1; }
-        .workflow-legend-dot.active { background: #4a90d9; animation: legendPulse 2s infinite; }
-        .workflow-legend-dot.completed { background: #10b981; }
-        .workflow-legend-dot.failed { background: #ef4444; }
-        @keyframes legendPulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
-        }
-
-        /* 工作流运行详情样式 */
-        .workflow-run-detail {
-            margin-top: 15px;
-            padding: 12px;
-            background: #f8fafc;
-            border-radius: 8px;
-            border: 1px solid #e2e8f0;
-        }
-        .workflow-run-header {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            margin-bottom: 10px;
-        }
-        .workflow-run-status {
-            padding: 4px 10px;
-            border-radius: 4px;
-            font-size: 12px;
-            font-weight: 500;
-        }
-        .workflow-run-status.pending { background: #e2e8f0; color: #64748b; }
-        .workflow-run-status.active { background: #dbeafe; color: #1d4ed8; }
-        .workflow-run-status.completed { background: #d1fae5; color: #059669; }
-        .workflow-run-status.failed { background: #fee2e2; color: #dc2626; }
-        .workflow-run-duration {
-            font-size: 12px;
-            color: #64748b;
-        }
-        .workflow-run-link {
-            margin-left: auto;
-            font-size: 12px;
-            color: #4a90d9;
-            text-decoration: none;
-        }
-        .workflow-run-link:hover { text-decoration: underline; }
-        .workflow-jobs {
-            border-top: 1px solid #e2e8f0;
-            padding-top: 10px;
-        }
-        .workflow-jobs-title {
-            font-size: 12px;
-            color: #64748b;
-            margin-bottom: 8px;
-        }
-        .workflow-job {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 6px 8px;
-            margin-bottom: 4px;
-            background: white;
-            border-radius: 4px;
-            font-size: 12px;
-        }
-        .workflow-job .job-name { color: #374151; }
-        .workflow-job .job-status {
-            padding: 2px 6px;
-            border-radius: 3px;
-            font-size: 11px;
-        }
-        .workflow-job.pending .job-status { background: #e2e8f0; color: #64748b; }
-        .workflow-job.active .job-status { background: #dbeafe; color: #1d4ed8; }
-        .workflow-job.completed .job-status { background: #d1fae5; color: #059669; }
-        .workflow-job.failed .job-status { background: #fee2e2; color: #dc2626; }
     </style>
 </head>
 <body>
@@ -525,15 +273,11 @@
                             <select id="subStatus">
                                 <option value="">全部状态</option>
                                 <option value="pending">待处理</option>
-                                <option value="creating_issue">创建Issue中</option>
-                                <option value="issue_created">Issue已创建</option>
-                                <option value="approved">已审批</option>
-                                <option value="processing">处理中</option>
-                                <option value="merged">已合并</option>
-                                <option value="closed">已关闭</option>
-                                <option value="issue_failed">Issue失败</option>
-                                <option value="process_failed">处理失败</option>
-                                <option value="rejected">已拒绝</option>
+                                <option value="cloning">克隆中</option>
+                                <option value="generating">生成中</option>
+                                <option value="migrating">迁移中</option>
+                                <option value="completed">已完成</option>
+                                <option value="failed">失败</option>
                             </select>
                             <select id="subRisk">
                                 <option value="">全部风险</option>
@@ -551,10 +295,8 @@
                                     <th>ID</th>
                                     <th>名称</th>
                                     <th>状态</th>
+                                    <th>当前步骤</th>
                                     <th>风险</th>
-                                    <th>Issue</th>
-                                    <th>PR</th>
-                                    <th>重试</th>
                                     <th>提交者</th>
                                     <th>时间</th>
                                     <th>操作</th>
@@ -581,36 +323,28 @@
                 <form id="userForm">
                     <input type="hidden" id="userId">
                     <div class="form-group">
-                        <label>工号 <span class="required-mark">*</span></label>
+                        <label>工号 *</label>
                         <input type="text" id="userEmployeeId" required placeholder="请输入工号">
                     </div>
                     <div class="form-group">
-                        <label>姓名 <span class="required-mark">*</span></label>
+                        <label>姓名 *</label>
                         <input type="text" id="userName" required placeholder="请输入姓名">
                     </div>
                     <div class="form-group">
-                        <label>API 密钥 <span class="required-mark" id="apiKeyRequired">*</span></label>
+                        <label>API 密钥 <span id="apiKeyRequired">*</span></label>
                         <input type="text" id="userApiKey" placeholder="至少6位字符">
-                        <small class="form-hint" id="apiKeyHint">新建用户必须设置 API 密钥，至少6位字符</small>
+                        <small style="display: block; color: #888; font-size: 12px; margin-top: 4px;" id="apiKeyHint">新建用户必须设置 API 密钥，至少6位字符</small>
                     </div>
                     <div class="form-group">
-                        <label>角色 <span class="optional-mark">(选填)</span></label>
+                        <label>角色</label>
                         <select id="userRole">
                             <option value="user">普通用户</option>
                             <option value="admin">管理员</option>
                         </select>
                     </div>
                     <div class="form-group">
-                        <label>部门 <span class="optional-mark">(选填)</span></label>
+                        <label>部门</label>
                         <input type="text" id="userDepartment" placeholder="请输入部门名称">
-                    </div>
-                    <div class="form-group">
-                        <label>团队 <span class="optional-mark">(选填)</span></label>
-                        <input type="text" id="userTeam" placeholder="请输入团队名称">
-                    </div>
-                    <div class="form-group">
-                        <label>分组 <span class="optional-mark">(选填)</span></label>
-                        <input type="text" id="userGroupName" placeholder="请输入分组名称">
                     </div>
                 </form>
             </div>
@@ -623,13 +357,12 @@
 
     <!-- 提交详情模态框 -->
     <div class="modal" id="submissionModal">
-        <div class="modal-content" style="width: 800px;">
+        <div class="modal-content" style="width: 700px;">
             <div class="modal-header">
                 <h3>提交详情</h3>
                 <button class="modal-close" onclick="closeSubmissionModal()">&times;</button>
             </div>
             <div class="modal-body">
-                <div id="submissionWorkflow"></div>
                 <div id="submissionDetail"></div>
                 <h4 style="margin-top: 20px; margin-bottom: 10px;">事件日志</h4>
                 <div id="submissionEvents" style="max-height: 300px; overflow-y: auto;"></div>
@@ -640,23 +373,27 @@
         </div>
     </div>
 
-    <!-- 拒绝原因模态框 -->
-    <div class="modal" id="rejectModal">
+    <!-- 重试步骤模态框 -->
+    <div class="modal" id="retryStepModal">
         <div class="modal-content" style="width: 400px;">
             <div class="modal-header">
-                <h3>拒绝原因</h3>
-                <button class="modal-close" onclick="closeRejectModal()">&times;</button>
+                <h3>重试步骤</h3>
+                <button class="modal-close" onclick="closeRetryStepModal()">&times;</button>
             </div>
             <div class="modal-body">
-                <input type="hidden" id="rejectSubmissionId">
+                <input type="hidden" id="retrySubmissionId">
                 <div class="form-group">
-                    <label>拒绝原因 <span class="required-mark">*</span></label>
-                    <textarea id="rejectReason" style="width: 100%; height: 100px; padding: 10px; border: 1px solid #ddd; border-radius: 4px;" placeholder="请输入拒绝原因"></textarea>
+                    <label>选择步骤 *</label>
+                    <select id="retryStep">
+                        <option value="cloning">克隆仓库</option>
+                        <option value="generating">生成报告</option>
+                        <option value="migrating">迁移文件</option>
+                    </select>
                 </div>
             </div>
             <div class="modal-footer">
-                <button class="btn btn-sm" onclick="closeRejectModal()">取消</button>
-                <button class="btn btn-sm btn-danger" onclick="confirmReject()">确认拒绝</button>
+                <button class="btn btn-sm" onclick="closeRetryStepModal()">取消</button>
+                <button class="btn btn-sm btn-warning" onclick="confirmRetryStep()">重试</button>
             </div>
         </div>
     </div>
@@ -686,23 +423,16 @@
 
             container.appendChild(toast);
 
-            // 自动移除
             setTimeout(() => {
                 toast.classList.add('removing');
                 setTimeout(() => toast.remove(), 300);
             }, duration);
         }
 
-        // 显示后端错误信息
-        // 显示后端错误信息
         function showError(res, defaultMsg = '操作失败') {
             let errorMsg = defaultMsg;
-
-            // 后端错误格式: {code, message, detail}
             if (res?.message) {
-                // 优先使用 message 字段
                 errorMsg = res.message;
-                // 如果有 detail，附加显示
                 if (res.detail) {
                     if (typeof res.detail === 'string') {
                         errorMsg += ` (${res.detail})`;
@@ -712,13 +442,11 @@
                     }
                 }
             } else if (res?.detail) {
-                // 兼容旧格式
                 if (typeof res.detail === 'string') {
                     errorMsg = res.detail;
                 } else if (res.detail.message) {
                     errorMsg = res.detail.message;
                 } else if (Array.isArray(res.detail)) {
-                    // FastAPI 验证错误格式
                     errorMsg = res.detail.map(e => {
                         const field = e.loc ? e.loc.join('.') : '';
                         return field ? `${field}: ${e.msg}` : e.msg;
@@ -727,11 +455,9 @@
                     errorMsg = JSON.stringify(res.detail);
                 }
             }
-
             showToast(errorMsg, 'error', 6000);
         }
 
-        // 确认对话框（美化版）
         function showConfirm(message, onConfirm, onCancel) {
             const existing = document.getElementById('confirmModal');
             if (existing) existing.remove();
@@ -772,65 +498,19 @@
             }
         }
 
-        // 处理 SSO 单点登录（从主站跳转过来）
-        (function handleSSO() {
-            const params = new URLSearchParams(window.location.search);
-            const ssoToken = params.get('sso_token');
-            const ssoRefresh = params.get('sso_refresh');
-
-            if (ssoToken && ssoRefresh) {
-                // 保存 SSO token
-                localStorage.setItem('token', ssoToken);
-                localStorage.setItem('refresh_token', ssoRefresh);
-
-                // 获取用户信息
-                fetch(`${API_BASE}/auth/me`, {
-                    headers: { 'Authorization': 'Bearer ' + ssoToken }
-                })
-                .then(res => {
-                    if (!res.ok) throw new Error('Token无效');
-                    return res.json();
-                })
-                .then(user => {
-                    if (user && user.employee_id) {
-                        // 检查管理员权限
-                        if (user.role !== 'admin' && user.role !== 'super_admin') {
-                            throw new Error('权限不足，需要管理员权限');
-                        }
-                        localStorage.setItem('currentUser', JSON.stringify(user));
-                        // 清理 URL 参数，避免 token 暴露
-                        window.history.replaceState({}, document.title, window.location.pathname);
-                        window.location.reload();
-                    } else {
-                        throw new Error('用户信息无效');
-                    }
-                })
-                .catch(() => {
-                    localStorage.removeItem('token');
-                    localStorage.removeItem('refresh_token');
-                    localStorage.removeItem('currentUser');
-                    // 清理 URL 参数
-                    window.history.replaceState({}, document.title, window.location.pathname);
-                });
-            }
-        })();
-
         let token = localStorage.getItem('token');
         let currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
 
-        // 页面初始化
         document.addEventListener('DOMContentLoaded', () => {
             if (token) {
                 showApp();
             }
 
-            // 登录表单
             document.getElementById('loginForm').addEventListener('submit', async (e) => {
                 e.preventDefault();
                 await login();
             });
 
-            // 导航切换
             document.querySelectorAll('.nav-item').forEach(item => {
                 item.addEventListener('click', () => {
                     document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
@@ -838,7 +518,6 @@
                     item.classList.add('active');
                     document.getElementById(item.dataset.page + 'Page').classList.add('active');
 
-                    // 加载对应数据
                     if (item.dataset.page === 'users') loadUsers();
                     else if (item.dataset.page === 'submissions') loadSubmissions();
                     else if (item.dataset.page === 'logs') loadLoginLogs();
@@ -847,7 +526,6 @@
             });
         });
 
-        // 登录
         async function login() {
             const employeeId = document.getElementById('loginEmployeeId').value;
             const apiKey = document.getElementById('loginApiKey').value;
@@ -876,9 +554,7 @@
             }
         }
 
-        // 显示主界面
         function showApp() {
-            // 检查管理员权限
             if (!checkAdminPermission()) {
                 document.getElementById('loginError').textContent = '权限不足，需要管理员权限';
                 logout();
@@ -889,7 +565,6 @@
             document.getElementById('appContainer').classList.add('active');
             document.getElementById('currentUserName').textContent = currentUser.name || currentUser.employee_id;
 
-            // 根据角色显示/隐藏管理日志菜单
             const adminLogsNav = document.querySelector('[data-page="adminLogs"]');
             if (adminLogsNav) {
                 adminLogsNav.style.display = currentUser.role === 'super_admin' ? 'flex' : 'none';
@@ -898,7 +573,6 @@
             loadUsers();
         }
 
-        // 检查是否有管理员权限
         function checkAdminPermission() {
             if (!currentUser || !currentUser.employee_id) {
                 return false;
@@ -906,7 +580,6 @@
             return currentUser.role === 'admin' || currentUser.role === 'super_admin';
         }
 
-        // 退出登录
         function logout() {
             localStorage.removeItem('token');
             localStorage.removeItem('currentUser');
@@ -916,7 +589,6 @@
             document.getElementById('appContainer').classList.remove('active');
         }
 
-        // API 请求封装
         async function api(endpoint, options = {}) {
             const res = await fetch(`${API_BASE}${endpoint}`, {
                 ...options,
@@ -935,7 +607,6 @@
             return res.json();
         }
 
-        // 加载用户列表
         let usersPage = 0;
         async function loadUsers(page = 0) {
             usersPage = page;
@@ -971,7 +642,6 @@
             renderPagination('usersPagination', data.total, page, loadUsers);
         }
 
-        // 渲染分页
         function renderPagination(id, total, currentPage, callback) {
             const totalPages = Math.ceil(total / 20);
             const container = document.getElementById(id);
@@ -987,7 +657,6 @@
             container.innerHTML = html;
         }
 
-        // 显示用户模态框
         function showUserModal(user = null) {
             const isNew = !user;
             document.getElementById('modalTitle').textContent = isNew ? '新建用户' : '编辑用户';
@@ -998,10 +667,7 @@
             document.getElementById('userApiKey').value = '';
             document.getElementById('userRole').value = user ? user.role : 'user';
             document.getElementById('userDepartment').value = user ? (user.department || '') : '';
-            document.getElementById('userTeam').value = user ? (user.team || '') : '';
-            document.getElementById('userGroupName').value = user ? (user.group_name || '') : '';
 
-            // 根据新建/编辑模式切换提示
             const apiKeyHint = document.getElementById('apiKeyHint');
             const apiKeyRequired = document.getElementById('apiKeyRequired');
             if (isNew) {
@@ -1019,7 +685,6 @@
             document.getElementById('userModal').classList.remove('active');
         }
 
-        // 编辑用户
         async function editUser(id) {
             const data = await api(`/admin/users/${id}`);
             if (data && data.success) {
@@ -1027,21 +692,16 @@
             }
         }
 
-        // 保存用户
         async function saveUser() {
             const id = document.getElementById('userId').value;
             const isNew = !id;
 
-            // 获取并 trim 输入值
             const employeeId = document.getElementById('userEmployeeId').value.trim();
             const name = document.getElementById('userName').value.trim();
             const apiKey = document.getElementById('userApiKey').value.trim();
             const role = document.getElementById('userRole').value;
             const department = document.getElementById('userDepartment').value.trim() || null;
-            const team = document.getElementById('userTeam').value.trim() || null;
-            const groupName = document.getElementById('userGroupName').value.trim() || null;
 
-            // 必填验证
             if (isNew && !employeeId) {
                 return showToast('请输入工号', 'warning');
             }
@@ -1058,9 +718,7 @@
             const userData = {
                 name: name,
                 role: role,
-                department: department,
-                team: team,
-                group_name: groupName
+                department: department
             };
 
             if (apiKey) userData.api_key = apiKey;
@@ -1088,7 +746,6 @@
             }
         }
 
-        // 重置密钥
         async function resetKey(id) {
             showConfirm('确定要重置该用户的 API 密钥吗？', async () => {
                 const res = await api(`/admin/users/${id}/reset-key`, { method: 'POST' });
@@ -1100,7 +757,6 @@
             });
         }
 
-        // 显示新API密钥弹框
         function showApiKeyModal(employeeId, apiKey) {
             const existing = document.getElementById('apiKeyModal');
             if (existing) existing.remove();
@@ -1130,7 +786,6 @@
             modal.onclick = (e) => { if (e.target === modal) closeApiKeyModal(); };
         }
 
-        // 复制API密钥到剪贴板
         async function copyApiKey(apiKey) {
             try {
                 await navigator.clipboard.writeText(apiKey);
@@ -1140,13 +795,11 @@
             }
         }
 
-        // 关闭API密钥弹框
         function closeApiKeyModal() {
             const modal = document.getElementById('apiKeyModal');
             if (modal) modal.remove();
         }
 
-        // 切换状态
         async function toggleStatus(id) {
             showConfirm('确定要切换该用户的状态吗？', async () => {
                 const res = await api(`/admin/users/${id}/toggle-status`, { method: 'POST' });
@@ -1159,7 +812,6 @@
             });
         }
 
-        // 导出用户
         function exportUsers() {
             const role = document.getElementById('filterRole').value;
             const status = document.getElementById('filterStatus').value;
@@ -1171,7 +823,6 @@
             window.open(url, '_blank');
         }
 
-        // 加载登录日志
         let logsPage = 0;
         async function loadLoginLogs(page = 0) {
             logsPage = page;
@@ -1199,7 +850,6 @@
             renderPagination('logsPagination', data.total, page, loadLoginLogs);
         }
 
-        // 加载管理员日志
         let adminLogsPage = 0;
         async function loadAdminLogs(page = 0) {
             adminLogsPage = page;
@@ -1244,23 +894,20 @@
                     <td>${s.submission_id.substring(0, 8)}</td>
                     <td>${s.name}</td>
                     <td><span class="badge ${getStatusBadgeClass(s.status)}">${getStatusText(s.status)}</span></td>
-                    <td>${s.issue_number ? `<a href="${s.issue_url}" target="_blank">#${s.issue_number}</a>` : '-'}</td>
-                    <td>${s.pr_number ? `<a href="${s.pr_url}" target="_blank">#${s.pr_number}</a>` : '-'}</td>
-                    <td>${s.submitter_employee_id || '-'}</td>
+                    <td>${s.current_step || '-'}</td>
                     <td>${s.highest_risk || '-'}</td>
+                    <td>${s.submitter_employee_id || '-'}</td>
                     <td>${new Date(s.created_at).toLocaleString()}</td>
                     <td>
                         <button class="btn btn-sm btn-primary" onclick="viewSubmissionDetail(${s.id})">详情</button>
-                        ${s.status === 'issue_created' ? `<button class="btn btn-sm btn-success" onclick="approveSubmission(${s.id})">审批</button>` : ''}
-                        ${s.status === 'issue_created' ? `<button class="btn btn-sm btn-danger" onclick="showRejectModal(${s.id})">拒绝</button>` : ''}
-                        ${canRetry(s) ? `<button class="btn btn-sm btn-warning" onclick="retrySubmission(${s.id})">重试</button>` : ''}
+                        ${s.status === 'pending' ? `<button class="btn btn-sm btn-success" onclick="startWorkflow(${s.id})">启动</button>` : ''}
+                        ${s.status === 'failed' ? `<button class="btn btn-sm btn-warning" onclick="showRetryStepModal(${s.id})">重试</button>` : ''}
+                        ${['completed', 'failed'].includes(s.status) ? `<button class="btn btn-sm btn-danger" onclick="deleteSubmission(${s.id})">删除</button>` : ''}
                     </td>
                 </tr>
             `).join('');
 
             renderPagination('submissionsPagination', data.total, page, loadSubmissions);
-
-            // 加载统计数据
             loadSubmissionStats();
         }
 
@@ -1279,37 +926,25 @@
         function getStatusBadgeClass(status) {
             const map = {
                 'pending': 'badge-warning',
-                'creating_issue': 'badge-warning',
-                'issue_created': 'badge-warning',
-                'approved': 'badge-success',
-                'processing': 'badge-warning',
-                'merged': 'badge-success',
-                'closed': 'badge-success',
-                'rejected': 'badge-danger',
-                'issue_failed': 'badge-danger',
-                'process_failed': 'badge-danger'
+                'cloning': 'badge-info',
+                'generating': 'badge-info',
+                'migrating': 'badge-info',
+                'completed': 'badge-success',
+                'failed': 'badge-danger'
             };
             return map[status] || 'badge-warning';
         }
 
         function getStatusText(status) {
-                const map = {
+            const map = {
                 'pending': '待处理',
-                'creating_issue': '创建中',
-                'issue_created': '待审批',
-                'approved': '已审批',
-                'processing': '处理中',
-                'merged': '已合并',
-                'closed': '已关闭',
-                'rejected': '已拒绝',
-                'issue_failed': 'Issue失败',
-                'process_failed': '处理失败'
+                'cloning': '克隆中',
+                'generating': '生成中',
+                'migrating': '迁移中',
+                'completed': '已完成',
+                'failed': '失败'
             };
             return map[status] || status;
-        }
-
-        function canRetry(s) {
-            return ['issue_failed', 'process_failed', 'pending'].includes(s.status) && s.retry_count < s.max_retries;
         }
 
         async function viewSubmissionDetail(id) {
@@ -1319,272 +954,117 @@
             const s = data.data.submission;
             const events = data.data.events;
 
-            // 获取工作流运行进度（如果处于 processing 状态）
-            let workflowProgress = null;
-            if (s.status === 'processing' || s.status === 'pr_created' || s.status === 'process_failed') {
-                const progressData = await api(`/admin/submissions/${id}/workflow-progress`);
-                if (progressData && progressData.success) {
-                    workflowProgress = progressData.data;
-                }
-            }
-
-            // 渲染工作流图
-            const workflowHtml = renderWorkflowChart(s.status, events, workflowProgress);
-            document.getElementById('submissionWorkflow').innerHTML = workflowHtml;
-
             let html = `
                 <div class="detail-row"><strong>提交ID:</strong> ${s.submission_id}</div>
                 <div class="detail-row"><strong>名称:</strong> ${s.name}</div>
                 <div class="detail-row"><strong>仓库:</strong> <a href="${s.repo_url}" target="_blank">${s.repo_url}</a></div>
                 <div class="detail-row"><strong>状态:</strong> ${getStatusText(s.status)}</div>
+                <div class="detail-row"><strong>当前步骤:</strong> ${s.current_step || '-'}</div>
                 <div class="detail-row"><strong>提交者:</strong> ${s.submitter_employee_id || '-'}</div>
-                <div class="detail-row"><strong>Issue:</strong> ${s.issue_number ? `<a href="${s.issue_url}" target="_blank">#${s.issue_number}</a>` : '-'}</div>
-                <div class="detail-row"><strong>PR:</strong> ${s.pr_number ? `<a href="${s.pr_url}" target="_blank">#${s.pr_number}</a>` : '-'}</div>
                 <div class="detail-row"><strong>风险等级:</strong> ${s.highest_risk || '-'}</div>
-                <div class="detail-row"><strong>重试次数:</strong> ${s.retry_count}/${s.max_retries}</div>
+                <div class="detail-row"><strong>技能数:</strong> ${s.skill_count || 0}</div>
+                <div class="detail-row"><strong>已处理:</strong> ${s.processed_skills || 0}</div>
+                <div class="detail-row"><strong>失败:</strong> ${s.failed_skills || 0}</div>
                 <div class="detail-row"><strong>错误信息:</strong> ${s.error_message || '-'}</div>
                 <div class="detail-row"><strong>创建时间:</strong> ${new Date(s.created_at).toLocaleString()}</div>
             `;
 
             document.getElementById('submissionDetail').innerHTML = html;
 
-            // 渲染事件日志
-            let eventsHtml = '<h4 style="margin-top: 15px; border-bottom: 1px solid #eee; padding-bottom: 10px;">事件日志</h4>';
+            let eventsHtml = '<table style="font-size: 12px;"><thead><tr><th>时间</th><th>事件</th><th>消息</th></tr>';
             if (events && events.length > 0) {
-                eventsHtml += '<table style="font-size: 12px;"><thead><tr><th>时间</th><th>事件</th><th>消息</th><th>操作人</th></tr>';
                 events.forEach(e => {
-                    eventsHtml += `<tr><td>${new Date(e.created_at).toLocaleString()}</td><td>${e.event_type}</td><td>${e.message || '-'}</td><td>${e.actor_employee_id || '-'}</td></tr>`;
+                    eventsHtml += `<tr><td>${new Date(e.created_at).toLocaleString()}</td><td>${e.event_type}</td><td>${e.message || '-'}</td></tr>`;
                 });
-                eventsHtml += '</table>';
             } else {
-                eventsHtml += '<p style="color: #999; margin-top: 10px;">暂无事件记录</p>';
+                eventsHtml += '<tr><td colspan="3" style="text-align: center; color: #999;">暂无事件记录</td></tr>';
             }
+            eventsHtml += '</table>';
             document.getElementById('submissionEvents').innerHTML = eventsHtml;
+
+            // 生成操作按钮
+            const actionsDiv = document.getElementById('submissionActions');
+            let actionsHtml = '';
+
+            if (s.status === 'pending') {
+                actionsHtml += '<button class="btn btn-sm btn-success" onclick="startWorkflow(' + s.id + ')">启动工作流</button>';
+            } else if (s.status === 'failed') {
+                actionsHtml += '<button class="btn btn-sm btn-warning" onclick="showRetryStepModal(' + s.id + ')">重试步骤</button>';
+            }
+
+            if (['completed', 'failed'].includes(s.status)) {
+                actionsHtml += '<button class="btn btn-sm btn-danger" onclick="deleteSubmission(' + s.id + ')">删除</button>';
+            }
+
+            actionsHtml += '<button class="btn btn-sm" onclick="closeSubmissionModal()">关闭</button>';
+            actionsDiv.innerHTML = actionsHtml;
 
             document.getElementById('submissionModal').classList.add('active');
         }
 
-        // 渲染工作流图
-        function renderWorkflowChart(status, events, workflowProgress = null) {
-            // 工作流步骤定义
-            const steps = [
-                { id: 'created', label: '提交创建', icon: '1' },
-                { id: 'issue_created', label: 'Issue创建', icon: '2' },
-                { id: 'approved', label: '审批通过', icon: '3' },
-                { id: 'processing', label: 'Gitea工作流', icon: '4' },
-                { id: 'merged', label: '合并完成', icon: '5' }
-            ];
-
-            // 根据状态确定当前步骤索引
-            let currentStep = 0;
-            const statusStepMap = {
-                'pending': 0,
-                'creating_issue': 1,
-                'issue_created': 1,
-                'approved': 2,
-                'processing': 3,
-                'merged': 4,
-                'closed': 4,
-                'rejected': -1,
-                'issue_failed': -1,
-                'process_failed': -1
-            };
-            currentStep = statusStepMap[status] ?? 0;
-
-            // 判断是否为失败状态
-            const isFailed = ['rejected', 'issue_failed', 'process_failed'].includes(status);
-
-            // 计算进度条宽度
-            const progressWidth = currentStep >= 0 ? (currentStep / (steps.length - 1)) * 85 : 0;
-
-            // 生成步骤HTML
-            let stepsHtml = '';
-            steps.forEach((step, index) => {
-                let stepClass = 'pending';
-                let timeText = '';
-
-                if (isFailed && index === currentStep) {
-                    stepClass = 'failed';
-                } else if (index < currentStep) {
-                    stepClass = 'completed';
-                } else if (index === currentStep) {
-                    stepClass = 'active';
-                }
-
-                // 从事件中查找对应步骤的时间
-                const eventMap = {
-                    0: 'created',
-                    1: 'issue_created',
-                    2: 'approved',
-                    3: 'processing',
-                    4: 'merged'
-                };
-                const eventType = eventMap[index];
-                if (events) {
-                    const matchedEvent = events.find(e => e.event_type === eventType || (eventType === 'issue_created' && e.event_type.includes('issue')));
-                    if (matchedEvent) {
-                        timeText = new Date(matchedEvent.created_at).toLocaleTimeString();
-                    }
-                }
-
-                stepsHtml += `
-                    <div class="workflow-step ${stepClass}">
-                        <div class="workflow-step-icon">${stepClass === 'completed' ? '✓' : (stepClass === 'failed' ? '✕' : step.icon)}</div>
-                        <div class="workflow-step-label">${step.label}</div>
-                        ${timeText ? `<div class="workflow-step-time">${timeText}</div>` : ''}
-                    </div>
-                `;
-            });
-
-            // 生成工作流运行详情HTML
-            let workflowDetailHtml = '';
-            if (workflowProgress && workflowProgress.has_workflow) {
-                const statusLabels = {
-                    'pending': '等待中',
-                    'waiting': '等待资源',
-                    'running': '运行中',
-                    'success': '成功',
-                    'failure': '失败',
-                    'cancelled': '已取消',
-                    'skipped': '已跳过'
-                };
-                const statusClass = {
-                    'pending': 'pending',
-                    'waiting': 'pending',
-                    'running': 'active',
-                    'success': 'completed',
-                    'failure': 'failed',
-                    'cancelled': 'failed',
-                    'skipped': 'pending'
-                };
-
-                const runStatus = workflowProgress.status || 'pending';
-                const runConclusion = workflowProgress.conclusion || '';
-                const displayStatus = runConclusion || runStatus;
-                const duration = workflowProgress.duration_seconds ? formatDuration(workflowProgress.duration_seconds) : '-';
-
-                workflowDetailHtml = `
-                    <div class="workflow-run-detail">
-                        <div class="workflow-run-header">
-                            <span class="workflow-run-status ${statusClass[runStatus] || 'pending'}">${statusLabels[displayStatus] || displayStatus}</span>
-                            <span class="workflow-run-duration">耗时: ${duration}</span>
-                            ${workflowProgress.url ? `<a href="${workflowProgress.url}" target="_blank" class="workflow-run-link">查看详情 →</a>` : ''}
-                        </div>
-                        ${workflowProgress.jobs && workflowProgress.jobs.length > 0 ? `
-                            <div class="workflow-jobs">
-                                <div class="workflow-jobs-title">任务列表</div>
-                                ${workflowProgress.jobs.map(job => `
-                                    <div class="workflow-job ${statusClass[job.status] || 'pending'}">
-                                        <span class="job-name">${job.name || 'unnamed'}</span>
-                                        <span class="job-status">${statusLabels[job.conclusion || job.status] || job.status}</span>
-                                    </div>
-                                `).join('')}
-                            </div>
-                        ` : ''}
-                    </div>
-                `;
-            }
-
-            return `
-                <div class="workflow-container">
-                    <div class="workflow-title">Gitea 工作流进度</div>
-                    <div class="workflow-steps">
-                        <div class="workflow-connector">
-                            <div class="workflow-connector-progress" style="width: ${progressWidth}%;"></div>
-                        </div>
-                        ${stepsHtml}
-                    </div>
-                    ${workflowDetailHtml}
-                    <div class="workflow-legend">
-                        <div class="workflow-legend-item">
-                            <div class="workflow-legend-dot pending"></div>
-                            <span>待处理</span>
-                        </div>
-                        <div class="workflow-legend-item">
-                            <div class="workflow-legend-dot active"></div>
-                            <span>进行中</span>
-                        </div>
-                        <div class="workflow-legend-item">
-                            <div class="workflow-legend-dot completed"></div>
-                            <span>已完成</span>
-                        </div>
-                        <div class="workflow-legend-item">
-                            <div class="workflow-legend-dot failed"></div>
-                            <span>失败</span>
-                        </div>
-                    </div>
-                </div>
-            `;
-        }
-
-        // 格式化持续时间
-        function formatDuration(seconds) {
-            if (seconds < 60) return `${seconds}秒`;
-            if (seconds < 3600) return `${Math.floor(seconds / 60)}分${seconds % 60}秒`;
-            return `${Math.floor(seconds / 3600)}时${Math.floor((seconds % 3600) / 60)}分`;
-        }
-
-        function closeSubmissionDetailModal() {
+        function closeSubmissionModal() {
             document.getElementById('submissionModal').classList.remove('active');
         }
 
-        // 兼容别名
-        function closeSubmissionModal() {
-            closeSubmissionDetailModal();
-        }
-
-        async function approveSubmission(id) {
-            showConfirm('确定审批通过该提交吗？', async () => {
-                const res = await api(`/admin/submissions/${id}/approve`, { method: 'POST' });
+        async function startWorkflow(id) {
+            showConfirm('确定启动该提交的工作流吗？', async () => {
+                const res = await api(`/admin/submissions/${id}/start`, { method: 'POST' });
                 if (res && res.success) {
-                    showToast('审批成功', 'success');
+                    showToast('工作流已启动', 'success');
+                    closeSubmissionModal();
                     loadSubmissions(submissionsPage);
                 } else {
-                    showError(res, '审批失败');
+                    showError(res, '启动失败');
                 }
             });
         }
 
-        function showRejectModal(id) {
-            document.getElementById('rejectSubmissionId').value = id;
-            document.getElementById('rejectReason').value = '';
-            document.getElementById('rejectModal').classList.add('active');
+        function showRetryStepModal(id) {
+            document.getElementById('retrySubmissionId').value = id;
+            document.getElementById('retryStepModal').classList.add('active');
         }
 
-        function closeRejectModal() {
-            document.getElementById('rejectModal').classList.remove('active');
+        function closeRetryStepModal() {
+            document.getElementById('retryStepModal').classList.remove('active');
         }
 
-        async function confirmReject() {
-            const id = document.getElementById('rejectSubmissionId').value;
-            const reason = document.getElementById('rejectReason').value.trim();
-            if (!reason) {
-                showToast('请输入拒绝原因', 'warning');
-                return;
-            }
-            const res = await api(`/admin/submissions/${id}/reject`, {
+        async function confirmRetryStep() {
+            const id = document.getElementById('retrySubmissionId').value;
+            const step = document.getElementById('retryStep').value;
+
+            const res = await api(`/admin/submissions/${id}/retry-step`, {
                 method: 'POST',
-                body: JSON.stringify({ reason })
+                body: JSON.stringify({ step })
             });
+
             if (res && res.success) {
-                showToast('已拒绝该提交', 'success');
-                closeRejectModal();
+                showToast('步骤重试已启动', 'success');
+                closeRetryStepModal();
+                closeSubmissionModal();
                 loadSubmissions(submissionsPage);
             } else {
-                showError(res, '操作失败');
+                showError(res, '重试失败');
             }
         }
 
-        async function retrySubmission(id) {
-            showConfirm('确定重试该提交吗？', async () => {
-                const res = await api(`/admin/submissions/${id}/retry`, { method: 'POST' });
+        async function deleteSubmission(id) {
+            showConfirm('确定删除该提交吗？此操作不可恢复。', async () => {
+                const res = await api(`/admin/submissions/${id}`, { method: 'DELETE' });
                 if (res && res.success) {
-                    showToast('重试已触发', 'success');
+                    showToast('提交已删除', 'success');
+                    closeSubmissionModal();
                     loadSubmissions(submissionsPage);
                 } else {
-                    showError(res, '重试失败');
+                    showError(res, '删除失败');
                 }
             });
+        }
+
+        function exportSubmissions() {
+            const status = document.getElementById('subStatus').value;
+            let url = `${API_BASE}/admin/submissions/export/csv?token=${token}`;
+            if (status) url += `&status=${status}`;
+            window.open(url, '_blank');
         }
     </script>
 </body>
