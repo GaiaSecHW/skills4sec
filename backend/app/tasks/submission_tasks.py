@@ -5,6 +5,8 @@
 """
 import asyncio
 import json
+import os
+import re
 import subprocess
 import tempfile
 import shutil
@@ -18,6 +20,12 @@ from app.core import get_logger
 from app.config import settings
 
 logger = get_logger("submission_tasks")
+
+# ============ 预编译正则表达式 ============
+# 用于解析仓库 URL，避免每次调用都重新编译
+_TREE_PATTERN = re.compile(r'(https://[^/]+/[^/]+/[^/]+)/tree/([^/]+)(/.*)?')
+_GITEA_PATTERN = re.compile(r'(https://[^/]+/[^/]+/[^/]+)/src/branch/([^/]+)(/.*)?')
+_REPO_PATTERN = re.compile(r'https://[^/]+/[^/]+/[^/]+/?$')
 
 
 # ============ 现有任务（保留） ============
@@ -206,10 +214,10 @@ async def process_new_submissions():
             await issue_handler.notify_processing(issue_number, skill_name)
 
             # 克隆源仓库
-            skill_dir = await clone_skill_repo(source_url)
+            skill_dir, clone_error = await clone_skill_repo(source_url)
             if not skill_dir:
                 await issue_handler.notify_rejected(
-                    issue_number, skill_name, "无法克隆源仓库"
+                    issue_number, skill_name, clone_error or "无法克隆源仓库"
                 )
                 errors += 1
                 continue
@@ -287,10 +295,10 @@ async def run_security_audit():
             await submission.save()
 
             # 克隆源仓库
-            skill_dir = await clone_skill_repo(submission.source_url)
+            skill_dir, clone_error = await clone_skill_repo(submission.repo_url)
             if not skill_dir:
                 submission.status = SubmissionStatus.AUDIT_FAILED
-                submission.error_message = "无法克隆源仓库"
+                submission.error_message = clone_error or "无法克隆源仓库"
                 await submission.save()
                 continue
 
@@ -367,37 +375,104 @@ async def run_security_audit():
     }
 
 
-async def clone_skill_repo(source_url: str) -> Optional[str]:
-    """克隆 skill 仓库到临时目录"""
+
+def parse_repo_url(source_url: str) -> tuple[str, str, str]:
+    """
+    解析仓库 URL，支持多种格式
+
+    支持的格式：
+    - https://github.com/owner/repo.git
+    - https://github.com/owner/repo
+    - https://github.com/owner/repo/tree/main/skills/xxx
+    - https://gitea.xxx.com/owner/repo/src/branch/main/skills/xxx
+
+    Returns:
+        (clone_url, branch, subdirectory)
+    """
+    clone_url = source_url
+    branch = "main"
+    subdir = ""
+
+    # GitHub /tree/ 格式
+    tree_match = _TREE_PATTERN.match(source_url)
+    if tree_match:
+        base_url = tree_match.group(1)
+        branch = tree_match.group(2)
+        subdir = tree_match.group(3).strip("/") if tree_match.group(3) else ""
+        clone_url = f"{base_url}.git"
+        return clone_url, branch, subdir
+
+    # Gitea /src/branch/ 格式
+    gitea_match = _GITEA_PATTERN.match(source_url)
+    if gitea_match:
+        base_url = gitea_match.group(1)
+        branch = gitea_match.group(2)
+        subdir = gitea_match.group(3).strip("/") if gitea_match.group(3) else ""
+        clone_url = f"{base_url}.git"
+        return clone_url, branch, subdir
+
+    # 普通 git URL
+    if source_url.endswith(".git"):
+        return source_url, "main", ""
+
+    # 没有 .git 后缀的仓库 URL
+    if _REPO_PATTERN.match(source_url):
+        return f"{source_url.rstrip('/')}.git", "main", ""
+
+    return source_url, "main", ""
+
+
+async def clone_skill_repo(source_url: str) -> tuple[Optional[str], str]:
+    """
+    克隆 skill 仓库到临时目录
+
+    Returns:
+        (临时目录路径, 错误信息) - 成功时错误信息为空字符串
+    """
     try:
         temp_dir = tempfile.mkdtemp(prefix="skill_audit_")
 
+        # 解析 URL
+        clone_url, branch, subdir = parse_repo_url(source_url)
+
         # 处理 URL（添加 token 如果需要）
-        clone_url = source_url
-        if settings.GITEA_TOKEN and "gitea" in source_url:
-            # 注入 token
-            clone_url = source_url.replace(
-                "https://", f"https://{settings.GITEA_TOKEN}@"
+        if settings.GITEA_TOKEN and ("gitea" in clone_url or settings.GITEA_API_URL in clone_url):
+            clone_url = clone_url.replace(
+                "https://", f"https://oauth2:{settings.GITEA_TOKEN}@"
             )
 
         # 克隆仓库
         result = subprocess.run(
-            ["git", "clone", "--depth", "1", clone_url, temp_dir],
+            ["git", "clone", "--depth", "1", "--branch", branch, clone_url, temp_dir],
             capture_output=True,
             text=True,
-            timeout=60,
+            timeout=120,
         )
 
         if result.returncode != 0:
-            logger.error(f"Git clone failed: {result.stderr}")
+            error_msg = result.stderr.strip()
+            logger.error(f"Git clone failed: {error_msg}")
             shutil.rmtree(temp_dir, ignore_errors=True)
-            return None
+            return None, f"无法克隆仓库: {error_msg}"
 
-        return temp_dir
+        # 如果有子目录，返回子目录路径
+        if subdir:
+            skill_dir = os.path.join(temp_dir, subdir)
+            if not os.path.exists(skill_dir):
+                shutil.rmtree(temp_dir, ignore_errors=True)
+                return None, f"仓库中找不到子目录: {subdir}"
+            return skill_dir, ""
 
+        return temp_dir, ""
+
+    except subprocess.TimeoutExpired:
+        shutil.rmtree(temp_dir, ignore_errors=True)
+        return None, "克隆仓库超时"
     except Exception as e:
         logger.error(f"Failed to clone repo: {e}")
-        return None
+        if os.path.exists(temp_dir):
+            shutil.rmtree(temp_dir, ignore_errors=True)
+        return None, f"克隆仓库失败: {str(e)}"
 
 
 def find_skill_md(skill_dir: str) -> Optional[Path]:

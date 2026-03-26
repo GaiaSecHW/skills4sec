@@ -5,6 +5,7 @@ from fastapi import APIRouter, HTTPException, status, Depends, Query, Request
 from typing import Optional, List
 from datetime import datetime
 from pydantic import BaseModel, Field
+from enum import Enum
 import uuid
 import csv
 import io
@@ -20,6 +21,26 @@ from app.utils.security import get_current_admin_user, get_current_superuser
 from app.services.retry_service import retry_service
 from app.services.gitea_sync_service import gitea_sync_service
 from app.config import settings
+from app.core.exceptions import NotFoundError, ValidationError, ForbiddenError
+
+router = APIRouter(prefix="/admin/submissions", tags=["admin-submissions"])
+
+
+# ============ 辅助函数 ============
+
+def _enum_value(enum_obj, default=None):
+    """安全地提取枚举值，兼容枚举类型和字符串"""
+    if enum_obj is None:
+        return default
+    if isinstance(enum_obj, Enum):
+        return enum_obj.value
+    return enum_obj
+
+
+def _get_status_value(submission: Submission) -> str:
+    """获取提交状态值（兼容枚举和字符串）"""
+    return _enum_value(submission.status)
+
 
 router = APIRouter(prefix="/admin/submissions", tags=["admin-submissions"])
 
@@ -475,15 +496,25 @@ async def approve_submission(
     if submission.issue_number:
         await gitea_sync_service.add_issue_comment(
             submission.issue_number,
-            f"✅ **已审批通过** by @{admin.employee_id}\n\n正在触发处理工作流..."
+            f"✅ **已审批通过** by @{admin.employee_id}\n\n已进入安全审计队列，等待自动处理..."
         )
 
-    # 触发处理工作流
-    success, message, _ = await gitea_sync_service.trigger_workflow(submission)
+    # 设置为待审计状态，由 APScheduler 的 run_security_audit 任务自动处理
+    submission.status = SubmissionStatus.PENDING_AUDIT
+    await submission.save()
+
+    await SubmissionEvent.create(
+        submission=submission,
+        event_type=SubmissionEventType.PROCESSING_STARTED,
+        old_status=SubmissionStatus.APPROVED,
+        new_status=SubmissionStatus.PENDING_AUDIT,
+        message="已进入安全审计队列",
+        triggered_by="system"
+    )
 
     return {
         "success": True,
-        "message": "审批成功" + ("，工作流已触发" if success else f"，但工作流触发失败: {message}"),
+        "message": "审批成功，已进入安全审计队列",
         "data": submission_to_out(submission)
     }
 
@@ -569,15 +600,24 @@ async def force_process_submission(
         triggered_by="super_admin"
     )
 
-    success, message, run_id = await gitea_sync_service.trigger_workflow(submission)
+    # 设置为待审计状态，由 APScheduler 自动处理
+    old_status = submission.status
+    submission.status = SubmissionStatus.PENDING_AUDIT
+    await submission.save()
+
+    await SubmissionEvent.create(
+        submission=submission,
+        event_type=SubmissionEventType.PROCESSING_STARTED,
+        old_status=old_status,
+        new_status=SubmissionStatus.PENDING_AUDIT,
+        message="已强制进入安全审计队列",
+        triggered_by="super_admin"
+    )
 
     return {
-        "success": success,
-        "message": message,
-        "data": {
-            **submission_to_out(submission),
-            "workflow_run_id": run_id
-        }
+        "success": True,
+        "message": "已强制进入安全审计队列",
+        "data": submission_to_out(submission)
     }
 
 
@@ -746,3 +786,721 @@ async def run_scheduler_task(
         "message": "任务执行完成" if result.get("success") else result.get("error", "执行失败"),
         "data": result
     }
+
+
+# ============ 工作流调试 API (白盒化调试) ============
+
+class WorkflowStepDetail(BaseModel):
+    """工作流步骤详情"""
+    step_id: str
+    step_name: str
+    status: str  # pending, running, success, failed, skipped
+    started_at: Optional[datetime] = None
+    completed_at: Optional[datetime] = None
+    duration_seconds: Optional[int] = None
+    message: Optional[str] = None
+    error: Optional[str] = None
+    can_trigger: bool = False
+    can_reset: bool = False
+
+
+class SubmissionWorkflowDebug(BaseModel):
+    """提交工作流调试信息"""
+    submission_id: int
+    current_status: str
+    current_step: str
+    steps: List[WorkflowStepDetail] = []
+    available_actions: List[str] = []
+    last_error: Optional[str] = None
+    retry_info: dict = {}
+
+
+# 工作流步骤定义
+WORKFLOW_STEPS = [
+    {
+        "id": "create_issue",
+        "name": "创建 Issue",
+        "description": "在 Gitea 创建 Issue 用于跟踪提交",
+        "trigger_statuses": ["pending", "issue_failed"],
+        "success_status": "issue_created",
+        "failure_status": "issue_failed",
+    },
+    {
+        "id": "approve",
+        "name": "审批",
+        "description": "管理员审批通过提交",
+        "trigger_statuses": ["issue_created"],
+        "success_status": "approved",
+        "failure_status": "rejected",
+    },
+    {
+        "id": "security_audit",
+        "name": "安全审计",
+        "description": "AI 自动进行安全审计",
+        "trigger_statuses": ["approved", "pending_audit"],
+        "success_status": "processing",
+        "failure_status": "audit_failed",
+    },
+    {
+        "id": "sync_gitea",
+        "name": "同步 Gitea",
+        "description": "从 Gitea 同步 Issue/PR/Workflow 状态",
+        "trigger_statuses": ["processing", "issue_created", "approved"],
+        "success_status": None,  # 不改变状态，只是同步
+        "failure_status": None,
+    },
+    {
+        "id": "trigger_workflow",
+        "name": "触发工作流",
+        "description": "触发 Gitea Actions 工作流",
+        "trigger_statuses": ["approved", "pending_audit"],
+        "success_status": "processing",
+        "failure_status": "process_failed",
+    },
+]
+
+
+@router.get("/{submission_id}/debug-info", response_model=dict)
+async def get_submission_debug_info(
+    submission_id: int,
+    admin: User = Depends(get_current_admin_user)
+):
+    """
+    获取提交的工作流调试信息
+
+    返回每个步骤的详细状态、可执行操作、执行历史等
+    """
+    submission = await Submission.get_or_none(id=submission_id)
+    if not submission:
+        raise HTTPException(status_code=404, detail="提交不存在")
+
+    # 获取事件历史
+    events = await SubmissionEvent.filter(submission=submission).order_by("created_at")
+    events_list = [event_to_out(e) for e in events]
+
+    # 构建步骤详情
+    steps_detail = []
+    for step in WORKFLOW_STEPS:
+        step_detail = await _build_step_detail(submission, step, events)
+        steps_detail.append(step_detail)
+
+    # 确定当前步骤
+    current_step = _get_current_step(submission.status.value if isinstance(submission.status, SubmissionStatus) else submission.status)
+
+    # 可用操作
+    available_actions = _get_available_actions(submission, admin)
+
+    return {
+        "success": True,
+        "data": {
+            "submission_id": submission.id,
+            "submission_uuid": submission.submission_id,
+            "current_status": submission.status.value if isinstance(submission.status, SubmissionStatus) else submission.status,
+            "current_step": current_step,
+            "steps": steps_detail,
+            "available_actions": available_actions,
+            "last_error": submission.error_message,
+            "retry_info": {
+                "retry_count": submission.retry_count,
+                "max_retries": submission.max_retries,
+                "next_retry_at": submission.next_retry_at.isoformat() if submission.next_retry_at else None,
+                "is_retryable": submission.is_retryable,
+            },
+            "events": events_list,
+            "raw_data": {
+                "issue_number": submission.issue_number,
+                "issue_url": submission.issue_url,
+                "pr_number": submission.pr_number,
+                "pr_url": submission.pr_url,
+                "workflow_run_id": submission.workflow_run_id,
+                "workflow_run_url": submission.workflow_run_url,
+                "highest_risk": submission.highest_risk,
+                "skill_count": submission.skill_count,
+                "processed_skills": submission.processed_skills,
+                "failed_skills": submission.failed_skills,
+            }
+        }
+    }
+
+
+async def _build_step_detail(submission: Submission, step: dict, events: list) -> dict:
+    """构建步骤详情"""
+    step_id = step["id"]
+
+    # 根据步骤类型确定状态
+    status_map = {
+        "create_issue": _get_issue_step_status(submission, events),
+        "approve": _get_approve_step_status(submission, events),
+        "security_audit": _get_audit_step_status(submission, events),
+        "sync_gitea": _get_sync_step_status(submission, events),
+        "trigger_workflow": _get_workflow_step_status(submission, events),
+    }
+
+    step_status = status_map.get(step_id, {"status": "pending", "message": None, "error": None})
+
+    # 判断是否可以触发
+    current_status = submission.status.value if isinstance(submission.status, SubmissionStatus) else submission.status
+    can_trigger = current_status in step.get("trigger_statuses", [])
+
+    # 判断是否可以重置
+    can_reset = step_status["status"] == "failed"
+
+    return {
+        "step_id": step_id,
+        "step_name": step["name"],
+        "description": step["description"],
+        "status": step_status["status"],
+        "started_at": step_status.get("started_at"),
+        "completed_at": step_status.get("completed_at"),
+        "duration_seconds": step_status.get("duration_seconds"),
+        "message": step_status.get("message"),
+        "error": step_status.get("error") or submission.error_message if step_status["status"] == "failed" else None,
+        "can_trigger": can_trigger,
+        "can_reset": can_reset,
+    }
+
+
+def _get_issue_step_status(submission: Submission, events: list) -> dict:
+    """获取创建 Issue 步骤状态"""
+    current_status = submission.status.value if isinstance(submission.status, SubmissionStatus) else submission.status
+
+    if submission.issue_number:
+        # Issue 已创建
+        created_event = next((e for e in events if e.event_type == SubmissionEventType.ISSUE_CREATE_SUCCESS), None)
+        return {
+            "status": "success",
+            "started_at": submission.created_at,
+            "completed_at": submission.issue_created_at or created_event.created_at if created_event else None,
+            "message": f"Issue #{submission.issue_number} 已创建",
+        }
+    elif current_status == "creating_issue":
+        return {
+            "status": "running",
+            "started_at": submission.created_at,
+            "message": "正在创建 Issue...",
+        }
+    elif current_status == "issue_failed":
+        failed_event = next((e for e in reversed(events) if e.event_type == SubmissionEventType.ISSUE_CREATE_FAILED), None)
+        return {
+            "status": "failed",
+            "started_at": submission.created_at,
+            "error": failed_event.error_message if failed_event else submission.error_message,
+            "message": "Issue 创建失败",
+        }
+    else:
+        return {
+            "status": "pending",
+            "message": "等待创建 Issue",
+        }
+
+
+def _get_approve_step_status(submission: Submission, events: list) -> dict:
+    """获取审批步骤状态"""
+    current_status = submission.status.value if isinstance(submission.status, SubmissionStatus) else submission.status
+
+    if current_status in ["approved", "pending_audit", "processing", "merged", "closed", "pr_created"]:
+        approved_event = next((e for e in events if e.event_type == SubmissionEventType.APPROVED), None)
+        return {
+            "status": "success",
+            "started_at": submission.issue_created_at,
+            "completed_at": approved_event.created_at if approved_event else submission.approved_at,
+            "message": f"由 {submission.approved_by_employee_id or '管理员'} 审批通过",
+        }
+    elif current_status == "rejected":
+        return {
+            "status": "failed",
+            "error": submission.reject_reason,
+            "message": f"被拒绝: {submission.reject_reason}",
+        }
+    elif current_status == "issue_created":
+        return {
+            "status": "pending",
+            "started_at": submission.issue_created_at,
+            "message": "等待管理员审批",
+        }
+    else:
+        return {
+            "status": "pending",
+            "message": "等待进入审批环节",
+        }
+
+
+def _get_audit_step_status(submission: Submission, events: list) -> dict:
+    """获取安全审计步骤状态"""
+    current_status = submission.status.value if isinstance(submission.status, SubmissionStatus) else submission.status
+
+    if current_status in ["processing", "pr_created", "merged"]:
+        return {
+            "status": "success",
+            "started_at": submission.processing_started_at,
+            "completed_at": submission.processing_completed_at,
+            "message": f"安全审计完成，风险等级: {submission.highest_risk or '未知'}",
+            "duration_seconds": submission.duration_seconds,
+        }
+    elif current_status == "pending_audit":
+            return {
+            "status": "pending",
+            "started_at": submission.approved_at,
+            "message": "等待安全审计",
+        }
+    elif current_status in ["process_failed", "audit_failed"]:
+            return {
+            "status": "failed",
+                "started_at": submission.processing_started_at,
+                "completed_at": submission.processing_completed_at,
+                "error": submission.error_message,
+                "message": "安全审计失败",
+            }
+    else:
+        return {
+            "status": "pending",
+            "message": "等待进入审计环节",
+        }
+
+
+def _get_sync_step_status(submission: Submission, events: list) -> dict:
+    """获取同步状态步骤"""
+    sync_events = [e for e in events if e.event_type == SubmissionEventType.STATUS_SYNCED]
+
+    if sync_events:
+        last_sync = sync_events[-1]
+        return {
+            "status": "success",
+            "completed_at": last_sync.created_at,
+            "message": f"最后同步: {last_sync.created_at.strftime('%H:%M:%S')}",
+        }
+    elif submission.issue_number or submission.pr_number:
+        return {
+            "status": "success",
+            "message": "已有 Gitea 关联数据",
+        }
+    else:
+        return {
+            "status": "pending",
+            "message": "等待同步",
+        }
+
+
+def _get_workflow_step_status(submission: Submission, events: list) -> dict:
+    """获取工作流步骤状态"""
+    current_status = submission.status.value if isinstance(submission.status, SubmissionStatus) else submission.status
+
+    if current_status == "processing":
+        return {
+            "status": "running",
+            "started_at": submission.processing_started_at,
+            "message": "Gitea Actions 工作流执行中...",
+        }
+    elif current_status in ["pr_created", "merged"]:
+        return {
+            "status": "success",
+            "started_at": submission.processing_started_at,
+            "completed_at": submission.processing_completed_at,
+            "message": f"工作流执行成功，PR #{submission.pr_number} 已创建" if submission.pr_number else "工作流执行成功",
+            "duration_seconds": submission.duration_seconds,
+        }
+    elif current_status == "process_failed":
+        return {
+            "status": "failed",
+            "started_at": submission.processing_started_at,
+            "completed_at": submission.processing_completed_at,
+            "error": submission.error_message,
+            "message": "工作流执行失败",
+        }
+    else:
+        return {
+            "status": "pending",
+            "message": "等待触发工作流",
+        }
+
+
+def _get_current_step(status: str) -> str:
+    """根据状态获取当前步骤"""
+    step_map = {
+        "pending": "create_issue",
+        "creating_issue": "create_issue",
+        "issue_created": "approve",
+        "issue_failed": "create_issue",
+        "approved": "security_audit",
+        "rejected": "approve",
+        "pending_audit": "security_audit",
+        "audit_failed": "security_audit",
+        "processing": "trigger_workflow",
+        "process_failed": "trigger_workflow",
+        "needs_review": "security_audit",
+        "pr_created": "trigger_workflow",
+        "merged": "trigger_workflow",
+        "closed": "trigger_workflow",
+    }
+    return step_map.get(status, "unknown")
+
+
+def _get_available_actions(submission: Submission, admin: User) -> List[str]:
+    """获取可用的操作"""
+    actions = []
+    current_status = _get_status_value(submission)
+    is_super_admin = admin.role == "super_admin"
+
+    # 基础操作映射（所有管理员可执行）
+    status_actions = {
+        "pending": ["create_issue"],
+        "issue_failed": ["retry_create_issue"],
+        "issue_created": ["approve", "reject"],
+        "approved": ["trigger_audit"],
+        "pending_audit": ["trigger_audit"],
+        "processing": ["sync_status"],
+        "process_failed": ["retry_process"],
+        "audit_failed": ["retry_audit"],
+    }
+
+    actions.extend(status_actions.get(current_status, []))
+
+    # 超级管理员专属操作
+    if is_super_admin:
+        if current_status == "issue_failed":
+            actions.append("force_create_issue")
+        if current_status in ["approved", "pending_audit"]:
+            actions.append("force_process")
+        if current_status == "processing":
+            actions.append("force_complete")
+        if current_status in ["process_failed", "audit_failed"]:
+            actions.append("force_reset")
+
+    return actions
+
+
+# ============ 工作流手动触发接口 ============
+
+@router.post("/{submission_id}/trigger/create-issue", response_model=dict)
+async def manual_create_issue(
+    submission_id: int,
+    request: Request,
+    admin: User = Depends(get_current_admin_user)
+):
+    """
+    手动创建 Issue
+
+    用于调试或重试 Issue 创建
+    """
+    submission = await Submission.get_or_none(id=submission_id)
+    if not submission:
+        raise HTTPException(status_code=404, detail="提交不存在")
+
+    current_status = submission.status.value if isinstance(submission.status, SubmissionStatus) else submission.status
+    if current_status not in ["pending", "issue_failed", "creating_issue"]:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"当前状态 {current_status} 不支持此操作"
+        )
+
+    # 记录操作
+    old_status = submission.status
+    submission.status = SubmissionStatus.CREATING_ISSUE
+    await submission.save()
+
+    await SubmissionEvent.create(
+        submission=submission,
+        event_type=SubmissionEventType.MANUAL_OVERRIDE,
+        old_status=old_status,
+        new_status=SubmissionStatus.CREATING_ISSUE,
+        message=f"管理员 {admin.employee_id} 手动触发创建 Issue",
+        actor_id=admin.id,
+        actor_employee_id=admin.employee_id,
+        triggered_by="admin"
+    )
+
+    # 执行创建
+    from app.api.submissions import create_gitea_issue
+    success, message, issue_data = await create_gitea_issue(submission)
+
+    if success:
+        submission.status = SubmissionStatus.ISSUE_CREATED
+        submission.issue_number = issue_data.get("number")
+        submission.issue_url = issue_data.get("html_url")
+        submission.issue_created_at = datetime.utcnow()
+        await submission.save()
+
+        await SubmissionEvent.create(
+            submission=submission,
+            event_type=SubmissionEventType.ISSUE_CREATE_SUCCESS,
+            old_status=SubmissionStatus.CREATING_ISSUE,
+            new_status=SubmissionStatus.ISSUE_CREATED,
+            message=f"Issue #{submission.issue_number} 创建成功",
+            details={"issue_number": submission.issue_number, "issue_url": submission.issue_url},
+            triggered_by="admin"
+        )
+
+        return {
+            "success": True,
+            "message": f"Issue #{submission.issue_number} 创建成功",
+            "data": {
+                "issue_number": submission.issue_number,
+                "issue_url": submission.issue_url,
+            }
+        }
+    else:
+        submission.status = SubmissionStatus.ISSUE_FAILED
+        submission.error_message = message
+        await submission.save()
+
+        await SubmissionEvent.create(
+            submission=submission,
+            event_type=SubmissionEventType.ISSUE_CREATE_FAILED,
+            old_status=SubmissionStatus.CREATING_ISSUE,
+            new_status=SubmissionStatus.ISSUE_FAILED,
+            message=f"Issue 创建失败: {message}",
+            error_message=message,
+            triggered_by="admin"
+        )
+
+        return {
+            "success": False,
+            "message": f"Issue 创建失败: {message}",
+            "data": {"error": message}
+        }
+
+
+@router.post("/{submission_id}/trigger/audit", response_model=dict)
+async def manual_trigger_audit(
+    submission_id: int,
+    request: Request,
+    admin: User = Depends(get_current_admin_user)
+):
+    """
+    手动触发安全审计
+
+    跳过审批直接进入审计队列
+    """
+    submission = await Submission.get_or_none(id=submission_id)
+    if not submission:
+        raise HTTPException(status_code=404, detail="提交不存在")
+
+    current_status = submission.status.value if isinstance(submission.status, SubmissionStatus) else submission.status
+    if current_status not in ["approved", "pending_audit", "issue_created"]:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"当前状态 {current_status} 不支持此操作"
+        )
+
+    # 记录操作
+    old_status = submission.status
+    submission.status = SubmissionStatus.PENDING_AUDIT
+    submission.approved_by = admin.id
+    submission.approved_by_employee_id = admin.employee_id
+    submission.approved_at = datetime.utcnow()
+    await submission.save()
+
+    await SubmissionEvent.create(
+        submission=submission,
+        event_type=SubmissionEventType.MANUAL_OVERRIDE,
+        old_status=old_status,
+        new_status=SubmissionStatus.PENDING_AUDIT,
+        message=f"管理员 {admin.employee_id} 手动触发安全审计",
+        actor_id=admin.id,
+        actor_employee_id=admin.employee_id,
+        triggered_by="admin"
+    )
+
+    return {
+        "success": True,
+        "message": "已触发安全审计，等待后台任务处理",
+        "data": submission_to_out(submission)
+    }
+
+
+@router.post("/{submission_id}/trigger/sync", response_model=dict)
+async def manual_sync_status(
+    submission_id: int,
+    request: Request,
+    admin: User = Depends(get_current_admin_user)
+):
+    """
+    手动同步 Gitea 状态
+
+    从 Gitea 拉取最新的 Issue/PR/Workflow 状态
+    """
+    submission = await Submission.get_or_none(id=submission_id)
+    if not submission:
+        raise HTTPException(status_code=404, detail="提交不存在")
+
+    if not submission.issue_number:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="该提交没有关联的 Issue"
+        )
+
+    # 记录操作
+    await SubmissionEvent.create(
+        submission=submission,
+        event_type=SubmissionEventType.MANUAL_OVERRIDE,
+        message=f"管理员 {admin.employee_id} 手动同步状态",
+        actor_id=admin.id,
+        actor_employee_id=admin.employee_id,
+        triggered_by="admin"
+    )
+
+    # 执行同步
+    changed = await gitea_sync_service.sync_submission(submission)
+
+    return {
+        "success": True,
+        "message": f"状态同步完成，{'有变化' if changed else '无变化'}",
+        "data": {
+            "changed": changed,
+            "submission": submission_to_out(submission)
+        }
+    }
+
+
+@router.post("/{submission_id}/trigger/workflow", response_model=dict)
+async def manual_trigger_workflow(
+    submission_id: int,
+    request: Request,
+    admin: User = Depends(get_current_superuser)
+):
+    """
+    手动触发 Gitea Actions 工作流 (仅超级管理员)
+    """
+    submission = await Submission.get_or_none(id=submission_id)
+    if not submission:
+        raise HTTPException(status_code=404, detail="提交不存在")
+
+    current_status = submission.status.value if isinstance(submission.status, SubmissionStatus) else submission.status
+    if current_status not in ["approved", "pending_audit", "processing"]:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"当前状态 {current_status} 不支持此操作"
+        )
+
+    # 记录操作
+    await SubmissionEvent.create(
+        submission=submission,
+        event_type=SubmissionEventType.MANUAL_OVERRIDE,
+        message=f"超级管理员 {admin.employee_id} 手动触发工作流",
+        actor_id=admin.id,
+        actor_employee_id=admin.employee_id,
+        triggered_by="super_admin"
+    )
+
+    # 触发工作流
+    success, message, run_id = await gitea_sync_service.trigger_workflow(submission)
+
+    if success:
+        if run_id:
+            submission.workflow_run_id = run_id
+        await submission.save()
+
+        return {
+            "success": True,
+            "message": message,
+            "data": {
+                "run_id": run_id,
+                "submission": submission_to_out(submission)
+            }
+        }
+    else:
+        return {
+            "success": False,
+            "message": message,
+            "data": {"error": message}
+        }
+
+
+@router.post("/{submission_id}/reset-status", response_model=dict)
+async def reset_submission_status(
+    submission_id: int,
+    request: Request,
+    status_data: dict,
+    admin: User = Depends(get_current_superuser)
+):
+    """
+    重置提交状态 (仅超级管理员，用于调试)
+
+    可以将提交重置到任意状态，用于调试或修复卡住的问题
+    """
+    submission = await Submission.get_or_none(id=submission_id)
+    if not submission:
+        raise HTTPException(status_code=404, detail="提交不存在")
+
+    new_status = status_data.get("status")
+    if not new_status:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="缺少 status 参数"
+        )
+
+    try:
+        new_status_enum = SubmissionStatus(new_status)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"无效的状态: {new_status}"
+        )
+
+    # 记录操作
+    old_status = submission.status
+    submission.status = new_status_enum
+    submission.error_message = None
+    submission.retry_count = 0
+    await submission.save()
+
+    await SubmissionEvent.create(
+        submission=submission,
+        event_type=SubmissionEventType.MANUAL_OVERRIDE,
+        old_status=old_status,
+        new_status=new_status_enum,
+        message=f"超级管理员 {admin.employee_id} 重置状态为 {new_status}",
+        details={"old_status": str(old_status), "new_status": new_status},
+        actor_id=admin.id,
+        actor_employee_id=admin.employee_id,
+        triggered_by="super_admin"
+    )
+
+    return {
+        "success": True,
+        "message": f"状态已重置为 {new_status}",
+        "data": submission_to_out(submission)
+    }
+
+
+@router.get("/{submission_id}/execution-log", response_model=dict)
+async def get_execution_log(
+    submission_id: int,
+    admin: User = Depends(get_current_admin_user)
+):
+    """
+    获取执行日志
+
+    返回详细的事件日志，包含错误堆栈和执行详情
+    """
+    submission = await Submission.get_or_none(id=submission_id)
+    if not submission:
+        raise HTTPException(status_code=404, detail="提交不存在")
+
+    events = await SubmissionEvent.filter(submission=submission).order_by("created_at")
+
+    # 构建详细日志
+    log_entries = []
+    for event in events:
+        entry = {
+            "id": event.id,
+            "time": event.created_at.isoformat(),
+            "event_type": event.event_type.value if isinstance(event.event_type, SubmissionEventType) else event.event_type,
+            "old_status": event.old_status.value if event.old_status and isinstance(event.old_status, SubmissionStatus) else event.old_status,
+            "new_status": event.new_status.value if event.new_status and isinstance(event.new_status, SubmissionStatus) else event.new_status,
+            "message": event.message,
+            "details": event.details,
+            "triggered_by": event.triggered_by,
+            "actor": event.actor_employee_id,
+            "error": event.error_message,
+        }
+        log_entries.append(entry)
+
+    return {
+        "success": True,
+        "data": {
+                "submission_id": submission.submission_id,
+                "total_events": len(log_entries),
+                "events": log_entries,
+            }
+        }
