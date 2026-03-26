@@ -10,7 +10,6 @@ from app.utils.security import (
     create_access_token,
     create_refresh_token,
     verify_refresh_token,
-    hash_api_key,
     verify_api_key,
     validate_api_key_complexity,
 )
@@ -53,29 +52,21 @@ class TestPasswordHashing:
 
 
 class TestAPIKeyFunctions:
-    """Test API key functions"""
-
-    def test_hash_api_key(self):
-        """Test API key hashing"""
-        api_key = "my-secret-api-key"
-        hashed = hash_api_key(api_key)
-
-        assert hashed is not None
-        assert hashed != api_key
+    """Test API key functions (plain text comparison)"""
 
     def test_verify_api_key_correct(self):
-        """Test API key verification"""
+        """Test API key verification with correct key"""
         api_key = "my-secret-api-key"
-        hashed = hash_api_key(api_key)
+        stored_key = api_key  # Plain text storage
 
-        assert verify_api_key(api_key, hashed) is True
+        assert verify_api_key(api_key, stored_key) is True
 
     def test_verify_api_key_incorrect(self):
         """Test API key verification with wrong key"""
         api_key = "my-secret-api-key"
-        hashed = hash_api_key(api_key)
+        stored_key = api_key
 
-        assert verify_api_key("wrong-key", hashed) is False
+        assert verify_api_key("wrong-key", stored_key) is False
 
 
 class TestAPIKeyComplexity:

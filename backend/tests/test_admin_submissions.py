@@ -37,7 +37,7 @@ class TestAdminSubmissionList:
             submission_id="admin-test-1",
             name="Admin Test Skill",
             repo_url="https://github.com/test/admin",
-            status=SubmissionStatus.ISSUE_CREATED,
+            status=SubmissionStatus.COMPLETED,
         )
 
         response = await client.get(
@@ -61,7 +61,7 @@ class TestAdminSubmissionDetail:
             submission_id="detail-test-1",
             name="Test",
             repo_url="https://github.com/test",
-            status=SubmissionStatus.ISSUE_CREATED,
+            status=SubmissionStatus.COMPLETED,
         )
 
         response = await client.get(f"/api/admin/submissions/{submission.id}")
@@ -95,11 +95,12 @@ class TestAdminSubmissionRetry:
             submission_id="retry-test-1",
             name="Test",
             repo_url="https://github.com/test",
-            status=SubmissionStatus.ISSUE_FAILED,
+            status=SubmissionStatus.FAILED,
             error_message="Network error",
         )
 
         response = await client.post(
-            f"/api/admin/submissions/{submission.id}/retry"
+            f"/api/admin/submissions/{submission.id}/retry-step",
+            json={"step": "cloning"}
         )
         assert response.status_code == 401
