@@ -265,7 +265,10 @@
                 <div class="card">
                     <div class="card-header">
                         <h3>技能提交列表</h3>
-                        <button class="btn btn-sm btn-warning" onclick="exportSubmissions()">导出 CSV</button>
+                        <div>
+                            <button class="btn btn-sm btn-success" onclick="showCreateSubmissionModal()">+ 新建提交</button>
+                            <button class="btn btn-sm btn-warning" onclick="exportSubmissions()">导出 CSV</button>
+                        </div>
                     </div>
                     <div class="card-body">
                         <div class="toolbar">
@@ -394,6 +397,36 @@
             <div class="modal-footer">
                 <button class="btn btn-sm" onclick="closeRetryStepModal()">取消</button>
                 <button class="btn btn-sm btn-warning" onclick="confirmRetryStep()">重试</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 新建提交模态框 -->
+    <div class="modal" id="createSubmissionModal">
+        <div class="modal-content" style="width: 500px;">
+            <div class="modal-header">
+                <h3>+ 新建提交</h3>
+                <button class="modal-close" onclick="closeCreateSubmissionModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="createSubmissionForm">
+                    <div class="form-group">
+                        <label>Git 仓库地址 *</label>
+                        <input type="text" id="createRepoUrl" required placeholder="https://github.com/user/repo.git">
+                    </div>
+                    <div class="form-group">
+                        <label>技能名称</label>
+                        <input type="text" id="createName" placeholder="留空则自动从仓库获取">
+                    </div>
+                    <div class="form-group">
+                        <label>描述</label>
+                        <textarea id="createDescription" rows="3" placeholder="可选的描述信息" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; resize: vertical;"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-sm" onclick="closeCreateSubmissionModal()">取消</button>
+                <button class="btn btn-sm btn-success" onclick="confirmCreateSubmission()">创建</button>
             </div>
         </div>
     </div>
@@ -1065,6 +1098,46 @@
             let url = `${API_BASE}/admin/submissions/export/csv?token=${token}`;
             if (status) url += `&status=${status}`;
             window.open(url, '_blank');
+        }
+
+        // ============ 新建提交 ============
+
+        function showCreateSubmissionModal() {
+            document.getElementById('createRepoUrl').value = '';
+            document.getElementById('createName').value = '';
+            document.getElementById('createDescription').value = '';
+            document.getElementById('createSubmissionModal').classList.add('active');
+        }
+
+        function closeCreateSubmissionModal() {
+            document.getElementById('createSubmissionModal').classList.remove('active');
+        }
+
+        async function confirmCreateSubmission() {
+            const repoUrl = document.getElementById('createRepoUrl').value.trim();
+            const name = document.getElementById('createName').value.trim();
+            const description = document.getElementById('createDescription').value.trim();
+
+            if (!repoUrl) {
+                return showToast('请输入 Git 仓库地址', 'warning');
+            }
+
+            const data = { repo_url: repoUrl };
+            if (name) data.name = name;
+            if (description) data.description = description;
+
+            const res = await api('/admin/submissions', {
+                method: 'POST',
+                body: JSON.stringify(data)
+            });
+
+            if (res && res.success) {
+                showToast('提交创建成功', 'success');
+                closeCreateSubmissionModal();
+                loadSubmissions(submissionsPage);
+            } else {
+                showError(res, '创建失败');
+            }
         }
     </script>
 </body>
