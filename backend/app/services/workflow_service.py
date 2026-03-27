@@ -246,27 +246,35 @@ class WorkflowService:
             https://github.com/user/repo/tree/main/skills/.curated/aspnet-core
             -> (https://github.com/user/repo.git, main, skills/.curated/aspnet-core)
 
-            https://github.com/user/repo/blob/main/README.md
-            -> (https://github.com/user/repo.git, main, README.md)
+            https://github.com/user/repo/blob/main/skills/finalize/SKILL.md
+            -> (https://github.com/user/repo.git, main, skills/finalize, True)  # 返回 SKILL.md 所在目录
 
             https://github.com/user/repo.git (普通URL)
             -> (https://github.com/user/repo.git, None, None)
+
+        Returns:
+            (repo_url, branch, folder_path, is_skill_md_path)
+            - is_skill_md_path: 是否指向 SKILL.md 文件（需要使用其父目录）
         """
-        # 匹配 /tree/<branch>/<path> 或 /blob/<branch>/<path>
+        # 匹配 /tree/<branch>/<path>
         tree_match = re.search(r'github\.com[/:]([^/]+)/([^/]+?)(?:\.git)?/tree/([^/]+)/(.+)', url)
         if tree_match:
             owner, repo, branch, folder_path = tree_match.groups()
             repo_url = f"https://github.com/{owner}/{repo}.git"
-            return repo_url, branch, folder_path
+            return repo_url, branch, folder_path, False
 
-        # 匹配 /blob/<branch>/<path>
+        # 匹配 /blob/<branch>/<path> - 可能指向 SKILL.md
         blob_match = re.search(r'github\.com[/:]([^/]+)/([^/]+?)(?:\.git)?/blob/([^/]+)/(.+)', url)
         if blob_match:
             owner, repo, branch, file_path = blob_match.groups()
             repo_url = f"https://github.com/{owner}/{repo}.git"
-            return repo_url, branch, file_path
+            # 如果指向 SKILL.md，返回其父目录
+            if file_path.endswith("/SKILL.md") or file_path == "SKILL.md":
+                skill_dir = str(Path(file_path).parent)
+                return repo_url, branch, skill_dir, True
+            return repo_url, branch, file_path, False
 
-        return None, None, None
+        return None, None, None, False
 
     async def clone_repo(self, submission: Submission) -> Tuple[bool, str, Optional[str]]:
         """
@@ -300,19 +308,20 @@ class WorkflowService:
             author, repo = self._parse_repo_url(submission.repo_url)
 
             # 检查是否是 GitHub Web URL
-            repo_url, branch, folder_path = self._parse_github_web_url(submission.repo_url)
+            parse_result = self._parse_github_web_url(submission.repo_url)
+            repo_url, branch, folder_path, is_skill_md_path = parse_result
             if repo_url:
                 # GitHub Web URL - 使用稀疏克隆
                 logger.info(f"Detected GitHub web URL, folder: {folder_path}, branch: {branch}")
 
-                # 创建目标目录
-                local_path = self.DOWNLOAD_DIR / author / repo
+                # 创建目标目录 - 使用 submission_id 避免并发冲突
+                local_path = self.DOWNLOAD_DIR / submission.submission_id
                 if local_path.exists():
                     shutil.rmtree(local_path, ignore_errors=True)
                 local_path.parent.mkdir(parents=True, exist_ok=True)
 
                 # 使用稀疏克隆
-                success, message, path = self._sparse_clone(repo_url, branch, folder_path, local_path, start_time)
+                success, message, path = await self._sparse_clone(repo_url, branch, folder_path, local_path, start_time)
                 if not success:
                     # 设置失败状态
                     submission.status = SubmissionStatus.FAILED
@@ -353,8 +362,9 @@ class WorkflowService:
                     triggered_by="workflow_service"
                 )
 
-                # 验证 SKILL.md 是否存在
-                if not (local_path / "SKILL.md").exists():
+                # 验证 SKILL.md 是否存在（支持子目录）
+                skill_dir = self._find_skill_dir(local_path, folder_path)
+                if skill_dir is None:
                     error_msg = "仓库中未找到 SKILL.md 文件，不支持的技能格式"
                     submission.status = SubmissionStatus.FAILED
                     submission.error_message = error_msg
@@ -373,12 +383,17 @@ class WorkflowService:
                     )
                     return False, error_msg, None
 
+                # 更新 local_path 为 SKILL.md 所在目录
+                if skill_dir != local_path:
+                    logger.info(f"SKILL.md found in subdirectory: {skill_dir}")
+                    local_path = skill_dir
+
                 duration = time.time() - start_time
                 return True, f"稀疏克隆完成 ({duration:.2f}s)", str(local_path)
 
             # 普通 URL - 直接克隆
-            # 创建目标目录
-            local_path = self.DOWNLOAD_DIR / author / repo
+            # 创建目标目录 - 使用 submission_id 避免并发冲突
+            local_path = self.DOWNLOAD_DIR / submission.submission_id
             if local_path.exists():
                 shutil.rmtree(local_path, ignore_errors=True)
             local_path.parent.mkdir(parents=True, exist_ok=True)
@@ -434,8 +449,9 @@ class WorkflowService:
                 triggered_by="workflow_service"
             )
 
-            # 验证 SKILL.md 是否存在
-            if not (local_path / "SKILL.md").exists():
+            # 验证 SKILL.md 是否存在（支持子目录）
+            skill_dir = self._find_skill_dir(local_path)
+            if skill_dir is None:
                 error_msg = "仓库中未找到 SKILL.md 文件，不支持的技能格式"
                 submission.status = SubmissionStatus.FAILED
                 submission.error_message = error_msg
@@ -453,6 +469,11 @@ class WorkflowService:
                     triggered_by="workflow_service"
                 )
                 return False, error_msg, None
+
+            # 更新 local_path 为 SKILL.md 所在目录
+            if skill_dir != local_path:
+                logger.info(f"SKILL.md found in subdirectory: {skill_dir}")
+                local_path = skill_dir
 
             return True, f"克隆完成 ({duration:.2f}s)", str(local_path)
 
@@ -832,10 +853,10 @@ class WorkflowService:
             with zipfile.ZipFile(zip_path, 'r') as zf:
                 zf.extractall(local_path)
 
-            # 检查 SKILL.md 是否直接存在于解压目录中（不允许中间有文件夹）
-            skill_md = local_path / "SKILL.md"
-            if not skill_md.exists():
-                error_msg = "ZIP 内未找到 SKILL.md 文件。请确保 ZIP 压缩包直接包含 SKILL.md（不要有额外的文件夹包裹）"
+            # 查找 SKILL.md 所在目录（支持子目录）
+            skill_dir = self._find_skill_dir(local_path)
+            if skill_dir is None:
+                error_msg = "ZIP 内未找到 SKILL.md 文件。请确保 ZIP 压缩包包含 SKILL.md 文件"
                 submission.status = SubmissionStatus.FAILED
                 submission.error_message = error_msg
                 submission.step_details["cloning"] = {"status": "failed", "error": error_msg}
@@ -849,6 +870,11 @@ class WorkflowService:
                     triggered_by="workflow_service"
                 )
                 return False, error_msg, None
+
+            # 更新 local_path 为 SKILL.md 所在目录
+            if skill_dir != local_path:
+                logger.info(f"SKILL.md found in subdirectory: {skill_dir}")
+                local_path = skill_dir
 
             duration = time.time() - start_time
             logger.info(f"ZIP extracted in {duration:.2f}s")
@@ -1016,6 +1042,49 @@ class WorkflowService:
         repo = re.sub(r'[^a-zA-Z0-9_-]', '-', repo)
 
         return author, repo
+
+    def _find_skill_dir(self, local_path: Path, folder_path: Optional[str] = None) -> Optional[Path]:
+        """
+        查找包含 SKILL.md 的目录
+
+        查找顺序：
+        1. local_path / folder_path / SKILL.md (稀疏克隆的子目录)
+        2. local_path / SKILL.md (根目录)
+        3. 递归搜索 local_path 下的所有 SKILL.md
+
+        Args:
+            local_path: 克隆的本地目录
+            folder_path: 稀疏克隆的子目录路径（如果有）
+
+        Returns:
+            SKILL.md 所在的目录，如果未找到返回 None
+        """
+        # 1. 检查稀疏克隆的子目录
+        if folder_path:
+            skill_in_subdir = local_path / folder_path / "SKILL.md"
+            if skill_in_subdir.exists():
+                return local_path / folder_path
+
+        # 2. 检查根目录
+        skill_in_root = local_path / "SKILL.md"
+        if skill_in_root.exists():
+            return local_path
+
+        # 3. 递归搜索（支持仓库内有多个 skills 子目录的情况）
+        skill_files = list(local_path.rglob("SKILL.md"))
+        # 排除 .git 目录
+        skill_files = [f for f in skill_files if ".git" not in str(f)]
+
+        if len(skill_files) == 1:
+            # 只有一个 SKILL.md，返回其父目录
+            return skill_files[0].parent
+        elif len(skill_files) > 1:
+            # 多个 SKILL.md，选择最短路径的（最接近根目录的）
+            skill_files.sort(key=lambda f: len(str(f.relative_to(local_path))))
+            logger.info(f"Found {len(skill_files)} SKILL.md files, using: {skill_files[0]}")
+            return skill_files[0].parent
+
+        return None
 
 
 # 单例

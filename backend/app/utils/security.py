@@ -122,7 +122,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> User:
     if not user:
         raise credentials_exception
 
-    if user.status != "active" and not user.is_active:
+    if getattr(user, 'status', 'active') != "active" and not user.is_active:
         raise HTTPException(status_code=400, detail="用户已被禁用")
 
     return user
@@ -130,7 +130,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> User:
 
 async def get_current_active_user(current_user: User = Depends(get_current_user)) -> User:
     """获取当前活跃用户"""
-    if not current_user.is_active and current_user.status != "active":
+    if not current_user.is_active and getattr(current_user, 'status', 'active') != "active":
         raise HTTPException(status_code=400, detail="用户已被禁用")
     return current_user
 
@@ -149,7 +149,7 @@ async def get_current_superuser(current_user: User = Depends(get_current_user)) 
 
 async def get_current_admin_user(current_user: User = Depends(get_current_user)) -> User:
     """获取当前管理员用户（admin 或 super_admin）"""
-    if current_user.role not in ("admin", "super_admin") and not current_user.is_superuser:
+    if getattr(current_user, 'role', 'user') not in ("admin", "super_admin") and not current_user.is_superuser:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="权限不足，需要管理员权限"
@@ -159,7 +159,7 @@ async def get_current_admin_user(current_user: User = Depends(get_current_user))
 
 async def get_current_super_admin(current_user: User = Depends(get_current_user)) -> User:
     """获取当前超级管理员"""
-    if current_user.role != "super_admin" and not current_user.is_superuser:
+    if getattr(current_user, 'role', 'user') != "super_admin" and not current_user.is_superuser:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="权限不足，需要超级管理员权限"

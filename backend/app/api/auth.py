@@ -65,11 +65,11 @@ async def login_by_employee_id(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    if user.status != "active":
-        await log_failure(f"用户状态异常: {user.status}")
+    if getattr(user, 'status', 'active') != "active":
+        await log_failure(f"用户状态异常: {getattr(user, 'status', 'unknown')}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"用户已被{user.status}"
+            detail=f"用户已被{getattr(user, 'status', 'unknown')}"
         )
 
     # 登录成功：更新最后登录时间
@@ -118,7 +118,7 @@ async def refresh_token(token_data: TokenRefresh):
 
     # 验证用户仍然有效
     user = await User.get_or_none(employee_id=employee_id)
-    if not user or user.status != "active":
+    if not user or getattr(user, 'status', 'active') != "active":
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="用户不存在或已被禁用",
