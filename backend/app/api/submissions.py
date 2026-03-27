@@ -1,7 +1,7 @@
 """
 技能提交 API - 使用 Repository 模式 + 事务管理
 """
-from fastapi import APIRouter, Request, Depends, UploadFile, Form
+from fastapi import APIRouter, Request, Depends, UploadFile, Form, BackgroundTasks
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel, Field
 from typing import Optional, List
@@ -118,6 +118,7 @@ async def create_gitea_issue(submission: Submission) -> tuple[bool, str, Optiona
 async def submit_skill(
     submission_data: SkillSubmission,
     request: Request,
+    background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_user),
     repo: SubmissionRepository = get_repository(SubmissionRepository),
 ):
@@ -196,6 +197,36 @@ async def submit_skill(
         )
 
         logger.info("Issue 创建成功", event="issue_created", business={"submission_id": submission.submission_id, "issue_number": submission.issue_number})
+
+        # 自动启动工作流（带错误处理）
+        # 保存 submission_id 而不是对象，避免数据库连接问题
+        submission_id = submission.submission_id
+
+        async def run_workflow_with_error_handling():
+            try:
+                # 重新获取 submission 对象，使用新的数据库连接
+                from tortoise import Tortoise
+                from app.config import settings
+
+                # 确保数据库连接已初始化
+                if not Tortoise._inited:
+                    await Tortoise.init(
+                        db_url=settings.DATABASE_URL,
+                        modules={'models': ['app.models.user', 'app.models.submission', 'app.models.skill']}
+                    )
+
+                sub = await Submission.get_or_none(submission_id=submission_id)
+                if sub:
+                    success, message = await workflow_service.start_workflow(sub)
+                    logger.info("工作流完成", event="workflow_completed", business={"submission_id": submission_id, "success": success})
+                else:
+                    logger.error("找不到提交记录", event="workflow_error", business={"submission_id": submission_id})
+            except Exception as e:
+                logger.error("工作流执行失败", event="workflow_error", business={"submission_id": submission_id}, error=str(e))
+                import traceback
+                logger.error(traceback.format_exc())
+
+        background_tasks.add_task(run_workflow_with_error_handling)
 
         return SubmissionResponse(
             success=True,
@@ -278,6 +309,7 @@ async def get_submission_status(
 async def upload_zip_public(
     request: Request,
     file: UploadFile,
+    background_tasks: BackgroundTasks,
     name: Optional[str] = Form(None),
     description: Optional[str] = Form(None),
     category: Optional[str] = Form(None),
@@ -371,8 +403,35 @@ async def upload_zip_public(
         triggered_by="user"
     )
 
-    # 自动启动工作流
-    asyncio.create_task(workflow_service.start_workflow(submission))
+    # 自动启动工作流（带错误处理）
+    # 保存 submission_id 而不是对象，避免数据库连接问题
+    submission_id = submission.submission_id
+
+    async def run_workflow_with_error_handling():
+        try:
+            # 重新获取 submission 对象，使用新的数据库连接
+            from tortoise import Tortoise
+            from app.config import settings
+
+            # 确保数据库连接已初始化
+            if not Tortoise._inited:
+                await Tortoise.init(
+                    db_url=settings.DATABASE_URL,
+                    modules={'models': ['app.models.user', 'app.models.submission', 'app.models.skill']}
+                )
+
+            sub = await Submission.get_or_none(submission_id=submission_id)
+            if sub:
+                success, message = await workflow_service.start_workflow(sub)
+                logger.info("工作流完成", event="workflow_completed", business={"submission_id": submission_id, "success": success})
+            else:
+                logger.error("找不到提交记录", event="workflow_error", business={"submission_id": submission_id})
+        except Exception as e:
+            logger.error("工作流执行失败", event="workflow_error", business={"submission_id": submission_id}, error=str(e))
+            import traceback
+            logger.error(traceback.format_exc())
+
+    background_tasks.add_task(run_workflow_with_error_handling)
 
     return {
         "success": True,

@@ -3,16 +3,31 @@
 ## 项目启动
 
 ```bash
-# 启动开发服务器
-py main.py
+# 启动开发服务器（使用 Python 3.11，避免 3.14 兼容性问题）
+py -3.11 main.py
 
 # 或者使用 uvicorn
-py -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+py -3.11 -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
 ---
 
 ## ⚠️ Windows 环境注意事项
+
+### Python 版本选择
+
+**推荐使用 Python 3.11**，避免 Python 3.14 与 aiomysql 的兼容性问题。
+
+```bash
+# 查看已安装的 Python 版本
+py -0p
+
+# 使用 Python 3.11 运行命令
+py -3.11 -m pip install -r requirements.txt
+py -3.11 -m uvicorn app.main:app --reload
+```
+
+### 命令格式
 
 **必须使用 `py` 命令，而非 `python` 或 `pip`**
 
@@ -32,8 +47,8 @@ pip install aiomysql    # 会报错
 
 ✅ **正确用法**：
 ```bash
-py -m app.main          # 正确
-py -m pip install aiomysql  # 正确
+py -3.11 -m app.main              # 正确
+py -3.11 -m pip install aiomysql  # 正确
 ```
 
 ## 项目结构

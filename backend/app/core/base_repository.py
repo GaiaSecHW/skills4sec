@@ -82,7 +82,8 @@ class BaseRepository(Generic[ModelType], ABC):
 
     async def count(self, **filters) -> int:
         """计数"""
-        return await self.model_class.filter(**filters).count()
+        result = await self.model_class.filter(**filters).count()
+        return result if result is not None else 0
 
     async def exists(self, **filters) -> bool:
         """检查是否存在"""

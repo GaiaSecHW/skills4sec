@@ -11,6 +11,7 @@ import io
 
 from app.models.user import User
 from app.models.admin_log import AdminLog
+from tortoise.expressions import Q
 from app.schemas.user import UserCreateByAdmin, UserUpdateByAdmin, UserOutNew
 from app.schemas.log import LoginLogOut, AdminLogOut
 from app.utils.security import (
@@ -86,7 +87,7 @@ async def list_users(
 
     # 关键词搜索需要特殊处理
     if keyword:
-        query = User.filter(employee_id__icontains=keyword) | User.filter(name__icontains=keyword)
+        query = User.filter(Q(employee_id__icontains=keyword) | Q(name__icontains=keyword))
         total = await query.count()
         users = await query.offset(pagination.skip).limit(pagination.limit).order_by("-created_at")
     else:
@@ -104,7 +105,7 @@ async def list_users(
         "total": total,
         "skip": pagination.skip,
         "limit": pagination.limit,
-        "data": [UserOutNew.model_validate(u) for u in users]
+        "data": [UserOutNew.model_validate(u.__dict__) for u in users]
     }
 
 

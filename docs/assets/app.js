@@ -1233,7 +1233,7 @@
       <div class="form-group">
         <label class="form-label" for="s-repo">GitHub 仓库地址 *</label>
         <input class="form-input" id="s-repo" type="url" placeholder="https://github.com/yourname/yourskill">
-        <small id="s-repo-hint" style="color:var(--text-muted);font-size:12px;margin-top:4px;display:block;">仅支持纯 Git 仓库地址，SKILL.md 需位于仓库根目录。不支持 /tree/、/blob/、/commit/ 等页面链接</small>
+        <small id="s-repo-hint" style="color:var(--text-muted);font-size:12px;margin-top:4px;display:block;">支持 Git 仓库地址或 GitHub 子目录链接（如 /tree/main/skills/xxx 或 /blob/main/xxx/SKILL.md），系统会自动定位 SKILL.md 所在目录</small>
       </div>
       <div class="form-group">
         <label class="form-label" for="s-cat">分类</label>
@@ -1313,9 +1313,9 @@
           return;
         }
 
-        // 验证 URL 格式
-        if (repo.includes('/tree/') || repo.includes('/blob/') || repo.includes('/commit/')) {
-          if (errEl) { errEl.textContent = '不支持的 URL 格式，请输入纯 Git 仓库地址'; errEl.style.display = 'block'; }
+        // 验证 URL 格式 - 支持 /tree/ 和 /blob/，仅阻止 /commit/
+        if (repo.includes('/commit/')) {
+          if (errEl) { errEl.textContent = '不支持 commit 链接，请使用仓库地址或 /tree/、/blob/ 格式'; errEl.style.display = 'block'; }
           return;
         }
 
@@ -1407,12 +1407,16 @@
     if (repoInput && repoHint) {
       repoInput.addEventListener('input', function() {
         const val = repoInput.value.trim();
-        if (val.includes('/tree/') || val.includes('/blob/') || val.includes('/commit/')) {
+        // 支持 /tree/ 和 /blob/ 格式，仅对 /commit/ 显示警告
+        if (val.includes('/commit/')) {
           repoHint.style.color = 'var(--danger)';
-          repoHint.textContent = '⚠️ 不支持的 URL 格式，请输入纯 Git 仓库地址（如 https://github.com/user/repo.git）';
+          repoHint.textContent = '⚠️ 不支持 commit 链接，请使用仓库地址或 /tree/、/blob/ 格式';
+        } else if (val.includes('/tree/') || val.includes('/blob/')) {
+          repoHint.style.color = 'var(--success)';
+          repoHint.textContent = '✓ 支持 GitHub 子目录链接，系统会自动定位 SKILL.md 所在目录';
         } else {
           repoHint.style.color = 'var(--text-muted)';
-          repoHint.textContent = '仅支持纯 Git 仓库地址，不支持 /tree/、/blob/、/commit/ 等页面链接';
+          repoHint.textContent = '支持 Git 仓库地址或 GitHub 子目录链接（如 /tree/main/skills/xxx 或 /blob/main/xxx/SKILL.md），系统会自动定位 SKILL.md 所在目录';
         }
       });
     }

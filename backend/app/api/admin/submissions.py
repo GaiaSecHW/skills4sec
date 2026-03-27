@@ -18,6 +18,7 @@ from app.models.submission import (
     SubmissionStatus,
     SubmissionEventType
 )
+from tortoise.expressions import Q
 from app.utils.security import get_current_admin_user, get_current_superuser
 from app.services.workflow_service import workflow_service
 from app.config import settings
@@ -191,7 +192,7 @@ async def list_submissions(
         query = query.filter(highest_risk=risk)
 
     if keyword:
-        query = query.filter(name__icontains=keyword) | Submission.filter(repo_url__icontains=keyword)
+        query = query.filter(Q(name__icontains=keyword) | Q(repo_url__icontains=keyword))
 
     if start_date:
         query = query.filter(created_at__gte=start_date)
@@ -199,6 +200,7 @@ async def list_submissions(
         query = query.filter(created_at__lte=end_date)
 
     total = await query.count()
+    total = total if total is not None else 0
     submissions = await query.offset(skip).limit(limit).order_by("-created_at")
 
     return {
@@ -607,8 +609,8 @@ async def delete_submission(
     if not submission:
         raise HTTPException(status_code=404, detail="提交不存在")
 
-    # 只允许删除已完成或失败的提交
-    if submission.status not in (SubmissionStatus.COMPLETED, SubmissionStatus.FAILED):
+    # 只允许删除已完成、失败或被拒绝的提交
+    if submission.status not in (SubmissionStatus.COMPLETED, SubmissionStatus.FAILED, SubmissionStatus.REJECTED):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"当前状态 {submission.status} 不支持删除"
