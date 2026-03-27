@@ -1,13 +1,14 @@
 """
 技能提交 API - 使用 Repository 模式 + 事务管理
 """
-from fastapi import APIRouter, Request, Depends
+from fastapi import APIRouter, Request, Depends, UploadFile, Form
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel, Field
 from typing import Optional, List
 from datetime import datetime
 import uuid
 import httpx
+import asyncio
 
 from app.models.submission import (
     Submission,
@@ -27,6 +28,7 @@ from app.core.harness_logging import HarnessLogger
 from app.repositories import SubmissionRepository
 from app.utils.security import get_current_user
 from app.utils import build_issue_body
+from app.services.workflow_service import workflow_service
 
 logger = HarnessLogger("submissions")
 router = APIRouter(prefix="/submissions", tags=["submissions"])
@@ -272,6 +274,117 @@ async def get_submission_status(
     }
 
 
+@router.post("/upload-zip", response_model=dict)
+async def upload_zip_public(
+    request: Request,
+    file: UploadFile,
+    name: Optional[str] = Form(None),
+    description: Optional[str] = Form(None),
+    category: Optional[str] = Form(None),
+    contact: Optional[str] = Form(None),
+    current_user: User = Depends(get_current_user),
+):
+    """公开的 ZIP 上传接口（需要登录）"""
+    from pathlib import Path
+    import zipfile
+
+    # 验证文件类型
+    if not file.filename or not file.filename.lower().endswith('.zip'):
+        raise ValidationError(message="只支持 ZIP 压缩包")
+
+    # 生成 UUID 和路径
+    submission_id = str(uuid.uuid4())
+    zip_dir = Path(__file__).parent.parent / "skills_zip_temp"
+    zip_dir.mkdir(exist_ok=True)
+    zip_path = zip_dir / f"{submission_id}.zip"
+
+    # 保存上传的文件
+    try:
+        content = await file.read()
+        with open(zip_path, "wb") as f:
+            f.write(content)
+    except Exception as e:
+        raise ValidationError(message=f"文件保存失败: {str(e)}")
+
+    # 验证 ZIP 内容
+    try:
+        with zipfile.ZipFile(zip_path, 'r') as zf:
+            namelist = zf.namelist()
+            has_skill_md = any("SKILL.md" in name for name in namelist)
+            if not has_skill_md:
+                zip_path.unlink(missing_ok=True)
+                raise ValidationError(message="ZIP 内未找到 SKILL.md 文件")
+    except zipfile.BadZipFile:
+        zip_path.unlink(missing_ok=True)
+        raise ValidationError(message="无效的 ZIP 文件")
+
+    # 自动从 SKILL.md 提取名称
+    skill_name = name
+    if not skill_name:
+        skill_name = "Unknown"
+        try:
+            with zipfile.ZipFile(zip_path, 'r') as zf:
+                # 查找 SKILL.md 文件
+                skill_md_path = None
+                for n in namelist:
+                    if n.endswith("SKILL.md"):
+                        skill_md_path = n
+                        break
+
+                if skill_md_path:
+                    content = zf.read(skill_md_path).decode('utf-8')
+                    # 从 markdown 标题提取名称 (# skill-name)
+                    for line in content.split('\n')[:10]:
+                        if line.startswith('# '):
+                            skill_name = line[2:].strip()
+                            break
+        except Exception:
+            pass
+
+    # 获取客户端信息
+    client_ip = request.client.host if request.client else None
+    user_agent = request.headers.get("user-agent", "")[:500]
+
+    # 创建提交记录
+    submission = await Submission.create(
+        submission_id=submission_id,
+        name=skill_name,
+        repo_url=None,
+        source_type="zip",
+        zip_path=str(zip_path),
+        description=description,
+        category=category,
+        contact=contact,
+        submitter_id=current_user.id,
+        submitter_employee_id=current_user.employee_id,
+        submitter_ip=client_ip,
+        submitter_user_agent=user_agent,
+        status=SubmissionStatus.PENDING,
+    )
+
+    # 记录创建事件
+    await SubmissionEvent.create(
+        submission=submission,
+        event_type=SubmissionEventType.CREATED,
+        new_status=SubmissionStatus.PENDING,
+        message=f"用户 {current_user.employee_id} 通过 ZIP 上传创建提交",
+        triggered_by="user"
+    )
+
+    # 自动启动工作流
+    asyncio.create_task(workflow_service.start_workflow(submission))
+
+    return {
+        "success": True,
+        "message": "ZIP 上传成功，工作流已启动",
+        "data": {
+            "submission_id": submission.submission_id,
+            "name": submission.name,
+            "status": submission.status.value if isinstance(submission.status, SubmissionStatus) else submission.status,
+        }
+    }
+
+
 @router.get("/my")
 async def get_my_submissions(
     current_user: User = Depends(get_current_user),
@@ -293,14 +406,12 @@ async def get_my_submissions(
                 "description": s.description,
                 "category": s.category,
                 "status": s.status.value if isinstance(s.status, SubmissionStatus) else s.status,
-                "issue_number": s.issue_number,
-                "issue_url": s.issue_url,
-                "pr_number": s.pr_number,
-                "pr_url": s.pr_url,
+                "current_step": s.current_step,
                 "highest_risk": s.highest_risk,
                 "retry_count": s.retry_count,
                 "max_retries": s.max_retries,
                 "error_message": s.error_message,
+                "review_message": s.review_message,
                 "created_at": s.created_at.isoformat() if s.created_at else None,
                 "updated_at": s.updated_at.isoformat() if s.updated_at else None,
             }

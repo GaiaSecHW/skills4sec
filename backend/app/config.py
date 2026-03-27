@@ -15,7 +15,7 @@ class Settings(BaseSettings):
     # JWT 配置
     SECRET_KEY: str = "your-secret-key-change-in-production"
     ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 360  # 6小时
 
     # 分页
     DEFAULT_PAGE_SIZE: int = 20
@@ -26,6 +26,12 @@ class Settings(BaseSettings):
     GITEA_API_URL: str = ""
     GITEA_TOKEN: str = ""
     GITEA_REPO: str = ""  # owner/repo
+    GITEA_SKILLS_BASE_URL: str = ""  # 技能仓库浏览地址
+
+    # OpenAI API 配置 (用于技能报告生成)
+    OPENAI_API_KEY: str = ""
+    OPENAI_BASE_URL: str = "https://api.openai.com/v1"
+    OPENAI_MODEL: str = "gpt-4o"
 
     # 超级管理员配置
     SUPER_ADMIN_EMPLOYEE_ID: str = ""

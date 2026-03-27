@@ -22,22 +22,79 @@ T = TypeVar("T")
 
 async def init_db() -> None:
     """初始化数据库连接"""
-    await Tortoise.init(
-        db_url=settings.DATABASE_URL,
-        modules={
-            "models": [
-                "app.models.user",
-                "app.models.skill",
-                "app.models.audit",
-                "app.models.content",
-                "app.models.login_log",
-                "app.models.admin_log",
-                "app.models.submission",
-            ]
-        },
-    )
+    db_url = settings.DATABASE_URL
+
+    # MySQL 连接池配置
+    if db_url.startswith("mysql"):
+        # 使用字典配置以支持连接池参数
+        credentials = _parse_mysql_url(db_url)
+        credentials["autocommit"] = True  # 自动提交，避免事务超时
+        credentials["connect_timeout"] = 10  # 连接超时
+
+        db_config = {
+            "connections": {
+                "default": {
+                    "engine": "tortoise.backends.mysql",
+                    "credentials": credentials,
+                    "minsize": 1,
+                    "maxsize": 10,
+                    "recycle": 30,  # 每 30 秒回收连接，避免超时断开
+                }
+            },
+            "apps": {
+                "models": {
+                    "models": [
+                        "app.models.user",
+                        "app.models.skill",
+                        "app.models.audit",
+                        "app.models.content",
+                        "app.models.login_log",
+                        "app.models.admin_log",
+                        "app.models.submission",
+                    ],
+                    "default_connection": "default",
+                }
+            }
+        }
+        await Tortoise.init(config=db_config)
+    else:
+        # SQLite / PostgreSQL 使用默认配置
+        await Tortoise.init(
+            db_url=db_url,
+            modules={
+                "models": [
+                    "app.models.user",
+                    "app.models.skill",
+                    "app.models.audit",
+                    "app.models.content",
+                    "app.models.login_log",
+                    "app.models.admin_log",
+                    "app.models.submission",
+                ]
+            },
+        )
     await Tortoise.generate_schemas()
     logger.info(f'{{"event": "database_initialized", "url": "{settings.DATABASE_URL.split("@")[-1] if "@" in settings.DATABASE_URL else "sqlite"}"}}')
+
+
+def _parse_mysql_url(url: str) -> dict:
+    """解析 MySQL URL 为字典格式
+
+    mysql://user:password@host:port/database
+    """
+    import re
+    pattern = r"mysql://(?P<user>[^:]+):(?P<password>[^@]*)@(?P<host>[^:]+):(?P<port>\d+)/(?P<database>.+)"
+    match = re.match(pattern, url)
+    if not match:
+        raise ValueError(f"Invalid MySQL URL: {url}")
+    return {
+        "host": match.group("host"),
+        "port": int(match.group("port")),
+        "user": match.group("user"),
+        "password": match.group("password"),
+        "database": match.group("database"),
+        "charset": "utf8mb4",
+    }
 
 
 async def close_db() -> None:

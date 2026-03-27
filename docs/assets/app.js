@@ -1219,33 +1219,71 @@
 
   <div class="submit-form">
     <h2 style="font-size:1.125rem;font-weight:600;margin-bottom:1.5rem">填写提交信息</h2>
-    <div class="form-group">
-      <label class="form-label" for="s-name">技能名称 *</label>
-      <input class="form-input" id="s-name" type="text" placeholder="例：git-commit-helper">
+    <div class="submit-source-tabs" style="display:flex;gap:8px;margin-bottom:1.5rem;">
+      <button class="submit-tab-btn active" id="tabGit" onclick="switchSubmitTab('git')" style="flex:1;padding:8px 16px;border:1px solid var(--border);background:var(--bg-secondary);color:var(--text);border-radius:6px;cursor:pointer;">Git 仓库</button>
+      <button class="submit-tab-btn" id="tabZip" onclick="switchSubmitTab('zip')" style="flex:1;padding:8px 16px;border:1px solid var(--border);background:var(--bg-secondary);color:var(--text);border-radius:6px;cursor:pointer;">ZIP 上传</button>
     </div>
-    <div class="form-group">
-      <label class="form-label" for="s-repo">GitHub 仓库地址 *</label>
-      <input class="form-input" id="s-repo" type="url" placeholder="https://github.com/yourname/yourskill">
+
+    <!-- Git 仓库表单 -->
+    <div id="gitForm">
+      <div class="form-group">
+        <label class="form-label" for="s-name">技能名称 *</label>
+        <input class="form-input" id="s-name" type="text" placeholder="例：git-commit-helper">
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="s-repo">GitHub 仓库地址 *</label>
+        <input class="form-input" id="s-repo" type="url" placeholder="https://github.com/yourname/yourskill">
+        <small id="s-repo-hint" style="color:var(--text-muted);font-size:12px;margin-top:4px;display:block;">仅支持纯 Git 仓库地址，SKILL.md 需位于仓库根目录。不支持 /tree/、/blob/、/commit/ 等页面链接</small>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="s-cat">分类</label>
+        <select class="form-input" id="s-cat">
+          <option value="">请选择分类</option>
+          <option value="productivity">⚡ productivity</option>
+          <option value="documentation">📝 documentation</option>
+          <option value="development">🛠️ development</option>
+          <option value="security">🔒 security</option>
+          <option value="data">📊 data</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="s-desc">简短描述 *</label>
+        <textarea class="form-input" id="s-desc" rows="3" placeholder="一两句话描述技能的用途和亮点…"></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="s-contact">联系方式（可选）</label>
+        <input class="form-input" id="s-contact" type="text" placeholder="GitHub 用户名或邮箱">
+      </div>
     </div>
-    <div class="form-group">
-      <label class="form-label" for="s-cat">分类</label>
-      <select class="form-input" id="s-cat">
-        <option value="">请选择分类</option>
-        <option value="productivity">⚡ productivity</option>
-        <option value="documentation">📝 documentation</option>
-        <option value="development">🛠️ development</option>
-        <option value="security">🔒 security</option>
-        <option value="data">📊 data</option>
-      </select>
+
+    <!-- ZIP 上传表单 -->
+    <div id="zipForm" style="display:none;">
+      <div class="form-group">
+        <label class="form-label" for="s-zip-file">选择 ZIP 文件 *</label>
+        <input class="form-input" id="s-zip-file" type="file" accept=".zip" style="padding:6px;">
+        <small style="color:var(--text-muted);font-size:12px;margin-top:4px;display:block;">ZIP 压缩包需直接包含 SKILL.md 文件（不要有额外的文件夹包裹）</small>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="s-cat-zip">分类</label>
+        <select class="form-input" id="s-cat-zip">
+          <option value="">请选择分类</option>
+          <option value="productivity">⚡ productivity</option>
+          <option value="documentation">📝 documentation</option>
+          <option value="development">🛠️ development</option>
+          <option value="security">🔒 security</option>
+          <option value="data">📊 data</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="s-desc-zip">简短描述 *</label>
+        <textarea class="form-input" id="s-desc-zip" rows="3" placeholder="一两句话描述技能的用途和亮点…"></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="s-contact-zip">联系方式（可选）</label>
+        <input class="form-input" id="s-contact-zip" type="text" placeholder="GitHub 用户名或邮箱">
+      </div>
     </div>
-    <div class="form-group">
-      <label class="form-label" for="s-desc">简短描述 *</label>
-      <textarea class="form-input" id="s-desc" rows="3" placeholder="一两句话描述技能的用途和亮点…"></textarea>
-    </div>
-    <div class="form-group">
-      <label class="form-label" for="s-contact">联系方式（可选）</label>
-      <input class="form-input" id="s-contact" type="text" placeholder="GitHub 用户名或邮箱">
-    </div>
+
     <p id="submit-error" class="text-sm" style="color:var(--danger);display:none;margin-bottom:.75rem"></p>
     <button class="submit-btn" id="submit-btn">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
@@ -1259,56 +1297,125 @@
     const btn = document.getElementById('submit-btn');
     if (!btn) return;
     btn.addEventListener('click', async function () {
-      const name    = document.getElementById('s-name')?.value.trim();
-      const repo    = document.getElementById('s-repo')?.value.trim();
-      const desc    = document.getElementById('s-desc')?.value.trim();
-      const cat     = document.getElementById('s-cat')?.value;
-      const contact = document.getElementById('s-contact')?.value.trim();
-      const errEl   = document.getElementById('submit-error');
-
-      if (!name || !repo || !desc) {
-        if (errEl) { errEl.textContent = '请填写技能名称、仓库地址和描述。'; errEl.style.display = 'block'; }
-        return;
-      }
+      const errEl = document.getElementById('submit-error');
       if (errEl) errEl.style.display = 'none';
 
-      // 显示加载状态
-      const originalText = btn.innerHTML;
-      btn.innerHTML = '<span class="spinner"></span>提交中...';
-      btn.disabled = true;
+      if (submitCurrentTab === 'git') {
+        // Git 仓库提交
+        const name    = document.getElementById('s-name')?.value.trim();
+        const repo    = document.getElementById('s-repo')?.value.trim();
+        const desc    = document.getElementById('s-desc')?.value.trim();
+        const cat     = document.getElementById('s-cat')?.value;
+        const contact = document.getElementById('s-contact')?.value.trim();
 
-      try {
-        const res = await fetch(AppConfig.API_BASE + '/api/submissions', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            name: name,
-            repo_url: repo,
-            description: desc,
-            category: cat || null,
-            contact: contact || null
-          })
-        });
-        const data = await res.json();
-
-        if (data.success) {
-          showSubmitSuccessModal(data);
-          // 清空表单
-          document.getElementById('s-name').value = '';
-          document.getElementById('s-repo').value = '';
-          document.getElementById('s-desc').value = '';
-          document.getElementById('s-cat').value = '';
-          document.getElementById('s-contact').value = '';
-        } else {
-          if (errEl) { errEl.textContent = data.detail || data.message || '提交失败，请稍后重试。'; errEl.style.display = 'block'; }
+        if (!name || !repo || !desc) {
+          if (errEl) { errEl.textContent = '请填写技能名称、仓库地址和描述。'; errEl.style.display = 'block'; }
+          return;
         }
-      } catch (e) {
-        if (errEl) { errEl.textContent = '网络错误: ' + e.message; errEl.style.display = 'block'; }
-      } finally {
-        btn.innerHTML = originalText;
-        btn.disabled = false;
+
+        // 验证 URL 格式
+        if (repo.includes('/tree/') || repo.includes('/blob/') || repo.includes('/commit/')) {
+          if (errEl) { errEl.textContent = '不支持的 URL 格式，请输入纯 Git 仓库地址'; errEl.style.display = 'block'; }
+          return;
+        }
+
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '<span class="spinner"></span>提交中...';
+        btn.disabled = true;
+
+        try {
+          const res = await Auth.fetchWithAuth(AppConfig.API_BASE + '/api/submissions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              name: name,
+              repo_url: repo,
+              source_type: 'git',
+              description: desc,
+              category: cat || null,
+              contact: contact || null
+            })
+          });
+          const data = await res.json();
+
+          if (data.success) {
+            showSubmitSuccessModal(data);
+            document.getElementById('s-name').value = '';
+            document.getElementById('s-repo').value = '';
+            document.getElementById('s-desc').value = '';
+            document.getElementById('s-cat').value = '';
+            document.getElementById('s-contact').value = '';
+          } else {
+            if (errEl) { errEl.textContent = data.detail || data.message || '提交失败，请稍后重试。'; errEl.style.display = 'block'; }
+          }
+        } catch (e) {
+          if (errEl) { errEl.textContent = '网络错误: ' + e.message; errEl.style.display = 'block'; }
+        } finally {
+          btn.innerHTML = originalText;
+          btn.disabled = false;
+        }
+      } else {
+        // ZIP 上传
+        const fileInput = document.getElementById('s-zip-file');
+        const desc    = document.getElementById('s-desc-zip')?.value.trim();
+        const cat     = document.getElementById('s-cat-zip')?.value;
+        const contact = document.getElementById('s-contact-zip')?.value.trim();
+
+        if (!fileInput?.files?.[0] || !desc) {
+          if (errEl) { errEl.textContent = '请选择 ZIP 文件并填写描述。'; errEl.style.display = 'block'; }
+          return;
+        }
+
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '<span class="spinner"></span>上传中...';
+        btn.disabled = true;
+
+        try {
+          const formData = new FormData();
+          formData.append('file', fileInput.files[0]);
+          formData.append('description', desc);
+          if (cat) formData.append('category', cat);
+          if (contact) formData.append('contact', contact);
+
+          const res = await Auth.fetchWithAuth(AppConfig.API_BASE + '/api/submissions/upload-zip', {
+            method: 'POST',
+            body: formData
+          });
+          const data = await res.json();
+
+          if (data.success) {
+            showSubmitSuccessModal(data);
+            document.getElementById('s-zip-file').value = '';
+            document.getElementById('s-desc-zip').value = '';
+            document.getElementById('s-cat-zip').value = '';
+            document.getElementById('s-contact-zip').value = '';
+          } else {
+            if (errEl) { errEl.textContent = data.detail || data.message || '上传失败，请稍后重试。'; errEl.style.display = 'block'; }
+          }
+        } catch (e) {
+          if (errEl) { errEl.textContent = '网络错误: ' + e.message; errEl.style.display = 'block'; }
+        } finally {
+          btn.innerHTML = originalText;
+          btn.disabled = false;
+        }
       }
     });
+
+    // 实时验证 Git 仓库地址
+    const repoInput = document.getElementById('s-repo');
+    const repoHint = document.getElementById('s-repo-hint');
+    if (repoInput && repoHint) {
+      repoInput.addEventListener('input', function() {
+        const val = repoInput.value.trim();
+        if (val.includes('/tree/') || val.includes('/blob/') || val.includes('/commit/')) {
+          repoHint.style.color = 'var(--danger)';
+          repoHint.textContent = '⚠️ 不支持的 URL 格式，请输入纯 Git 仓库地址（如 https://github.com/user/repo.git）';
+        } else {
+          repoHint.style.color = 'var(--text-muted)';
+          repoHint.textContent = '仅支持纯 Git 仓库地址，不支持 /tree/、/blob/、/commit/ 等页面链接';
+        }
+      });
+    }
   }
 
   function showSubmitSuccessModal(data) {
@@ -1872,7 +1979,7 @@
   async function retrySubmission(id) {
     try {
       const res = await Auth.fetchWithAuth(
-        Auth.API_BASE + '/api/admin/submissions/' + id + '/retry',
+        Auth.API_BASE + '/api/admin/submissions/' + id + '/continue',
         { method: 'POST', headers: { 'Content-Type': 'application/json' } }
       );
       return await res.json();
@@ -2056,7 +2163,7 @@
         <td style="padding:1rem">${statusBadge(s.status)}</td>
         <td style="padding:1rem">
           <div style="font-weight:500">${escHtml(s.name)}</div>
-          <div style="font-size:.75rem;color:var(--text-muted)">${escHtml(s.repo_url || '').substring(0, 50)}...</div>
+          <div style="font-size:.75rem;color:var(--text-muted)">${s.source_type === 'zip' ? '📦 ZIP上传' : escHtml(s.repo_url || '').substring(0, 50)}</div>
         </td>
         <td style="padding:1rem">${escHtml(s.submitter_employee_id || '-')}</td>
         <td style="padding:1rem">${riskBadgeSmall(s.highest_risk)}</td>
@@ -2254,7 +2361,7 @@
         <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:1rem">
           <div>
             <h1 style="margin:0;font-size:1.5rem">${escHtml(sub.name)}</h1>
-            <p style="margin:.25rem 0 0;color:var(--text-muted)">${escHtml(sub.repo_url)}</p>
+            <p style="margin:.25rem 0 0;color:var(--text-muted)">${sub.source_type === 'zip' ? '📦 ZIP上传' : escHtml(sub.repo_url || '-')}</p>
           </div>
           ${statusBadge(sub.status)}
         </div>
@@ -2262,8 +2369,8 @@
         <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:1rem;margin-top:1rem">
           <div><strong>提交 ID:</strong> <code>${escHtml(sub.submission_id)}</code></div>
           <div><strong>提交者:</strong> ${escHtml(sub.submitter_employee_id || '-')}</div>
-          <div><strong>Issue:</strong> ${sub.issue_url ? `<a href="${escHtml(sub.issue_url)}" target="_blank">#${sub.issue_number}</a>` : '-'}</div>
-          <div><strong>PR:</strong> ${sub.pr_url ? `<a href="${escHtml(sub.pr_url)}" target="_blank">#${sub.pr_number}</a>` : '-'}</div>
+          ${sub.source_type === 'git' ? `<div><strong>Issue:</strong> ${sub.issue_url ? `<a href="${escHtml(sub.issue_url)}" target="_blank">#${sub.issue_number}</a>` : '-'}</div>
+          <div><strong>PR:</strong> ${sub.pr_url ? `<a href="${escHtml(sub.pr_url)}" target="_blank">#${sub.pr_number}</a>` : '-'}</div>` : ''}
           <div><strong>风险等级:</strong> ${riskBadgeSmall(sub.highest_risk)}</div>
           <div><strong>重试次数:</strong> ${sub.retry_count}/${sub.max_retries}</div>
           <div><strong>创建时间:</strong> ${new Date(sub.created_at).toLocaleString('zh-CN')}</div>
@@ -2278,7 +2385,7 @@
       <!-- 操作按钮 -->
       <div style="display:flex;gap:.5rem">
         ${sub.status === 'issue_failed' || sub.status === 'process_failed' ? `<button class="btn btn-primary" onclick="window.doRetry(${sub.id})">🔄 重试</button>` : ''}
-        ${sub.status === 'issue_created' ? `
+        ${sub.status === 'issue_created' && sub.source_type === 'git' ? `
           <button class="btn btn-primary" onclick="window.doApprove(${sub.id})">✅ 审批通过</button>
           <button class="btn btn-danger" onclick="window.doReject(${sub.id})">❌ 拒绝</button>
         ` : ''}
@@ -2381,21 +2488,29 @@
       return;
     }
 
-    tbody.innerHTML = MySubmissionsData.map(s => `
+    tbody.innerHTML = MySubmissionsData.map(s => {
+      // 状态显示
+      let statusDisplay = statusBadge(s.status);
+      // 如果有审批意见，显示在状态下方
+      if (s.review_message) {
+        statusDisplay += `<div style="font-size:.7rem;color:var(--text-muted);margin-top:.25rem;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escHtml(s.review_message)}">${escHtml(s.review_message)}</div>`;
+      }
+
+      return `
       <tr style="border-bottom:1px solid var(--border)">
-        <td style="padding:1rem">${statusBadge(s.status)}</td>
+        <td style="padding:1rem">${statusDisplay}</td>
         <td style="padding:1rem">
           <div style="font-weight:500">${escHtml(s.name)}</div>
-          <div style="font-size:.75rem;color:var(--text-muted)">${escHtml(s.repo_url || '').substring(0, 50)}${s.repo_url && s.repo_url.length > 50 ? '...' : ''}</div>
+          <div style="font-size:.75rem;color:var(--text-muted)">${s.source_type === 'zip' ? '📦 ZIP上传' : escHtml(s.repo_url || '').substring(0, 50)}${s.repo_url && s.repo_url.length > 50 ? '...' : ''}</div>
         </td>
         <td style="padding:1rem">${escHtml(s.category || '-')}</td>
         <td style="padding:1rem;font-size:.75rem;color:var(--text-muted)">${new Date(s.created_at).toLocaleString('zh-CN')}</td>
         <td style="padding:1rem">
-          ${s.issue_url ? `<a href="${escHtml(s.issue_url)}" target="_blank" class="btn btn-sm btn-secondary">Issue</a>` : ''}
-          ${s.pr_url ? `<a href="${escHtml(s.pr_url)}" target="_blank" class="btn btn-sm btn-secondary" style="margin-left:.5rem">PR</a>` : ''}
+          ${s.source_type === 'git' && s.issue_url ? `<a href="${escHtml(s.issue_url)}" target="_blank" class="btn btn-sm btn-secondary">Issue</a>` : ''}
+          ${s.source_type === 'git' && s.pr_url ? `<a href="${escHtml(s.pr_url)}" target="_blank" class="btn btn-sm btn-secondary" style="margin-left:.5rem">PR</a>` : ''}
         </td>
       </tr>
-    `).join('');
+    `}).join('');
   }
 
   function bindMySubmissionsEvents() {
@@ -2451,4 +2566,28 @@
 
   // 重新初始化
   updateAuthUI();
+
+  // 暴露 submit tab 切换函数到全局作用域
+  let submitCurrentTab = 'git';
+  window.switchSubmitTab = function(tab) {
+    submitCurrentTab = tab;
+    const tabGit = document.getElementById('tabGit');
+    const tabZip = document.getElementById('tabZip');
+    const gitForm = document.getElementById('gitForm');
+    const zipForm = document.getElementById('zipForm');
+    if (tabGit) tabGit.classList.toggle('active', tab === 'git');
+    if (tabZip) tabZip.classList.toggle('active', tab === 'zip');
+    if (gitForm) gitForm.style.display = tab === 'git' ? 'block' : 'none';
+    if (zipForm) zipForm.style.display = tab === 'zip' ? 'block' : 'none';
+    const btn = document.getElementById('submit-btn');
+    if (btn) {
+      if (tab === 'git') {
+        btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg> 在 GitHub 提交 Issue';
+      } else {
+        btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg> 上传 ZIP';
+      }
+    }
+    const errEl = document.getElementById('submit-error');
+    if (errEl) errEl.style.display = 'none';
+  };
 })();

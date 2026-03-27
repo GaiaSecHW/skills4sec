@@ -260,6 +260,8 @@ def clean_json_response(content_text: str) -> str:
     if content_text.startswith("```"):
         content_text = re.sub(r'^```(?:json)?\s*\n', '', content_text)
         content_text = re.sub(r'\n```\s*$', '', content_text)
+    # 移除 <think>...</think> 块
+    content_text = re.sub(r"<think>.*?</think>", "", content_text, flags=re.DOTALL)
     return content_text.strip()
 
 
@@ -270,9 +272,11 @@ def clean_json_response(content_text: str) -> str:
 def analyze_security_with_ai(skill_dir: Path, skill_data: dict, config: dict, client: Optional[OpenAI] = None, verbose: bool = False) -> dict:
     """使用 AI 进行智能安全审计"""
     api_config = config.get("api", {})
-    base_url = api_config.get("base_url", "https://api.openai.com/v1")
+    base_url = resolve_api_key(api_config.get("base_url", "https://api.openai.com/v1"))
     api_key = resolve_api_key(api_config.get("api_key", ""))
-    model = api_config.get("model", "gpt-4o")
+    model = resolve_api_key(api_config.get("model", "gpt-4o"))
+    if model.startswith("${"):
+        model = os.environ.get(model[2:-1], "gpt-4o")
     timeout = api_config.get("timeout", 120)
 
     if not api_key:
@@ -533,9 +537,11 @@ def generate_security_summary(risk_level: str, risk_factors: list, high_findings
 def generate_content_with_ai(skill_data: dict, file_structure: list, config: dict, client: Optional[OpenAI] = None, verbose: bool = False) -> dict:
     """使用 AI 生成内容"""
     api_config = config.get("api", {})
-    base_url = api_config.get("base_url", "https://api.openai.com/v1")
+    base_url = resolve_api_key(api_config.get("base_url", "https://api.openai.com/v1"))
     api_key = resolve_api_key(api_config.get("api_key", ""))
-    model = api_config.get("model", "gpt-4o")
+    model = resolve_api_key(api_config.get("model", "gpt-4o"))
+    if model.startswith("${"):
+        model = os.environ.get(model[2:-1], "gpt-4o")
     timeout = api_config.get("timeout", 120)
 
     if not api_key:
@@ -604,6 +610,8 @@ Skill 名称: {skill_data.get('name', 'Unknown')}
     if verbose:
         console.print(f"[dim]Calling AI model: {model}")
 
+    model = resolve_api_key(model) if model.startswith("${") else model
+
     retry = config.get("generation", {}).get("retry", 2)
     last_error = None
 
@@ -612,7 +620,8 @@ Skill 名称: {skill_data.get('name', 'Unknown')}
             # 使用流式输出显示模型执行过程
             console.print(f"[cyan]🔄 模型思考中...[/cyan]")
 
-            stream = client.chat.completions.create(
+            # 非流式调用，避免与 rich 的冲突
+            response = client.chat.completions.create(
                 model=model,
                 messages=[
                     {"role": "system", "content": "You are a technical documentation expert. Generate structured JSON content for skill reports. Always respond with valid JSON only, no markdown formatting."},
@@ -620,22 +629,14 @@ Skill 名称: {skill_data.get('name', 'Unknown')}
                 ],
                 temperature=0.7,
                 max_tokens=3000,
-                stream=True  # 启用流式输出
+                stream=False
             )
 
-            # 实时显示模型输出
-            content_chunks = []
-            with console.status("[bold green]生成中...[/bold green]", spinner="dots") as status:
-                for chunk in stream:
-                    if chunk.choices[0].delta.content:
-                        text = chunk.choices[0].delta.content
-                        content_chunks.append(text)
-                        # 实时打印输出（可选）
-                        if verbose:
-                            console.print(text, end="", style="dim")
+            content_text = response.choices[0].message.content
+            if verbose:
+                console.print(f"[dim]Response: {content_text[:100]}...[/dim]")
 
-            console.print()  # 换行
-            content_text = clean_json_response("".join(content_chunks))
+            content_text = clean_json_response(content_text)
             return json.loads(content_text)
 
         except json.JSONDecodeError as e:
@@ -689,7 +690,7 @@ def generate_slug(skill_data: dict, skill_dir: Path, max_length: int = 50) -> st
     return result
 
 
-def generate_report(skill_dir: Path, config: dict, client: Optional[OpenAI] = None, verbose: bool = False) -> dict:
+def generate_report(skill_dir: Path, config: dict, client: Optional[OpenAI] = None, verbose: bool = False, source_url: Optional[str] = None) -> dict:
     """生成完整的 skill-report.json"""
 
     if verbose:
@@ -724,7 +725,9 @@ def generate_report(skill_dir: Path, config: dict, client: Optional[OpenAI] = No
     slug = generate_slug(skill_data, skill_dir)
 
     # 7. 获取来源信息
-    source_url = f"https://github.com/{skill_data.get('author', 'unknown')}/skills/tree/main/{skill_data.get('name', skill_dir.name)}"
+    if not source_url:
+        base_url = os.environ.get("GITEA_SKILLS_BASE_URL", "http://172.28.95.77:3000/admin/skills__hub/src/branch/main")
+        source_url = f"{base_url}/{skill_data.get('name', skill_dir.name)}"
 
     # 8. 组装完整报告
     now = datetime.now(timezone.utc)
@@ -736,7 +739,7 @@ def generate_report(skill_dir: Path, config: dict, client: Optional[OpenAI] = No
             "slug": slug,
             "source_url": source_url,
             "source_ref": "main",
-            "model": config.get("api", {}).get("model", "gpt-4o"),
+            "model": resolve_api_key(config.get("api", {}).get("model", "gpt-4o")),
             "analysis_version": "1.0.0",
             "source_type": "community",
             "content_hash": content_hash,
@@ -768,7 +771,7 @@ def generate_report(skill_dir: Path, config: dict, client: Optional[OpenAI] = No
             "dangerous_patterns": security_audit.get("dangerous_patterns", []),
             "files_scanned": security_audit.get("files_scanned", 0),
             "total_lines": security_audit.get("total_lines", 0),
-            "audit_model": config.get("api", {}).get("model", "gpt-4o"),
+            "audit_model": resolve_api_key(config.get("api", {}).get("model", "gpt-4o")),
             "audited_at": now.strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z"
         },
         "content": {
@@ -808,6 +811,7 @@ def main():
     parser.add_argument("--concurrent", type=int, help="并发数")
     parser.add_argument("--dry-run", action="store_true", help="预览模式，不写入文件")
     parser.add_argument("--verbose", "-v", action="store_true", help="详细输出")
+    parser.add_argument("--source-url", help="原始仓库地址（用于 skill-report.json）")
 
     args = parser.parse_args()
 
@@ -840,7 +844,7 @@ def main():
         sys.exit(1)
 
     shared_client = OpenAI(
-        base_url=api_config.get("base_url", "https://api.openai.com/v1"),
+        base_url=resolve_api_key(api_config.get("base_url", "https://api.openai.com/v1")),
         api_key=api_key,
         timeout=api_config.get("timeout", 120),
         default_headers={"Authorization": f"Bearer {api_key}"}
@@ -862,7 +866,7 @@ def main():
 
         def process_skill(skill_dir: Path) -> tuple:
             try:
-                report = generate_report(skill_dir, config, shared_client, args.verbose)
+                report = generate_report(skill_dir, config, shared_client, args.verbose, args.source_url)
                 return (skill_dir, report, None)
             except Exception as e:
                 return (skill_dir, None, str(e))

@@ -89,7 +89,29 @@
         .modal-header h3 { font-size: 18px; }
         .modal-close { background: none; border: none; font-size: 24px; cursor: pointer; color: #999; }
         .modal-body { padding: 20px; }
+        .tab-btn { border: 1px solid #ddd; background: #f5f5f5; color: #666; }
+        .tab-btn.active { background: #4a90d9; color: white; border-color: #4a90d9; }
         .modal-footer { padding: 15px 20px; border-top: 1px solid #eee; display: flex; justify-content: flex-end; gap: 10px; }
+
+        /* 工作流步骤 */
+        .workflow-container { margin-bottom: 20px; }
+        .workflow-title { font-size: 14px; font-weight: 600; color: #333; margin-bottom: 12px; }
+        .workflow-steps { display: flex; align-items: center; gap: 0; padding: 0; }
+        .workflow-step { display: flex; align-items: center; flex: 1; }
+        .workflow-step:last-child { flex: 0; }
+        .step-node { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; color: white; flex-shrink: 0; }
+        .step-node.pending { background: #ddd; color: #999; }
+        .step-node.active { background: #4a90d9; color: white; box-shadow: 0 0 0 4px rgba(74,144,217,0.3); }
+        .step-node.completed { background: #27ae60; color: white; }
+        .step-node.failed { background: #e74c3c; color: white; }
+        .step-label { font-size: 11px; color: #666; margin-top: 6px; text-align: center; white-space: nowrap; }
+        .step-connector { flex: 1; height: 3px; margin: 0 4px; margin-bottom: 20px; }
+        .step-connector.pending { background: #ddd; }
+        .step-connector.completed { background: #27ae60; }
+        .step-details { margin-top: 15px; padding: 12px; background: #f8f9fa; border-radius: 6px; font-size: 12px; }
+        .step-details-title { font-weight: 600; color: #333; margin-bottom: 8px; }
+        .step-details-row { display: flex; gap: 10px; padding: 4px 0; color: #555; }
+        .step-details-row strong { color: #333; min-width: 80px; }
 
         /* Toast 通知 */
         .toast-container { position: fixed; top: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; }
@@ -401,26 +423,74 @@
         </div>
     </div>
 
+    <!-- 审批拒绝模态框 -->
+    <div class="modal" id="rejectModal">
+        <div class="modal-content" style="width: 450px;">
+            <div class="modal-header" style="background: linear-gradient(135deg, #fee2e2 0%, #fff 100%); border-bottom: 1px solid #fecaca;">
+                <h3 style="color: #991b1b; display: flex; align-items: center; gap: 8px;">
+                    <span style="font-size: 20px;">⚠️</span> 审批拒绝
+                </h3>
+                <button class="modal-close" onclick="closeRejectModal()" style="color: #991b1b;">&times;</button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="rejectSubmissionId">
+                <div class="form-group">
+                    <label style="font-weight: 500; color: #374151; margin-bottom: 8px; display: block;">拒绝原因</label>
+                    <textarea id="rejectReason" rows="4" placeholder="请输入拒绝原因，将显示给提交者..." style="width:100%;padding:12px;border:1px solid #d1d5db;border-radius:8px;background:#fafafa;color:#1f2937;font-size:14px;line-height:1.5;resize:vertical;transition:border-color 0.2s;" onfocus="this.style.borderColor='#ef4444';this.style.background='#fff'" onblur="this.style.borderColor='#d1d5db';this.style.background='#fafafa'"></textarea>
+                    <small style="color: #6b7280; font-size: 12px; margin-top: 6px; display: block;">💡 此原因将显示在用户的"我的提交"页面</small>
+                </div>
+            </div>
+            <div class="modal-footer" style="background: #f9fafb; border-top: 1px solid #e5e7eb;">
+                <button class="btn btn-sm" onclick="closeRejectModal()" style="padding: 8px 16px;">取消</button>
+                <button class="btn btn-sm" onclick="confirmReject()" style="padding: 8px 16px; background: #ef4444; color: white; border: none; border-radius: 6px; font-weight: 500;">确认拒绝</button>
+            </div>
+        </div>
+    </div>
+
     <!-- 新建提交模态框 -->
     <div class="modal" id="createSubmissionModal">
-        <div class="modal-content" style="width: 500px;">
+        <div class="modal-content" style="width: 550px;">
             <div class="modal-header">
                 <h3>+ 新建提交</h3>
                 <button class="modal-close" onclick="closeCreateSubmissionModal()">&times;</button>
             </div>
             <div class="modal-body">
-                <form id="createSubmissionForm">
+                <!-- Tab 切换 -->
+                <div class="tab-buttons" style="display: flex; gap: 8px; margin-bottom: 16px;">
+                    <button class="btn btn-sm tab-btn active" id="tabGit" onclick="switchTab('git')" style="flex:1;">Git 仓库</button>
+                    <button class="btn btn-sm tab-btn" id="tabZip" onclick="switchTab('zip')" style="flex:1;">ZIP 上传</button>
+                </div>
+
+                <!-- Git 仓库表单 -->
+                <form id="createSubmissionFormGit" style="display: block;">
                     <div class="form-group">
                         <label>Git 仓库地址 *</label>
-                        <input type="text" id="createRepoUrl" required placeholder="https://github.com/user/repo.git">
+                        <input type="text" id="createRepoUrl" placeholder="https://github.com/user/repo.git">
                     </div>
                     <div class="form-group">
                         <label>技能名称</label>
-                        <input type="text" id="createName" placeholder="留空则自动从仓库获取">
+                        <input type="text" id="createNameGit" placeholder="留空则自动从仓库获取">
                     </div>
                     <div class="form-group">
                         <label>描述</label>
-                        <textarea id="createDescription" rows="3" placeholder="可选的描述信息" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; resize: vertical;"></textarea>
+                        <textarea id="createDescriptionGit" rows="3" placeholder="可选的描述信息" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; resize: vertical;"></textarea>
+                    </div>
+                </form>
+
+                <!-- ZIP 上传表单 -->
+                <form id="createSubmissionFormZip" style="display: none;" enctype="multipart/form-data">
+                    <div class="form-group">
+                        <label>选择 ZIP 文件 *</label>
+                        <input type="file" id="createZipFile" accept=".zip" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                        <small style="color: #666; font-size: 12px;">ZIP 内需直接包含 SKILL.md 文件</small>
+                    </div>
+                    <div class="form-group">
+                        <label>技能名称</label>
+                        <input type="text" id="createNameZip" placeholder="留空则自动从 ZIP 获取">
+                    </div>
+                    <div class="form-group">
+                        <label>描述</label>
+                        <textarea id="createDescriptionZip" rows="3" placeholder="可选的描述信息" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; resize: vertical;"></textarea>
                     </div>
                 </form>
             </div>
@@ -534,8 +604,57 @@
         let token = localStorage.getItem('token');
         let currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
 
-        document.addEventListener('DOMContentLoaded', () => {
-            if (token) {
+        // 从 URL 参数解析 SSO token
+        function getUrlParams() {
+            const params = new URLSearchParams(window.location.search);
+            return {
+                sso_token: params.get('sso_token'),
+                sso_refresh: params.get('sso_refresh')
+            };
+        }
+
+        // 使用 SSO token 验证并登录
+        async function loginBySSOToken(ssoToken, ssoRefresh) {
+            try {
+                // 存储 SSO token
+                localStorage.setItem('token', ssoToken);
+                localStorage.setItem('sso_refresh', ssoRefresh);
+                token = ssoToken;
+
+                // 调用 /auth/me 验证 token
+                const res = await fetch(`${API_BASE}/auth/me`, {
+                    headers: { 'Authorization': `Bearer ${ssoToken}` }
+                });
+
+                if (res.ok) {
+                    const user = await res.json();
+                    currentUser = user;
+                    localStorage.setItem('currentUser', JSON.stringify(currentUser));
+                    // 清除 URL 参数
+                    window.history.replaceState({}, document.title, window.location.pathname);
+                    showApp();
+                    return true;
+                } else {
+                    // token 无效，清除存储
+                    localStorage.removeItem('token');
+                    localStorage.removeItem('sso_refresh');
+                    localStorage.removeItem('currentUser');
+                    token = null;
+                    currentUser = {};
+                    return false;
+                }
+            } catch (err) {
+                console.error('SSO login failed:', err);
+                return false;
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            // 检查 URL 是否有 SSO token
+            const { sso_token, sso_refresh } = getUrlParams();
+            if (sso_token) {
+                await loginBySSOToken(sso_token, sso_refresh);
+            } else if (token) {
                 showApp();
             }
 
@@ -623,11 +742,15 @@
         }
 
         async function api(endpoint, options = {}) {
+            const headers = { 'Authorization': `Bearer ${token}` };
+            // 如果 body 是 FormData，不设置 Content-Type（浏览器会自动添加 boundary）
+            if (!(options.body instanceof FormData)) {
+                headers['Content-Type'] = 'application/json';
+            }
             const res = await fetch(`${API_BASE}${endpoint}`, {
                 ...options,
                 headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`,
+                    ...headers,
                     ...options.headers
                 }
             });
@@ -932,10 +1055,11 @@
                     <td>${s.submitter_employee_id || '-'}</td>
                     <td>${new Date(s.created_at).toLocaleString()}</td>
                     <td>
-                        <button class="btn btn-sm btn-primary" onclick="viewSubmissionDetail(${s.id})">详情</button>
-                        ${s.status === 'pending' ? `<button class="btn btn-sm btn-success" onclick="startWorkflow(${s.id})">启动</button>` : ''}
+                        <button class="btn btn-sm" onclick="viewSubmissionDetail(${s.id})">详情</button>
+                        ${['pending', 'issue_created', 'cloning', 'generating', 'migrating', 'approved', 'processing', 'pr_created', 'completed'].includes(s.status) ? `<button class="btn btn-sm btn-success" onclick="approveSubmission(${s.id})">通过</button><button class="btn btn-sm btn-danger" onclick="showRejectModal(${s.id})">拒绝</button>` : ''}
+                        ${s.status === 'pending' ? `<button class="btn btn-sm btn-primary" onclick="startWorkflow(${s.id})">启动</button>` : ''}
                         ${s.status === 'failed' ? `<button class="btn btn-sm btn-warning" onclick="showRetryStepModal(${s.id})">重试</button>` : ''}
-                        ${['completed', 'failed'].includes(s.status) ? `<button class="btn btn-sm btn-danger" onclick="deleteSubmission(${s.id})">删除</button>` : ''}
+                        ${['completed', 'failed', 'rejected'].includes(s.status) ? `<button class="btn btn-sm btn-danger" onclick="deleteSubmission(${s.id})">删除</button>` : ''}
                     </td>
                 </tr>
             `).join('');
@@ -971,13 +1095,118 @@
         function getStatusText(status) {
             const map = {
                 'pending': '待处理',
+                'creating_issue': '创建Issue中',
+                'issue_created': 'Issue已创建',
+                'issue_failed': 'Issue创建失败',
                 'cloning': '克隆中',
                 'generating': '生成中',
                 'migrating': '迁移中',
+                'approved': '已批准',
+                'processing': '处理中',
+                'pr_created': 'PR已创建',
                 'completed': '已完成',
                 'failed': '失败'
             };
             return map[status] || status;
+        }
+
+        // 工作流步骤配置 - Git 流程（包含 Issue 步骤）
+        const WORKFLOW_STEPS_GIT = [
+            { key: 'pending', label: '待处理', icon: '○' },
+            { key: 'creating_issue', label: '创建Issue', icon: '○' },
+            { key: 'issue_created', label: 'Issue完成', icon: '○' },
+            { key: 'cloning', label: '克隆', icon: '○' },
+            { key: 'generating', label: '生成', icon: '○' },
+            { key: 'migrating', label: '迁移', icon: '○' },
+            { key: 'completed', label: '完成', icon: '○' }
+        ];
+
+        // 工作流步骤配置 - ZIP 流程（不包含 Issue 步骤）
+        const WORKFLOW_STEPS_ZIP = [
+            { key: 'pending', label: '待处理', icon: '○' },
+            { key: 'cloning', label: '解压', icon: '○' },
+            { key: 'generating', label: '生成', icon: '○' },
+            { key: 'migrating', label: '迁移', icon: '○' },
+            { key: 'completed', label: '完成', icon: '○' }
+        ];
+
+        function getStepState(stepKey, currentStatus, sourceType) {
+            const isZip = sourceType === 'zip';
+            const stepOrder = isZip
+                ? ['pending', 'cloning', 'generating', 'migrating', 'completed']
+                : ['pending', 'creating_issue', 'issue_created', 'cloning', 'generating', 'migrating', 'completed'];
+            const failedSteps = ['issue_failed', 'failed'];
+
+            // 如果是失败状态
+            if (failedSteps.includes(currentStatus)) {
+                if (stepKey === 'pending') return 'completed';
+                // ZIP 流程不显示 issue 相关步骤
+                if (isZip) {
+                    if (currentStatus === 'failed') {
+                        if (stepKey === 'generating' || stepKey === 'migrating' || stepKey === 'cloning') return 'failed';
+                        if (stepKey === 'completed') return 'pending';
+                    }
+                } else {
+                    if (currentStatus === 'issue_failed' && stepKey === 'issue_created') return 'failed';
+                    if (currentStatus === 'failed') {
+                        if (stepKey === 'generating' || stepKey === 'migrating') return 'failed';
+                        if (stepKey === 'completed') return 'pending';
+                    }
+                }
+            }
+
+            const currentIdx = stepOrder.indexOf(currentStatus);
+            const stepIdx = stepOrder.indexOf(stepKey);
+
+            if (stepIdx < currentIdx) return 'completed';
+            if (stepIdx === currentIdx) {
+                if (!isZip && currentStatus === 'issue_created' && stepKey === 'issue_created') return 'active';
+                if (!isZip && currentStatus === 'issue_created' && stepKey === 'creating_issue') return 'completed';
+                return 'active';
+            }
+            return 'pending';
+        }
+
+        function renderWorkflow(currentStatus, sourceType) {
+            const isZip = sourceType === 'zip';
+            const steps = isZip ? WORKFLOW_STEPS_ZIP : WORKFLOW_STEPS_GIT;
+
+            let html = '<div class="workflow-container">';
+            html += `<div class="workflow-title">工作流进度 ${isZip ? '<span style="font-size:12px;color:#8b5cf6">📦 ZIP上传</span>' : '<span style="font-size:12px;color:#3b82f6">🔗 Git仓库</span>'}</div>`;
+            html += '<div class="workflow-steps">';
+
+            steps.forEach((step, idx) => {
+                const state = getStepState(step.key, currentStatus, sourceType);
+                const isLast = idx === steps.length - 1;
+
+                html += '<div class="workflow-step">';
+                html += `<div class="step-node ${state}">${step.icon === '○' ? (state === 'completed' ? '✓' : state === 'active' ? '●' : '○') : step.icon}</div>`;
+                html += `<div class="step-label">${step.label}</div>`;
+                html += '</div>';
+
+                if (!isLast) {
+                    const connectorState = state === 'completed' ? 'completed' : 'pending';
+                    html += `<div class="step-connector ${connectorState}"></div>`;
+                }
+            });
+
+            html += '</div></div>';
+            return html;
+        }
+
+        function renderStepDetails(stepDetails) {
+            if (!stepDetails || Object.keys(stepDetails).length === 0) {
+                return '';
+            }
+
+            let html = '<div class="step-details"><div class="step-details-title">步骤详情</div>';
+            for (const [key, value] of Object.entries(stepDetails)) {
+                const displayKey = key.replace(/_/g, ' ');
+                const displayValue = typeof value === 'object' ? JSON.stringify(value) : value;
+                html += `<div class="step-details-row"><strong>${displayKey}:</strong> ${displayValue}</div>`;
+            }
+            html += '</div>';
+            return html;
         }
 
         async function viewSubmissionDetail(id) {
@@ -986,11 +1215,24 @@
 
             const s = data.data.submission;
             const events = data.data.events;
+            const isZip = s.source_type === 'zip';
+
+            // 渲染工作流（根据来源类型）
+            const workflowHtml = renderWorkflow(s.status, s.source_type);
+
+            // 渲染步骤详情
+            const stepDetailsHtml = renderStepDetails(s.step_details);
+
+            // 来源显示
+            const sourceDisplay = isZip
+                ? '<span style="color:#8b5cf6">📦 ZIP上传</span>'
+                : `<a href="${s.repo_url}" target="_blank">${s.repo_url}</a>`;
 
             let html = `
+                ${workflowHtml}
                 <div class="detail-row"><strong>提交ID:</strong> ${s.submission_id}</div>
                 <div class="detail-row"><strong>名称:</strong> ${s.name}</div>
-                <div class="detail-row"><strong>仓库:</strong> <a href="${s.repo_url}" target="_blank">${s.repo_url}</a></div>
+                <div class="detail-row"><strong>来源:</strong> ${sourceDisplay}</div>
                 <div class="detail-row"><strong>状态:</strong> ${getStatusText(s.status)}</div>
                 <div class="detail-row"><strong>当前步骤:</strong> ${s.current_step || '-'}</div>
                 <div class="detail-row"><strong>提交者:</strong> ${s.submitter_employee_id || '-'}</div>
@@ -1000,6 +1242,7 @@
                 <div class="detail-row"><strong>失败:</strong> ${s.failed_skills || 0}</div>
                 <div class="detail-row"><strong>错误信息:</strong> ${s.error_message || '-'}</div>
                 <div class="detail-row"><strong>创建时间:</strong> ${new Date(s.created_at).toLocaleString()}</div>
+                ${stepDetailsHtml}
             `;
 
             document.getElementById('submissionDetail').innerHTML = html;
@@ -1019,13 +1262,24 @@
             const actionsDiv = document.getElementById('submissionActions');
             let actionsHtml = '';
 
-            if (s.status === 'pending') {
-                actionsHtml += '<button class="btn btn-sm btn-success" onclick="startWorkflow(' + s.id + ')">启动工作流</button>';
-            } else if (s.status === 'failed') {
-                actionsHtml += '<button class="btn btn-sm btn-warning" onclick="showRetryStepModal(' + s.id + ')">重试步骤</button>';
+            // 审批按钮（对所有非终态状态可用）
+            const reviewable = ['pending', 'creating_issue', 'issue_created', 'issue_failed', 'cloning', 'generating', 'migrating', 'approved', 'processing', 'pr_created'];
+            if (reviewable.includes(s.status)) {
+                actionsHtml += '<button class="btn btn-sm btn-success" onclick="approveSubmission(' + s.id + ')">审批通过</button>';
+                actionsHtml += '<button class="btn btn-sm btn-danger" onclick="showRejectModal(' + s.id + ')">审批拒绝</button>';
             }
 
-            if (['completed', 'failed'].includes(s.status)) {
+            // 非终态状态可以继续工作流
+            const continuable = ['creating_issue', 'issue_created', 'issue_failed', 'cloning', 'generating', 'migrating', 'approved', 'processing', 'pr_created'];
+            if (s.status === 'pending') {
+                actionsHtml += '<button class="btn btn-sm btn-primary" onclick="startWorkflow(' + s.id + ')">启动工作流</button>';
+            } else if (s.status === 'failed') {
+                actionsHtml += '<button class="btn btn-sm btn-warning" onclick="showRetryStepModal(' + s.id + ')">重试步骤</button>';
+            } else if (continuable.includes(s.status)) {
+                actionsHtml += '<button class="btn btn-sm btn-primary" onclick="continueWorkflow(' + s.id + ')">继续工作流</button>';
+            }
+
+            if (['completed', 'failed', 'rejected'].includes(s.status)) {
                 actionsHtml += '<button class="btn btn-sm btn-danger" onclick="deleteSubmission(' + s.id + ')">删除</button>';
             }
 
@@ -1048,6 +1302,19 @@
                     loadSubmissions(submissionsPage);
                 } else {
                     showError(res, '启动失败');
+                }
+            });
+        }
+
+        async function continueWorkflow(id) {
+            showConfirm('确定继续执行该提交的工作流吗？', async () => {
+                const res = await api(`/admin/submissions/${id}/continue`, { method: 'POST' });
+                if (res && res.success) {
+                    showToast('工作流已继续', 'success');
+                    closeSubmissionModal();
+                    loadSubmissions(submissionsPage);
+                } else {
+                    showError(res, '继续失败');
                 }
             });
         }
@@ -1093,6 +1360,50 @@
             });
         }
 
+        // ============ 审批功能 ============
+
+        async function approveSubmission(id) {
+            showConfirm('确定审批通过该提交吗？', async () => {
+                const res = await api(`/admin/submissions/${id}/approve`, { method: 'POST' });
+                if (res && res.success) {
+                    showToast('审批通过', 'success');
+                    closeSubmissionModal();
+                    loadSubmissions(submissionsPage);
+                } else {
+                    showError(res, '审批失败');
+                }
+            });
+        }
+
+        function showRejectModal(id) {
+            document.getElementById('rejectSubmissionId').value = id;
+            document.getElementById('rejectReason').value = '';
+            document.getElementById('rejectModal').classList.add('active');
+        }
+
+        function closeRejectModal() {
+            document.getElementById('rejectModal').classList.remove('active');
+        }
+
+        async function confirmReject() {
+            const id = document.getElementById('rejectSubmissionId').value;
+            const reason = document.getElementById('rejectReason').value.trim() || '审核不通过';
+
+            const res = await api(`/admin/submissions/${id}/reject`, {
+                method: 'POST',
+                body: JSON.stringify({ message: reason })
+            });
+
+            if (res && res.success) {
+                showToast('已拒绝', 'success');
+                closeRejectModal();
+                closeSubmissionModal();
+                loadSubmissions(submissionsPage);
+            } else {
+                showError(res, '操作失败');
+            }
+        }
+
         function exportSubmissions() {
             const status = document.getElementById('subStatus').value;
             let url = `${API_BASE}/admin/submissions/export/csv?token=${token}`;
@@ -1109,34 +1420,84 @@
             document.getElementById('createSubmissionModal').classList.add('active');
         }
 
+        let currentTab = 'git';
+
+        function switchTab(tab) {
+            currentTab = tab;
+            document.getElementById('tabGit').classList.toggle('active', tab === 'git');
+            document.getElementById('tabZip').classList.toggle('active', tab === 'zip');
+            document.getElementById('createSubmissionFormGit').style.display = tab === 'git' ? 'block' : 'none';
+            document.getElementById('createSubmissionFormZip').style.display = tab === 'zip' ? 'block' : 'none';
+        }
+
         function closeCreateSubmissionModal() {
             document.getElementById('createSubmissionModal').classList.remove('active');
+            currentTab = 'git';
+            switchTab('git');
         }
 
         async function confirmCreateSubmission() {
-            const repoUrl = document.getElementById('createRepoUrl').value.trim();
-            const name = document.getElementById('createName').value.trim();
-            const description = document.getElementById('createDescription').value.trim();
+            if (currentTab === 'git') {
+                const repoUrl = document.getElementById('createRepoUrl').value.trim();
+                const name = document.getElementById('createNameGit').value.trim();
+                const description = document.getElementById('createDescriptionGit').value.trim();
 
-            if (!repoUrl) {
-                return showToast('请输入 Git 仓库地址', 'warning');
-            }
+                if (!repoUrl) {
+                    return showToast('请输入 Git 仓库地址', 'warning');
+                }
 
-            const data = { repo_url: repoUrl };
-            if (name) data.name = name;
-            if (description) data.description = description;
+                // 验证 Git URL 格式
+                const isGitUrl = repoUrl.match(/\.git$/) ||
+                                 repoUrl.match(/^git@[^:]+:[^\/]+\/.+\.git$/) ||
+                                 repoUrl.match(/^https?:\/\/[^/]+\/[^/]+\/[^/]+\/?$/);
+                const isTreeOrBlob = repoUrl.includes('/tree/') || repoUrl.includes('/blob/') || repoUrl.includes('/commit/');
 
-            const res = await api('/admin/submissions', {
-                method: 'POST',
-                body: JSON.stringify(data)
-            });
+                if (isTreeOrBlob || !repoUrl.includes('://')) {
+                    return showToast('请输入有效的 Git 仓库地址（支持 .git 结尾或 git@ 格式）', 'warning');
+                }
 
-            if (res && res.success) {
-                showToast('提交创建成功', 'success');
-                closeCreateSubmissionModal();
-                loadSubmissions(submissionsPage);
+                const data = { repo_url: repoUrl, source_type: 'git' };
+                if (name) data.name = name;
+                if (description) data.description = description;
+
+                const res = await api('/admin/submissions', {
+                    method: 'POST',
+                    body: JSON.stringify(data)
+                });
+
+                if (res && res.success) {
+                    showToast('提交创建成功', 'success');
+                    closeCreateSubmissionModal();
+                    loadSubmissions(submissionsPage);
+                } else {
+                    showError(res, '创建失败');
+                }
             } else {
-                showError(res, '创建失败');
+                const fileInput = document.getElementById('createZipFile');
+                const name = document.getElementById('createNameZip').value.trim();
+                const description = document.getElementById('createDescriptionZip').value.trim();
+
+                if (!fileInput.files || !fileInput.files[0]) {
+                    return showToast('请选择 ZIP 文件', 'warning');
+                }
+
+                const formData = new FormData();
+                formData.append('file', fileInput.files[0]);
+                if (name) formData.append('name', name);
+                if (description) formData.append('description', description);
+
+                const res = await api('/admin/submissions/upload-zip', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (res && res.success) {
+                    showToast('ZIP 上传成功', 'success');
+                    closeCreateSubmissionModal();
+                    loadSubmissions(submissionsPage);
+                } else {
+                    showError(res, '上传失败');
+                }
             }
         }
     </script>

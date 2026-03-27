@@ -11,9 +11,16 @@ from typing import Optional
 class SubmissionStatus(str, Enum):
     """提交状态枚举"""
     PENDING = "pending"              # 待处理
+    CREATING_ISSUE = "creating_issue"  # 创建 Issue 中
+    ISSUE_CREATED = "issue_created"  # Issue 已创建
+    ISSUE_FAILED = "issue_failed"      # Issue 创建失败
     CLONING = "cloning"              # 克隆中
     GENERATING = "generating"        # 生成报告中
     MIGRATING = "migrating"          # 迁移中
+    APPROVED = "approved"            # 已批准
+    REJECTED = "rejected"            # 已拒绝
+    PROCESSING = "processing"        # 处理中
+    PR_CREATED = "pr_created"        # PR 已创建
     COMPLETED = "completed"          # 已完成
     FAILED = "failed"                # 失败（含失败原因）
 
@@ -22,6 +29,10 @@ class SubmissionEventType(str, Enum):
     """提交事件类型枚举"""
     # 创建
     CREATED = "created"
+
+    # Issue 步骤
+    ISSUE_CREATE_SUCCESS = "issue_create_success"
+    ISSUE_CREATE_FAILED = "issue_create_failed"
 
     # 克隆步骤
     CLONE_STARTED = "clone_started"
@@ -57,7 +68,9 @@ class Submission(Model):
     step_details = fields.JSONField(default=dict, description="步骤详情")
 
     name = fields.CharField(max_length=200, description="技能名称")
-    repo_url = fields.CharField(max_length=500, description="仓库地址")
+    repo_url = fields.CharField(max_length=500, null=True, description="仓库地址（ZIP上传时为空）")
+    source_type = fields.CharField(max_length=10, default="git", description="来源类型: git 或 zip")
+    zip_path = fields.CharField(max_length=500, null=True, description="ZIP文件路径（仅ZIP上传时使用）")
     description = fields.TextField(null=True, description="描述")
     category = fields.CharField(max_length=50, null=True, description="分类")
     contact = fields.CharField(max_length=200, null=True, description="联系方式")
@@ -92,6 +105,12 @@ class Submission(Model):
     error_code = fields.CharField(max_length=50, null=True, description="错误代码")
     error_message = fields.TextField(null=True, description="错误信息")
     error_details = fields.JSONField(null=True, description="错误详情")
+
+    # 审批信息
+    review_message = fields.TextField(null=True, description="审批意见（拒绝原因）")
+    reviewed_at = fields.DatetimeField(null=True, description="审批时间")
+    reviewer_id = fields.IntField(null=True, description="审批人ID")
+    reviewer_employee_id = fields.CharField(max_length=20, null=True, description="审批人工号")
 
     # 时间戳
     created_at = fields.DatetimeField(auto_now_add=True)
