@@ -38,7 +38,6 @@ async def cleanup_stale_submissions():
     processing_statuses = [
         SubmissionStatus.CLONING,
         SubmissionStatus.GENERATING,
-        SubmissionStatus.MIGRATING
     ]
 
     updated_count = 0

@@ -159,6 +159,7 @@
             <h2>📋 管理后台</h2>
             <div class="nav-item active" data-page="users">👥 用户管理</div>
             <div class="nav-item" data-page="submissions">📦 提交管理</div>
+            <div class="nav-item" data-page="contribution">🏆 贡献看板</div>
             <div class="nav-item" data-page="logs">📊 登录日志</div>
             <div class="nav-item" data-page="adminLogs">🔧 操作日志</div>
         </div>
@@ -330,6 +331,68 @@
                             <tbody id="submissionsTable"></tbody>
                         </table>
                         <div class="pagination" id="submissionsPagination"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 贡献看板页面 -->
+            <div class="page" id="contributionPage">
+                <!-- 统计卡片 -->
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; margin-bottom: 20px;">
+                    <div class="card" style="text-align: center; padding: 20px;">
+                        <div style="font-size: 32px; font-weight: bold; color: #4a90d9;" id="contribTotalSkills">0</div>
+                        <div style="color: #666; font-size: 13px;">技能总数</div>
+                    </div>
+                    <div class="card" style="text-align: center; padding: 20px;">
+                        <div style="font-size: 32px; font-weight: bold; color: #27ae60;" id="contribTotalDownloads">0</div>
+                        <div style="color: #666; font-size: 13px;">总下载量</div>
+                    </div>
+                    <div class="card" style="text-align: center; padding: 20px;">
+                        <div style="font-size: 32px; font-weight: bold; color: #f39c12;" id="contribTotalUsers">0</div>
+                        <div style="color: #666; font-size: 13px;">用户总数</div>
+                    </div>
+                    <div class="card" style="text-align: center; padding: 20px;">
+                        <div style="font-size: 32px; font-weight: bold; color: #9b59b6;" id="contribTotalSubmissions">0</div>
+                        <div style="color: #666; font-size: 13px;">提交总数</div>
+                    </div>
+                </div>
+
+                <!-- 下载排行 -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3>📈 下载排行 TOP 20</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="toolbar">
+                            <input type="date" id="contribStartDate" placeholder="开始日期">
+                            <span style="color: #666;">至</span>
+                            <input type="date" id="contribEndDate" placeholder="结束日期">
+                            <button class="btn btn-sm btn-primary" onclick="loadContributionStats()">刷新</button>
+                        </div>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th style="width: 60px;">排名</th>
+                                    <th>技能名称</th>
+                                    <th style="width: 100px;">作者</th>
+                                    <th style="width: 120px;">下载次数</th>
+                                    <th style="width: 100px;">占比</th>
+                                </tr>
+                            </thead>
+                            <tbody id="contributionTable"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- 风险分布 -->
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 15px; margin-top: 20px;">
+                    <div class="card">
+                        <div class="card-header"><h3>🛡️ 风险等级分布</h3></div>
+                        <div class="card-body" id="riskDistribution" style="display: flex; flex-direction: column; gap: 10px;"></div>
+                    </div>
+                    <div class="card">
+                        <div class="card-header"><h3>📁 技能分类分布</h3></div>
+                        <div class="card-body" id="categoryDistribution" style="display: flex; flex-direction: column; gap: 10px;"></div>
                     </div>
                 </div>
             </div>
@@ -672,6 +735,7 @@
 
                     if (item.dataset.page === 'users') loadUsers();
                     else if (item.dataset.page === 'submissions') loadSubmissions();
+                    else if (item.dataset.page === 'contribution') loadContributionStats();
                     else if (item.dataset.page === 'logs') loadLoginLogs();
                     else if (item.dataset.page === 'adminLogs') loadAdminLogs();
                 });
@@ -1499,6 +1563,149 @@
                     showError(res, '上传失败');
                 }
             }
+        }
+
+        // ============ 贡献看板 ============
+
+        async function loadContributionStats() {
+            // 加载统计数据
+            const [skillsRes, usersRes, submissionsRes, statsRes] = await Promise.all([
+                api('/skills?page_size=1'),
+                api('/admin/users?skip=0&limit=1'),
+                api('/admin/submissions/stats'),
+                api('/stats/top')
+            ]);
+
+            // 技能总数
+            if (skillsRes && skillsRes.total !== undefined) {
+                document.getElementById('contribTotalSkills').textContent = skillsRes.total;
+            }
+
+            // 用户总数
+            if (usersRes && usersRes.total !== undefined) {
+                document.getElementById('contribTotalUsers').textContent = usersRes.total;
+            }
+
+            // 提交统计
+            if (submissionsRes && submissionsRes.success) {
+                const s = submissionsRes.data;
+                document.getElementById('contribTotalSubmissions').textContent = s.total || 0;
+            }
+
+            // 下载排行
+            if (statsRes) {
+                const totalDownloads = statsRes.total_downloads || 0;
+                document.getElementById('contribTotalDownloads').textContent = totalDownloads;
+
+                const tbody = document.getElementById('contributionTable');
+                const rankings = statsRes.rankings || [];
+
+                if (rankings.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #999;">暂无数据</td></tr>';
+                } else {
+                    tbody.innerHTML = rankings.map(item => {
+                        const percent = totalDownloads > 0 ? ((item.downloads / totalDownloads) * 100).toFixed(1) : 0;
+                        const rankClass = item.rank <= 3 ? 'badge-warning' : '';
+                        return `
+                            <tr>
+                                <td><span class="badge ${rankClass}">${item.rank}</span></td>
+                                <td>${item.skill_name}</td>
+                                <td>${item.author || '-'}</td>
+                                <td>${item.downloads}</td>
+                                <td>
+                                    <div style="display: flex; align-items: center; gap: 8px;">
+                                        <div style="flex: 1; height: 8px; background: #eee; border-radius: 4px; overflow: hidden;">
+                                            <div style="width: ${percent}%; height: 100%; background: linear-gradient(90deg, #4a90d9, #27ae60);"></div>
+                                        </div>
+                                        <span style="font-size: 12px; color: #666;">${percent}%</span>
+                                    </div>
+                                </td>
+                            </tr>
+                        `;
+                    }).join('');
+                }
+            }
+
+            // 风险分布 - 从技能列表获取
+            loadRiskDistribution();
+
+            // 分类分布
+            loadCategoryDistribution();
+        }
+
+        async function loadRiskDistribution() {
+            const res = await api('/skills?page_size=100');
+            const container = document.getElementById('riskDistribution');
+            if (!res || !res.items) {
+                container.innerHTML = '<div style="color: #999;">暂无数据</div>';
+                return;
+            }
+
+            const riskCounts = { safe: 0, low: 0, medium: 0, high: 0, critical: 0 };
+            res.items.forEach(skill => {
+                const level = skill.risk_level || 'safe';
+                if (riskCounts.hasOwnProperty(level)) {
+                    riskCounts[level]++;
+                }
+            });
+
+            const riskLabels = {
+                safe: '🟢 安全',
+                low: '🟡 低风险',
+                medium: '🟠 中风险',
+                high: '🔴 高风险',
+                critical: '⚫ 严重'
+            };
+
+            const riskColors = {
+                safe: '#27ae60',
+                low: '#f1c40f',
+                medium: '#f39c12',
+                high: '#e74c3c',
+                critical: '#2c3e50'
+            };
+
+            const total = Object.values(riskCounts).reduce((a, b) => a + b, 0);
+
+            container.innerHTML = Object.entries(riskCounts).map(([level, count]) => {
+                const percent = total > 0 ? ((count / total) * 100).toFixed(1) : 0;
+                return `
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <span style="min-width: 80px;">${riskLabels[level]}</span>
+                        <div style="flex: 1; height: 20px; background: #f0f0f0; border-radius: 4px; overflow: hidden;">
+                            <div style="width: ${percent}%; height: 100%; background: ${riskColors[level]};"></div>
+                        </div>
+                        <span style="min-width: 50px; text-align: right;">${count} (${percent}%)</span>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        async function loadCategoryDistribution() {
+            const res = await api('/skills/categories/list');
+            const container = document.getElementById('categoryDistribution');
+            if (!res || !Array.isArray(res)) {
+                container.innerHTML = '<div style="color: #999;">暂无数据</div>';
+                return;
+            }
+
+            const total = res.reduce((sum, c) => sum + (c.skill_count || 0), 0);
+            const colors = ['#4a90d9', '#27ae60', '#f39c12', '#9b59b6', '#1abc9c', '#e74c3c', '#34495e', '#16a085'];
+
+            container.innerHTML = res.slice(0, 8).map((cat, idx) => {
+                const count = cat.skill_count || 0;
+                const percent = total > 0 ? ((count / total) * 100).toFixed(1) : 0;
+                const color = colors[idx % colors.length];
+                return `
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <span style="min-width: 80px;">${cat.icon || '📁'} ${cat.name}</span>
+                        <div style="flex: 1; height: 20px; background: #f0f0f0; border-radius: 4px; overflow: hidden;">
+                            <div style="width: ${percent}%; height: 100%; background: ${color};"></div>
+                        </div>
+                        <span style="min-width: 50px; text-align: right;">${count} (${percent}%)</span>
+                    </div>
+                `;
+            }).join('');
         }
     </script>
 </body>

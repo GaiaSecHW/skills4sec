@@ -111,7 +111,7 @@ class StartWorkflowRequest(BaseModel):
 
 class RetryStepRequest(BaseModel):
     """重试步骤请求"""
-    step: str = Field(..., description="步骤名称: cloning/generating/migrating")
+    step: str = Field(..., description="步骤名称: cloning/generating")
 
 
 # ============ 辅助函数 ============
@@ -254,7 +254,7 @@ async def get_submission_stats(
         "data": {
             "total": total,
             "pending": by_status.get("pending", 0),
-            "processing": by_status.get("cloning", 0) + by_status.get("generating", 0) + by_status.get("migrating", 0),
+            "processing": by_status.get("cloning", 0) + by_status.get("generating", 0),
             "completed": by_status.get("completed", 0),
             "failed": by_status.get("failed", 0),
             "by_status": by_status,
@@ -486,7 +486,7 @@ async def retry_step(
             detail="只有失败状态才能重试"
         )
 
-    valid_steps = ["cloning", "generating", "migrating"]
+    valid_steps = ["cloning", "generating"]
     if data.step not in valid_steps:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -552,7 +552,6 @@ async def continue_workflow(
         SubmissionStatus.ISSUE_FAILED: "cloning",     # Issue 失败 -> 重试克隆
         SubmissionStatus.CLONING: "cloning",          # 克隆中 -> 重新克隆
         SubmissionStatus.GENERATING: "generating",    # 生成中 -> 重新生成
-        SubmissionStatus.MIGRATING: "migrating",      # 迁移中 -> 重新迁移
         SubmissionStatus.APPROVED: "cloning",         # 已批准 -> 开始克隆
         SubmissionStatus.PROCESSING: "cloning",       # 处理中 -> 开始克隆
         SubmissionStatus.PR_CREATED: "cloning",        # PR 已创建 -> 开始克隆
