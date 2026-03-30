@@ -81,8 +81,11 @@ def _parse_mysql_url(url: str) -> dict:
     """解析 MySQL URL 为字典格式
 
     mysql://user:password@host:port/database
+    支持 URL 编码的特殊字符（如密码中的 @ 写成 %40）
     """
     import re
+    from urllib.parse import unquote
+
     pattern = r"mysql://(?P<user>[^:]+):(?P<password>[^@]*)@(?P<host>[^:]+):(?P<port>\d+)/(?P<database>.+)"
     match = re.match(pattern, url)
     if not match:
@@ -90,9 +93,9 @@ def _parse_mysql_url(url: str) -> dict:
     return {
         "host": match.group("host"),
         "port": int(match.group("port")),
-        "user": match.group("user"),
-        "password": match.group("password"),
-        "database": match.group("database"),
+        "user": unquote(match.group("user")),
+        "password": unquote(match.group("password")),
+        "database": unquote(match.group("database").strip()),
         "charset": "utf8mb4",
     }
 
