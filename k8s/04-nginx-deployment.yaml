@@ -1,0 +1,65 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: skillhub-nginx
+  namespace: skillhub
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: skillhub-nginx
+  template:
+    metadata:
+      labels:
+        app: skillhub-nginx
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:alpine
+        ports:
+        - containerPort: 80
+        volumeMounts:
+        - name: nginx-config
+          mountPath: /etc/nginx/nginx.conf
+          subPath: nginx.conf
+        - name: static-files
+          mountPath: /usr/share/nginx/html
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "50m"
+          limits:
+            memory: "128Mi"
+            cpu: "200m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 80
+          initialDelaySeconds: 10
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 80
+          initialDelaySeconds: 5
+          periodSeconds: 5
+      volumes:
+      - name: nginx-config
+        configMap:
+          name: skillhub-nginx-config
+      - name: static-files
+        configMap:
+          name: skillhub-static-files
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: skillhub-nginx
+  namespace: skillhub
+spec:
+  selector:
+    app: skillhub-nginx
+  ports:
+  - port: 80
+    targetPort: 80
+  type: ClusterIP
