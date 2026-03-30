@@ -2,8 +2,10 @@ from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from typing import Optional, List
 from tortoise.functions import Count
+from datetime import datetime
 import zipfile
 import io
+import json
 import os
 
 from app.models.skill import Skill, Category, SkillTag, SkillTagRelation
@@ -20,8 +22,58 @@ from app.config import settings
 
 router = APIRouter(prefix="/skills", tags=["skills"])
 
-# 技能目录路径
-SKILLS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))), "skills")
+# 项目根目录
+_PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+SKILLS_DIR = os.path.join(_PROJECT_ROOT, "skills")
+SKILLS_JSON_PATH = os.path.join(_PROJECT_ROOT, "docs", "data", "skills.json")
+
+# skills.json 缓存
+_skills_json_cache: Optional[list] = None
+_skills_json_mtime: float = 0
+
+
+def _load_skills_json() -> list:
+    """读取 skills.json，带简单文件缓存"""
+    global _skills_json_cache, _skills_json_mtime
+    try:
+        mtime = os.path.getmtime(SKILLS_JSON_PATH)
+        if _skills_json_cache is not None and mtime == _skills_json_mtime:
+            return _skills_json_cache
+        with open(SKILLS_JSON_PATH, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        _skills_json_cache = data
+        _skills_json_mtime = mtime
+        return data
+    except (FileNotFoundError, json.JSONDecodeError):
+        return []
+
+
+def _skill_item_to_out(item: dict, index: int) -> dict:
+    """将 skills.json 单条记录转为 SkillOut 兼容 dict"""
+    generated_at = item.get("generated_at")
+    return {
+        "id": index + 1,
+        "slug": item["slug"],
+        "name": item["name"],
+        "icon": item.get("icon", "📦"),
+        "description": item.get("description", item.get("summary", "")),
+        "summary": item.get("summary"),
+        "version": item.get("version", "1.0.0"),
+        "author": item.get("author", ""),
+        "license": item.get("license"),
+        "category": item.get("category"),
+        "tags": item.get("tags", []),
+        "supported_tools": item.get("supported_tools", []),
+        "risk_factors": item.get("risk_factors", []),
+        "risk_level": item.get("risk_level", "safe"),
+        "is_blocked": item.get("is_blocked", False),
+        "safe_to_publish": item.get("safe_to_publish", True),
+        "source_url": item.get("source_url", ""),
+        "source_type": item.get("source_type", "community"),
+        "generated_at": generated_at,
+        "created_at": generated_at or datetime.now().isoformat(),
+        "updated_at": generated_at or datetime.now().isoformat(),
+    }
 
 
 # ============ 辅助函数 ============
@@ -187,59 +239,36 @@ async def list_skills(
     search: Optional[str] = None,
     source_type: Optional[str] = None,
 ):
-    """获取技能列表（支持分页和过滤）"""
-    query = Skill.all()
+    """获取技能列表（支持分页和过滤）- 直接读取 skills.json"""
+    all_skills = _load_skills_json()
 
-    # 过滤条件
-    if category:
-        cat = await Category.get_or_none(slug=category)
-        if cat:
-            query = query.filter(category=cat)
+    # 在内存中过滤
+    filtered = []
+    for idx, item in enumerate(all_skills):
+        # 排除被阻止的技能
+        if item.get("is_blocked", False):
+            continue
+        if category and item.get("category") != category:
+            continue
+        if risk_level and item.get("risk_level") != risk_level.value:
+            continue
+        if tool and tool.value not in item.get("supported_tools", []):
+            continue
+        if source_type and item.get("source_type") != source_type:
+            continue
+        if search:
+            s = search.lower()
+            if (s not in item.get("name", "").lower()
+                    and s not in item.get("description", "").lower()
+                    and s not in item.get("summary", "").lower()):
+                continue
+        filtered.append((idx, item))
 
-    if risk_level:
-        query = query.filter(risk_level=risk_level)
-
-    if tool:
-        query = query.filter(supported_tools__contains=tool.value)
-
-    if source_type:
-        query = query.filter(source_type=source_type)
-
-    if search:
-        query = query.filter(
-            name__icontains=search
-        ) | query.filter(
-            description__icontains=search
-        ) | query.filter(
-            summary__icontains=search
-        )
-
-    # 排除被阻止的技能
-    query = query.filter(is_blocked=False)
-
-    # 计算总数
-    total = await query.count()
-
-    # 分页
+    total = len(filtered)
     offset = (page - 1) * page_size
-    skills = await query.offset(offset).limit(page_size).order_by("-created_at")
+    page_items = filtered[offset:offset + page_size]
 
-    # 构建输出
-    items = []
-    for skill in skills:
-        # 获取标签
-        tag_relations = await SkillTagRelation.filter(skill=skill).prefetch_related("tag")
-        tags = [tr.tag.name for tr in tag_relations]
-
-        # 获取分类 slug
-        cat_slug = None
-        if skill.category_id:
-            cat = await Category.get_or_none(id=skill.category_id)
-            cat_slug = cat.slug if cat else None
-
-        item = skill_to_out(skill, tags, cat_slug)
-        items.append(SkillOut(**item))
-
+    items = [SkillOut(**_skill_item_to_out(item, idx)) for idx, item in page_items]
     total_pages = (total + page_size - 1) // page_size
 
     return SkillListOut(
@@ -253,97 +282,59 @@ async def list_skills(
 
 @router.get("/{slug}", response_model=SkillDetailOut)
 async def get_skill_detail(slug: str):
-    """获取技能详情"""
-    skill = await Skill.get_or_none(slug=slug).prefetch_related("category")
-    if not skill:
+    """获取技能详情 - 直接读取 skills.json"""
+    all_skills = _load_skills_json()
+
+    skill_item = None
+    skill_idx = -1
+    for idx, item in enumerate(all_skills):
+        if item.get("slug") == slug:
+            skill_item = item
+            skill_idx = idx
+            break
+
+    if skill_item is None:
         raise HTTPException(status_code=404, detail="Skill not found")
 
-    # 获取标签
-    tag_relations = await SkillTagRelation.filter(skill=skill).prefetch_related("tag")
-    tags = [tr.tag.name for tr in tag_relations]
+    base = _skill_item_to_out(skill_item, skill_idx)
 
-    # 构建基础输出
-    cat_slug = skill.category.slug if skill.category else None
-    base = skill_to_out(skill, tags, cat_slug)
-
-    # 获取审计信息
-    audit_out = None
-    audit = await SecurityAudit.get_or_none(skill=skill)
-    if audit:
-        findings = await SecurityFinding.filter(audit=audit).all()
-        risk_evidence = await RiskFactorEvidence.filter(audit=audit).all()
-
-        audit_out = {
-            "id": audit.id,
-            "skill_id": audit.skill_id,
-            "risk_level": audit.risk_level,
-            "is_blocked": audit.is_blocked,
-            "safe_to_publish": audit.safe_to_publish,
-            "summary": audit.summary,
-            "files_scanned": audit.files_scanned,
-            "total_lines": audit.total_lines,
-            "audit_model": audit.audit_model,
-            "audited_at": audit.audited_at,
-            "risk_factors": audit.risk_factors,
-            "findings": [
-                {
-                    "id": f.id,
-                    "severity": f.severity,
-                    "title": f.title,
-                    "description": f.description,
-                    "locations": f.locations,
-                }
-                for f in findings
-            ],
-            "risk_evidence": [
-                {
-                    "id": e.id,
-                    "factor": e.factor,
-                    "evidence": e.evidence,
-                }
-                for e in risk_evidence
-            ],
-        }
-
-    # 获取内容信息
+    # 构建内容信息（skills.json 中有丰富数据时映射）
     content_out = None
-    content = await SkillContent.get_or_none(skill=skill)
-    if content:
-        use_cases = await UseCase.filter(content=content).all()
-        prompt_templates = await PromptTemplate.filter(content=content).all()
-        output_examples = await OutputExample.filter(content=content).all()
-        faq = await FAQ.filter(content=content).all()
-
+    has_content = any(k in skill_item for k in (
+        "user_title", "value_statement", "actual_capabilities",
+        "use_cases", "prompt_templates", "limitations", "faq"
+    ))
+    if has_content:
         content_out = {
-            "id": content.id,
-            "skill_id": content.skill_id,
-            "user_title": content.user_title,
-            "value_statement": content.value_statement,
-            "actual_capabilities": content.actual_capabilities,
-            "limitations": content.limitations,
-            "best_practices": content.best_practices,
-            "anti_patterns": content.anti_patterns,
+            "id": skill_idx + 1,
+            "skill_id": skill_idx + 1,
+            "user_title": skill_item.get("user_title"),
+            "value_statement": skill_item.get("value_statement"),
+            "actual_capabilities": skill_item.get("actual_capabilities", []),
+            "limitations": skill_item.get("limitations", []),
+            "best_practices": skill_item.get("best_practices", []),
+            "anti_patterns": skill_item.get("anti_patterns", []),
             "use_cases": [
-                {"id": uc.id, "title": uc.title, "description": uc.description, "target_user": uc.target_user}
-                for uc in use_cases
+                {"id": i, "title": uc.get("title", ""), "description": uc.get("description", ""), "target_user": uc.get("target_user")}
+                for i, uc in enumerate(skill_item.get("use_cases", []))
             ],
             "prompt_templates": [
-                {"id": pt.id, "title": pt.title, "scenario": pt.scenario, "prompt": pt.prompt}
-                for pt in prompt_templates
+                {"id": i, "title": pt.get("title", ""), "scenario": pt.get("scenario"), "prompt": pt.get("prompt", "")}
+                for i, pt in enumerate(skill_item.get("prompt_templates", []))
             ],
             "output_examples": [
-                {"id": oe.id, "input_text": oe.input_text, "output_text": oe.output_text}
-                for oe in output_examples
+                {"id": i, "input_text": oe.get("input_text", ""), "output_text": oe.get("output_text", "")}
+                for i, oe in enumerate(skill_item.get("output_examples", []))
             ],
             "faq": [
-                {"id": f.id, "question": f.question, "answer": f.answer}
-                for f in faq
+                {"id": i, "question": f.get("question", ""), "answer": f.get("answer", "")}
+                for i, f in enumerate(skill_item.get("faq", []))
             ],
         }
 
     return SkillDetailOut(
         **base,
-        audit=audit_out,
+        audit=None,
         content=content_out,
     )
 
@@ -443,12 +434,6 @@ async def download_skill(slug: str):
 
     if not os.path.isdir(skill_dir):
         raise HTTPException(status_code=404, detail=f"Skill directory not found: {slug}")
-
-    # 更新下载计数
-    skill = await Skill.get_or_none(slug=slug)
-    if skill:
-        skill.download_count = (skill.download_count or 0) + 1
-        await skill.save(update_fields=["download_count"])
 
     # 创建内存中的 ZIP 文件
     zip_buffer = io.BytesIO()
