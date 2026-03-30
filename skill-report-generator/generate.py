@@ -678,11 +678,9 @@ def generate_slug(skill_data: dict, skill_dir: Path, max_length: int = 50) -> st
     """生成 slug，限制最大长度"""
     name = skill_data.get("name", skill_dir.name)
     author = skill_data.get("author", "")
-
-    namespace = re.sub(r'[^a-z0-9]', '-', author.lower()).strip('-') if author else "unknown"
     slug = re.sub(r'[^a-z0-9]', '-', name.lower()).strip('-')
 
-    result = f"{namespace}-{slug}"
+    result = f"{slug}"
     # 限制总长度
     if len(result) > max_length:
         result = result[:max_length].rstrip('-')

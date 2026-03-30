@@ -16,7 +16,6 @@ class SubmissionStatus(str, Enum):
     ISSUE_FAILED = "issue_failed"      # Issue 创建失败
     CLONING = "cloning"              # 克隆中
     GENERATING = "generating"        # 生成报告中
-    MIGRATING = "migrating"          # 迁移中
     APPROVED = "approved"            # 已批准
     REJECTED = "rejected"            # 已拒绝
     PROCESSING = "processing"        # 处理中
@@ -43,11 +42,6 @@ class SubmissionEventType(str, Enum):
     GENERATE_STARTED = "generate_started"
     GENERATE_SUCCESS = "generate_success"
     GENERATE_FAILED = "generate_failed"
-
-    # 迁移步骤
-    MIGRATE_STARTED = "migrate_started"
-    MIGRATE_SUCCESS = "migrate_success"
-    MIGRATE_FAILED = "migrate_failed"
 
     # 完成
     COMPLETED = "completed"

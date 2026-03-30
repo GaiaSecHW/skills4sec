@@ -276,3 +276,25 @@ class CategoryOut(CategoryBase):
 class TagOut(BaseModel):
     name: str
     count: int = 0
+
+
+# ============ 统计排行 ============
+class RankingItem(BaseModel):
+    """排行项"""
+    rank: int
+    skill_name: str
+    downloads: int
+    author: str
+
+
+class StatsPeriod(BaseModel):
+    """统计周期"""
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
+
+
+class TopStatsOut(BaseModel):
+    """下载排行统计响应"""
+    period: StatsPeriod
+    total_downloads: int
+    rankings: List[RankingItem]

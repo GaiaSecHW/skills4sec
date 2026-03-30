@@ -33,7 +33,6 @@ class WorkflowStep:
     """工作流步骤常量"""
     CLONING = "cloning"
     GENERATING = "generating"
-    MIGRATING = "migrating"
     COMPLETED = "completed"
 
 
@@ -42,7 +41,6 @@ class WorkflowService:
 
     # 目录配置
     DOWNLOAD_DIR = Path(__file__).parent.parent.parent / "skills_download"
-    SKILLS_DIR = Path(__file__).parent.parent.parent.parent / "skills"
 
     # 生成器路径
     GENERATOR_PATH = Path(__file__).parent.parent.parent.parent / "skill-report-generator" / "generate.py"
@@ -92,7 +90,6 @@ class WorkflowService:
     def __init__(self):
         # 确保目录存在
         self.DOWNLOAD_DIR.mkdir(parents=True, exist_ok=True)
-        self.SKILLS_DIR.mkdir(parents=True, exist_ok=True)
 
     async def start_workflow(self, submission: Submission) -> Tuple[bool, str]:
         """
@@ -128,13 +125,13 @@ class WorkflowService:
         if not success:
             return False, message
 
-        # 步骤 2: 生成报告
-        success, message = await self.generate_report(submission, local_path)
+        # 步骤 1.5: 复制 skill 到 git 目录，并获取目标路径
+        success, message, git_target_path = await self._copy_skill_to_git_dir(submission, local_path)
         if not success:
             return False, message
 
-        # 步骤 3: 迁移文件
-        success, message = await self.migrate_files(submission, local_path)
+        # 步骤 2: 生成报告（使用 git 目录中的 skill）
+        success, message = await self.generate_report(submission, git_target_path)
         if not success:
             return False, message
 
@@ -167,8 +164,8 @@ class WorkflowService:
 
         Args:
             submission: 提交记录
-            step: 步骤名称 (cloning/generating/migrating)
-            local_path: 本地路径（用于 generating 和 migrating）
+            step: 步骤名称 (cloning/generating)
+            local_path: 本地路径（用于 generating）
 
         Returns:
             (是否成功, 消息)
@@ -182,12 +179,6 @@ class WorkflowService:
             if not local_path:
                 return False, "缺少本地路径信息"
             return await self.generate_report(submission, local_path)
-        elif step == WorkflowStep.MIGRATING:
-            if not local_path:
-                local_path = submission.step_details.get("cloning", {}).get("local_path")
-            if not local_path:
-                return False, "缺少本地路径信息"
-            return await self.migrate_files(submission, local_path)
         else:
             return False, f"未知步骤: {step}"
 
@@ -211,11 +202,6 @@ class WorkflowService:
             if local_path:
                 # 步骤 2: 生成报告
                 success, message = await self.generate_report(submission, local_path)
-                if not success:
-                    return False, message
-
-                # 步骤 3: 迁移文件
-                success, message = await self.migrate_files(submission, local_path)
                 if not success:
                     return False, message
 
@@ -342,8 +328,6 @@ class WorkflowService:
                     )
                     return False, message, None
 
-                # 更新 submission 的 repo_url 为真实仓库地址
-                submission.repo_url = repo_url
                 submission.step_details["cloning"] = {
                     "status": "completed",
                     "local_path": str(local_path),
@@ -559,14 +543,15 @@ class WorkflowService:
                 "OPENAI_MODEL": settings.OPENAI_MODEL or "gpt-4o",
                 "GITEA_SKILLS_BASE_URL": settings.GITEA_SKILLS_BASE_URL,
             }
-            # 设置 source_url：Git 用仓库地址，ZIP 用 Gitea 技能库地址
-            if submission.source_type == "zip":
-                source_url = f"{settings.GITEA_SKILLS_BASE_URL}/{submission.name}"
-            else:
+            # 构建生成器命令
+            cmd = [sys.executable, str(self.GENERATOR_PATH), "--input", local_path]
+            # ZIP 上传不传 source-url，Git 工作流传完整 repo_url
+            if submission.source_type != "zip":
                 source_url = submission.repo_url or "unknown"
+                cmd.extend(["--source-url", source_url])
 
             returncode, stdout, stderr = await self._run_subprocess(
-                [sys.executable, str(self.GENERATOR_PATH), "--input", local_path, "--source-url", source_url],
+                cmd,
                 timeout=300,
                 cwd=str(self.GENERATOR_PATH.parent),
                 env=env
@@ -687,105 +672,6 @@ class WorkflowService:
                     error_message=error_msg,
                     triggered_by="workflow_service"
                 )
-
-            return False, error_msg
-            await submission.save()
-
-            await SubmissionEvent.create(
-                submission=submission,
-                event_type=SubmissionEventType.GENERATE_FAILED,
-                message=error_msg,
-                error_message=error_msg,
-                triggered_by="workflow_service"
-            )
-
-            return False, error_msg
-
-    async def migrate_files(
-        self,
-        submission: Submission,
-        local_path: str
-    ) -> Tuple[bool, str]:
-        """
-        迁移文件到目标目录
-
-        Args:
-            submission: 提交记录
-            local_path: 本地仓库路径
-
-        Returns:
-            (是否成功, 消息)
-        """
-        start_time = time.time()
-        logger.info(f"Migrating files from: {local_path}")
-
-        # 更新状态
-        submission.status = SubmissionStatus.MIGRATING
-        submission.current_step = WorkflowStep.MIGRATING
-        await submission.save()
-
-        await SubmissionEvent.create(
-            submission=submission,
-            event_type=SubmissionEventType.MIGRATE_STARTED,
-            message="开始迁移文件",
-            triggered_by="workflow_service"
-        )
-
-        try:
-            # 从 step_details 获取 author 和 repo
-            cloning_info = submission.step_details.get("cloning", {})
-            author = cloning_info.get("author", "unknown")
-            repo = cloning_info.get("repo", "unknown")
-
-            # 目标目录
-            target_path = self.SKILLS_DIR / author / repo
-
-            # 如果目标已存在，先删除
-            if target_path.exists():
-                shutil.rmtree(target_path, ignore_errors=True)
-
-            # 创建目标目录
-            target_path.parent.mkdir(parents=True, exist_ok=True)
-
-            # 复制整个目录
-            shutil.copytree(local_path, target_path)
-
-            duration = time.time() - start_time
-            logger.info(f"Files migrated in {duration:.2f}s to {target_path}")
-
-            submission.step_details["migrating"] = {
-                "status": "completed",
-                "target_path": str(target_path),
-                "duration": duration
-            }
-            await submission.save()
-
-            await SubmissionEvent.create(
-                submission=submission,
-                event_type=SubmissionEventType.MIGRATE_SUCCESS,
-                message=f"文件迁移完成 ({duration:.2f}s)",
-                details={"target_path": str(target_path), "duration": duration},
-                triggered_by="workflow_service"
-            )
-
-            return True, f"文件迁移完成 ({duration:.2f}s)"
-
-        except Exception as e:
-            error_msg = f"迁移文件异常: {str(e)}"
-            logger.exception(error_msg)
-
-            submission.status = SubmissionStatus.FAILED
-            submission.error_message = error_msg
-            submission.step_details["migrating"] = {"status": "failed", "error": error_msg}
-            await submission.save()
-
-            await SubmissionEvent.create(
-                submission=submission,
-                event_type=SubmissionEventType.MIGRATE_FAILED,
-                message=error_msg,
-                error_message=error_msg,
-                triggered_by="workflow_service"
-            )
 
             return False, error_msg
 
@@ -1042,6 +928,89 @@ class WorkflowService:
         repo = re.sub(r'[^a-zA-Z0-9_-]', '-', repo)
 
         return author, repo
+
+    async def _copy_skill_to_git_dir(
+        self,
+        submission: Submission,
+        local_path: str
+    ) -> Tuple[bool, str, Optional[str]]:
+        """
+        将 skill 复制到 skills_download/git/{skill-name}/ 目录
+
+        Args:
+            submission: 提交记录
+            local_path: 克隆的本地路径
+
+        Returns:
+            (是否成功, 消息, 目标路径)
+        """
+        try:
+            local_path = Path(local_path)
+
+            # 查找 SKILL.md 文件
+            skill_md = local_path / "SKILL.md"
+            if not skill_md.exists():
+                return False, "SKILL.md not found", None
+
+            # 解析 skill name
+            skill_name = self._parse_skill_name(skill_md)
+            if not skill_name:
+                return False, "Failed to parse skill name from SKILL.md", None
+
+            # 目标目录: skills_download/git/{skill-name}/
+            git_dir = self.DOWNLOAD_DIR / "git"
+            target_dir = git_dir / skill_name
+
+            # 创建目标目录
+            git_dir.mkdir(parents=True, exist_ok=True)
+
+            # 如果目标目录已存在，先删除
+            if target_dir.exists():
+                shutil.rmtree(target_dir, ignore_errors=True)
+
+            # 复制整个 skill 目录到目标位置
+            shutil.copytree(str(local_path), str(target_dir), dirs_exist_ok=True)
+
+            logger.info(f"Copied skill to {target_dir}")
+
+            # 更新 submission 的 step_details
+            submission.step_details["git_copy"] = {
+                "status": "completed",
+                "skill_name": skill_name,
+                "target_path": str(target_dir)
+            }
+            await submission.save()
+
+            return True, f"Skill copied to {target_dir}", str(target_dir)
+
+        except Exception as e:
+            error_msg = f"Failed to copy skill to git dir: {str(e)}"
+            logger.error(error_msg)
+            return False, error_msg, None
+
+    def _parse_skill_name(self, skill_md_path: Path) -> Optional[str]:
+        """
+        从 SKILL.md 解析 skill name
+
+        Args:
+            skill_md_path: SKILL.md 文件路径
+
+        Returns:
+            skill name，如果解析失败返回 None
+        """
+        try:
+            content = skill_md_path.read_text(encoding="utf-8")
+            # 解析 YAML front matter
+            if content.startswith("---"):
+                parts = content.split("---", 2)
+                if len(parts) >= 2:
+                    import yaml
+                    metadata = yaml.safe_load(parts[1])
+                    if metadata and "name" in metadata:
+                        return metadata["name"]
+        except Exception as e:
+            logger.warning(f"Failed to parse skill name from {skill_md_path}: {e}")
+        return None
 
     def _find_skill_dir(self, local_path: Path, folder_path: Optional[str] = None) -> Optional[Path]:
         """

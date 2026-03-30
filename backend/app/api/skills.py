@@ -444,6 +444,12 @@ async def download_skill(slug: str):
     if not os.path.isdir(skill_dir):
         raise HTTPException(status_code=404, detail=f"Skill directory not found: {slug}")
 
+    # 更新下载计数
+    skill = await Skill.get_or_none(slug=slug)
+    if skill:
+        skill.download_count = (skill.download_count or 0) + 1
+        await skill.save(update_fields=["download_count"])
+
     # 创建内存中的 ZIP 文件
     zip_buffer = io.BytesIO()
 
