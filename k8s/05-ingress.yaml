@@ -1,0 +1,24 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: skillhub-ingress
+  namespace: skillhub
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    cert-manager.io/cluster-issuer: letsencrypt-prod  # 如果使用 cert-manager
+spec:
+  tls:
+  - hosts:
+    - skillhub.example.com  # 替换为你的域名
+    secretName: skillhub-tls
+  rules:
+  - host: skillhub.example.com  # 替换为你的域名
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: skillhub-nginx
+            port:
+              number: 80
