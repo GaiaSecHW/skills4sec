@@ -43,7 +43,33 @@ aerich init-db
 ### 5. 运行开发服务器
 
 ```bash
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+# 方式一：同时启动 HTTP + HTTPS（推荐）
+py -3.11 run.py
+# HTTP  → http://0.0.0.0:8000
+# HTTPS → https://0.0.0.0:8443
+
+# 方式二：仅启动 HTTP
+py -3.11 -m uvicorn app.main:app --host 0.0.0.0 --port 8000
+```
+
+启动后访问：
+
+| 地址 | 说明 |
+|------|------|
+| `http://localhost:8000/` | 技能市场门户（docs SPA） |
+| `http://localhost:8000/api/info` | API 信息 |
+| `http://localhost:8000/docs` | Swagger UI |
+| `http://localhost:8000/admin` | 管理后台 |
+
+SSL 证书位于 `certs/` 目录（开发用自签名证书）。生产环境请替换为正式证书。
+
+可通过 `.env` 配置 SSL：
+```ini
+SSL_ENABLED=true        # 启用/关闭 HTTPS
+HTTP_PORT=8000          # HTTP 端口
+HTTPS_PORT=8443         # HTTPS 端口
+SSL_CERTFILE=certs/cert.pem
+SSL_KEYFILE=certs/key.pem
 ```
 
 ---

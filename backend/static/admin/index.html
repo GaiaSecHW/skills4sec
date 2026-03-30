@@ -289,7 +289,7 @@
                     <div class="card-header">
                         <h3>技能提交列表</h3>
                         <div>
-                            <button class="btn btn-sm btn-success" onclick="showCreateSubmissionModal()">+ 新建提交</button>
+                            <button class="btn btn-sm btn-primary" onclick="loadSubmissions(submissionsPage)">刷新</button>
                             <button class="btn btn-sm btn-warning" onclick="exportSubmissions()">导出 CSV</button>
                         </div>
                     </div>
@@ -506,60 +506,6 @@
             <div class="modal-footer" style="background: #f9fafb; border-top: 1px solid #e5e7eb;">
                 <button class="btn btn-sm" onclick="closeRejectModal()" style="padding: 8px 16px;">取消</button>
                 <button class="btn btn-sm" onclick="confirmReject()" style="padding: 8px 16px; background: #ef4444; color: white; border: none; border-radius: 6px; font-weight: 500;">确认拒绝</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- 新建提交模态框 -->
-    <div class="modal" id="createSubmissionModal">
-        <div class="modal-content" style="width: 550px;">
-            <div class="modal-header">
-                <h3>+ 新建提交</h3>
-                <button class="modal-close" onclick="closeCreateSubmissionModal()">&times;</button>
-            </div>
-            <div class="modal-body">
-                <!-- Tab 切换 -->
-                <div class="tab-buttons" style="display: flex; gap: 8px; margin-bottom: 16px;">
-                    <button class="btn btn-sm tab-btn active" id="tabGit" onclick="switchTab('git')" style="flex:1;">Git 仓库</button>
-                    <button class="btn btn-sm tab-btn" id="tabZip" onclick="switchTab('zip')" style="flex:1;">ZIP 上传</button>
-                </div>
-
-                <!-- Git 仓库表单 -->
-                <form id="createSubmissionFormGit" style="display: block;">
-                    <div class="form-group">
-                        <label>Git 仓库地址 *</label>
-                        <input type="text" id="createRepoUrl" placeholder="https://github.com/user/repo.git">
-                    </div>
-                    <div class="form-group">
-                        <label>技能名称</label>
-                        <input type="text" id="createNameGit" placeholder="留空则自动从仓库获取">
-                    </div>
-                    <div class="form-group">
-                        <label>描述</label>
-                        <textarea id="createDescriptionGit" rows="3" placeholder="可选的描述信息" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; resize: vertical;"></textarea>
-                    </div>
-                </form>
-
-                <!-- ZIP 上传表单 -->
-                <form id="createSubmissionFormZip" style="display: none;" enctype="multipart/form-data">
-                    <div class="form-group">
-                        <label>选择 ZIP 文件 *</label>
-                        <input type="file" id="createZipFile" accept=".zip" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                        <small style="color: #666; font-size: 12px;">ZIP 内需直接包含 SKILL.md 文件</small>
-                    </div>
-                    <div class="form-group">
-                        <label>技能名称</label>
-                        <input type="text" id="createNameZip" placeholder="留空则自动从 ZIP 获取">
-                    </div>
-                    <div class="form-group">
-                        <label>描述</label>
-                        <textarea id="createDescriptionZip" rows="3" placeholder="可选的描述信息" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; resize: vertical;"></textarea>
-                    </div>
-                </form>
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-sm" onclick="closeCreateSubmissionModal()">取消</button>
-                <button class="btn btn-sm btn-success" onclick="confirmCreateSubmission()">创建</button>
             </div>
         </div>
     </div>
@@ -834,7 +780,7 @@
             const role = document.getElementById('filterRole').value;
             const status = document.getElementById('filterStatus').value;
 
-            let url = `/admin/users?skip=${page * 20}&limit=20`;
+            let url = `/admin/users?page=${page + 1}&page_size=20`;
             if (keyword) url += `&keyword=${encodeURIComponent(keyword)}`;
             if (role) url += `&role=${role}`;
             if (status) url += `&status=${status}`;
@@ -859,17 +805,19 @@
                 </tr>
             `).join('');
 
-            renderPagination('usersPagination', data.total, page, loadUsers);
+            renderPagination('usersPagination', data.total, page, loadUsers, 20);
         }
 
-        function renderPagination(id, total, currentPage, callback) {
-            const totalPages = Math.ceil(total / 20);
+        function renderPagination(id, total, currentPage, callback, pageSize = 20) {
+            const totalPages = Math.ceil(total / pageSize);
             const container = document.getElementById(id);
             let html = '';
 
             html += `<button ${currentPage === 0 ? 'disabled' : ''} onclick="${callback.name}(${currentPage - 1})">上一页</button>`;
-            for (let i = 0; i < Math.min(5, totalPages); i++) {
-                const p = Math.max(0, Math.min(currentPage - 2 + i, totalPages - 1));
+            let startPage = Math.max(0, currentPage - 2);
+            let endPage = Math.min(totalPages, startPage + 5);
+            if (endPage - startPage < 5) startPage = Math.max(0, endPage - 5);
+            for (let p = startPage; p < endPage; p++) {
                 html += `<button class="${p === currentPage ? 'active' : ''}" onclick="${callback.name}(${p})">${p + 1}</button>`;
             }
             html += `<button ${currentPage >= totalPages - 1 ? 'disabled' : ''} onclick="${callback.name}(${currentPage + 1})">下一页</button>`;
@@ -1049,7 +997,7 @@
             const employeeId = document.getElementById('logEmployeeId').value;
             const status = document.getElementById('logStatus').value;
 
-            let url = `/admin/login-logs?skip=${page * 50}&limit=50`;
+            let url = `/admin/login-logs?page=${page + 1}&page_size=50`;
             if (employeeId) url += `&employee_id=${encodeURIComponent(employeeId)}`;
             if (status) url += `&status=${status}`;
 
@@ -1067,13 +1015,13 @@
                 </tr>
             `).join('');
 
-            renderPagination('logsPagination', data.total, page, loadLoginLogs);
+            renderPagination('logsPagination', data.total, page, loadLoginLogs, 50);
         }
 
         let adminLogsPage = 0;
         async function loadAdminLogs(page = 0) {
             adminLogsPage = page;
-            const data = await api(`/admin/admin-logs?skip=${page * 50}&limit=50`);
+            const data = await api(`/admin/admin-logs?page=${page + 1}&page_size=50`);
             if (!data) return;
 
             const tbody = document.getElementById('adminLogsTable');
@@ -1087,7 +1035,7 @@
                 </tr>
             `).join('');
 
-            renderPagination('adminLogsPagination', data.total, page, loadAdminLogs);
+            renderPagination('adminLogsPagination', data.total, page, loadAdminLogs, 50);
         }
 
         // ============ 提交管理 ============
@@ -1128,7 +1076,7 @@
                 </tr>
             `).join('');
 
-            renderPagination('submissionsPagination', data.total, page, loadSubmissions);
+            renderPagination('submissionsPagination', data.total, page, loadSubmissions, 20);
             loadSubmissionStats();
         }
 
@@ -1468,100 +1416,32 @@
             }
         }
 
-        function exportSubmissions() {
+        async function exportSubmissions() {
             const status = document.getElementById('subStatus').value;
-            let url = `${API_BASE}/admin/submissions/export/csv?token=${token}`;
-            if (status) url += `&status=${status}`;
-            window.open(url, '_blank');
-        }
+            let url = `${API_BASE}/admin/submissions/export/csv`;
+            const params = new URLSearchParams();
+            if (status) params.set('status', status);
+            if (params.toString()) url += '?' + params.toString();
 
-        // ============ 新建提交 ============
-
-        function showCreateSubmissionModal() {
-            document.getElementById('createRepoUrl').value = '';
-            document.getElementById('createName').value = '';
-            document.getElementById('createDescription').value = '';
-            document.getElementById('createSubmissionModal').classList.add('active');
-        }
-
-        let currentTab = 'git';
-
-        function switchTab(tab) {
-            currentTab = tab;
-            document.getElementById('tabGit').classList.toggle('active', tab === 'git');
-            document.getElementById('tabZip').classList.toggle('active', tab === 'zip');
-            document.getElementById('createSubmissionFormGit').style.display = tab === 'git' ? 'block' : 'none';
-            document.getElementById('createSubmissionFormZip').style.display = tab === 'zip' ? 'block' : 'none';
-        }
-
-        function closeCreateSubmissionModal() {
-            document.getElementById('createSubmissionModal').classList.remove('active');
-            currentTab = 'git';
-            switchTab('git');
-        }
-
-        async function confirmCreateSubmission() {
-            if (currentTab === 'git') {
-                const repoUrl = document.getElementById('createRepoUrl').value.trim();
-                const name = document.getElementById('createNameGit').value.trim();
-                const description = document.getElementById('createDescriptionGit').value.trim();
-
-                if (!repoUrl) {
-                    return showToast('请输入 Git 仓库地址', 'warning');
-                }
-
-                // 验证 Git URL 格式
-                const isGitUrl = repoUrl.match(/\.git$/) ||
-                                 repoUrl.match(/^git@[^:]+:[^\/]+\/.+\.git$/) ||
-                                 repoUrl.match(/^https?:\/\/[^/]+\/[^/]+\/[^/]+\/?$/);
-                const isTreeOrBlob = repoUrl.includes('/tree/') || repoUrl.includes('/blob/') || repoUrl.includes('/commit/');
-
-                if (isTreeOrBlob || !repoUrl.includes('://')) {
-                    return showToast('请输入有效的 Git 仓库地址（支持 .git 结尾或 git@ 格式）', 'warning');
-                }
-
-                const data = { repo_url: repoUrl, source_type: 'git' };
-                if (name) data.name = name;
-                if (description) data.description = description;
-
-                const res = await api('/admin/submissions', {
-                    method: 'POST',
-                    body: JSON.stringify(data)
+            try {
+                const response = await fetch(url, {
+                    headers: { 'Authorization': `Bearer ${token}` }
                 });
-
-                if (res && res.success) {
-                    showToast('提交创建成功', 'success');
-                    closeCreateSubmissionModal();
-                    loadSubmissions(submissionsPage);
-                } else {
-                    showError(res, '创建失败');
+                if (!response.ok) {
+                    showToast('导出失败: ' + response.status, 'error');
+                    return;
                 }
-            } else {
-                const fileInput = document.getElementById('createZipFile');
-                const name = document.getElementById('createNameZip').value.trim();
-                const description = document.getElementById('createDescriptionZip').value.trim();
-
-                if (!fileInput.files || !fileInput.files[0]) {
-                    return showToast('请选择 ZIP 文件', 'warning');
-                }
-
-                const formData = new FormData();
-                formData.append('file', fileInput.files[0]);
-                if (name) formData.append('name', name);
-                if (description) formData.append('description', description);
-
-                const res = await api('/admin/submissions/upload-zip', {
-                    method: 'POST',
-                    body: formData
-                });
-
-                if (res && res.success) {
-                    showToast('ZIP 上传成功', 'success');
-                    closeCreateSubmissionModal();
-                    loadSubmissions(submissionsPage);
-                } else {
-                    showError(res, '上传失败');
-                }
+                const blob = await response.blob();
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = `submissions_${new Date().toISOString().slice(0,10)}.csv`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(a.href);
+                showToast('导出成功', 'success');
+            } catch (e) {
+                showToast('导出失败: ' + e.message, 'error');
             }
         }
 
@@ -1571,7 +1451,7 @@
             // 加载统计数据
             const [skillsRes, usersRes, submissionsRes, statsRes] = await Promise.all([
                 api('/skills?page_size=1'),
-                api('/admin/users?skip=0&limit=1'),
+                api('/admin/users?page=1&page_size=1'),
                 api('/admin/submissions/stats'),
                 api('/stats/top')
             ]);
