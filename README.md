@@ -224,7 +224,6 @@ cp -r skills4sec/skills/<skill-name> ~/.codex/skills/
 ### 前置条件
 
 - Node.js 18+
-- Python 3（用于本地预览服务器）
 
 ### 安装依赖
 
@@ -242,14 +241,16 @@ npm run build:site
 ### 本地预览
 
 ```bash
-# 启动本地服务器（默认端口 8080）
-npm run serve
+# 方式一：启动后端服务，自动挂载 docs SPA（推荐）
+cd backend
+py -3.11 run.py
+# 访问 http://localhost:8000 即可预览技能市场门户
 
-# 指定端口
+# 方式二：独立预览（无需后端，纯静态）
 python3 scripts/serve.py 3000
 ```
 
-打开 [http://localhost:8080](http://localhost:8080) 即可预览。
+打开 http://localhost:8000 即可预览。
 
 ### 开发流程
 
@@ -260,7 +261,7 @@ python3 scripts/serve.py 3000
 2. npm run build:site    # 重新生成 skills.json、harnesses.json 和 agents.json
         │
         ▼
-3. npm run serve         # 浏览器预览（http://localhost:8080）
+3. py -3.11 run.py       # 浏览器预览（http://localhost:8000）
         │
         ▼
 4. git add & commit & push

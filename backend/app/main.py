@@ -114,9 +114,9 @@ app.include_router(admin_router, prefix="/api")
 app.include_router(stats_router, prefix="/api")
 
 
-@app.get("/")
-async def root():
-    """API 根路径"""
+@app.get("/api/info")
+async def api_info():
+    """API 信息"""
     return {
         "name": settings.APP_NAME,
         "version": settings.APP_VERSION,
@@ -150,3 +150,9 @@ async def admin_page():
     if os.path.exists(admin_html):
         return FileResponse(admin_html)
     return {"error": "Admin page not found"}
+
+
+# 挂载 docs SPA 前端（技能市场门户，必须在所有路由之后）
+docs_dir = os.path.join(os.path.dirname(__file__), "..", "..", "docs")
+if os.path.exists(docs_dir):
+    app.mount("/", StaticFiles(directory=docs_dir, html=True), name="hub")
