@@ -7,6 +7,7 @@
 3. 迁移文件 → skills/{author}/{skill-name}/
 """
 import asyncio
+import io
 import os
 import re
 import shutil
@@ -16,6 +17,8 @@ import zipfile
 from datetime import datetime
 from pathlib import Path
 from typing import Optional, Tuple, Dict, Any
+
+import httpx
 
 from app.models.submission import (
     Submission,
@@ -69,7 +72,7 @@ class WorkflowService:
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
             cwd=cwd,
-            env=env or os.environ
+            env=env or dict(os.environ)
         )
 
         try:
@@ -308,6 +311,14 @@ class WorkflowService:
 
                 # 使用稀疏克隆
                 success, message, path = await self._sparse_clone(repo_url, branch, folder_path, local_path, start_time)
+
+                # 稀疏克隆失败时，回退到 GitHub ZIP API（解决 Windows 文件名限制问题）
+                if not success:
+                    logger.warning(f'{{"event": "sparse_clone_failed", "error": "{message[:200]}"}}')
+                    success, message, path = await self._download_github_zip(
+                        repo_url, branch, folder_path, local_path, start_time
+                    )
+
                 if not success:
                     # 设置失败状态
                     submission.status = SubmissionStatus.FAILED
@@ -902,6 +913,87 @@ class WorkflowService:
             return False, "克隆超时（超过180秒）", None
         except Exception as e:
             return False, f"稀疏克隆异常: {str(e)}", None
+
+    async def _download_github_zip(
+        self,
+        repo_url: str,
+        branch: str,
+        folder_path: str,
+        local_path: Path,
+        start_time: float
+    ) -> Tuple[bool, str, Optional[str]]:
+        """
+        通过 GitHub ZIP API 下载指定文件夹（Windows 兼容回退方案）
+
+        当 sparse clone 因 Windows 文件名限制（如冒号）失败时使用此方法。
+        通过 HTTP API 下载整个仓库的 ZIP 包，只解压目标文件夹。
+        """
+        # 从 repo_url 提取 owner/repo（格式: https://github.com/{owner}/{repo}.git）
+        match = re.search(r'github\.com/([^/]+)/([^/]+?)(?:\.git)?$', repo_url)
+        if not match:
+            return False, f"无法从 repo_url 解析 owner/repo: {repo_url}", None
+
+        owner, repo_name = match.groups()
+        zip_url = f"https://api.github.com/repos/{owner}/{repo_name}/zipball/{branch or 'main'}"
+
+        logger.info(f'{{"event": "github_zip_fallback", "url": "{zip_url}", "folder": "{folder_path}"}}')
+
+        try:
+            # 清理 sparse clone 可能残留的 .git 目录
+            if local_path.exists():
+                shutil.rmtree(local_path, ignore_errors=True)
+            local_path.mkdir(parents=True, exist_ok=True)
+
+            async with httpx.AsyncClient(timeout=120, follow_redirects=True) as client:
+                response = await client.get(
+                    zip_url,
+                    headers={"User-Agent": "skills4sec-workflow/1.0"}
+                )
+
+            if response.status_code != 200:
+                return False, f"GitHub ZIP 下载失败: HTTP {response.status_code}", None
+
+            # GitHub ZIP 根目录格式为 {owner}-{repo}-{hash}/
+            zip_bytes = io.BytesIO(response.content)
+            with zipfile.ZipFile(zip_bytes) as zf:
+                namelist = zf.namelist()
+                if not namelist:
+                    return False, "ZIP 文件为空", None
+
+                # 确定 GitHub 自动生成的前缀（第一个 / 之前的部分）
+                prefix = namelist[0].split('/')[0] + '/'
+
+                # 目标路径在 ZIP 中: {prefix}{folder_path}/
+                target_prefix = f"{prefix}{folder_path}/"
+
+                extracted_count = 0
+                for member in namelist:
+                    if not member.startswith(target_prefix) or member.endswith('/'):
+                        continue
+
+                    # 相对路径：去掉 target_prefix
+                    relative_path = member[len(target_prefix):]
+                    if not relative_path:
+                        continue
+
+                    target_file = local_path / relative_path
+                    target_file.parent.mkdir(parents=True, exist_ok=True)
+
+                    with zf.open(member) as src, open(target_file, 'wb') as dst:
+                        dst.write(src.read())
+                    extracted_count += 1
+
+                if extracted_count == 0:
+                    return False, f"ZIP 中未找到目标文件夹: {folder_path}", None
+
+            duration = time.time() - start_time
+            logger.info(f'{{"event": "github_zip_success", "files": {extracted_count}, "duration": {duration:.2f}}}')
+            return True, f"GitHub ZIP 下载完成 ({duration:.2f}s)", str(local_path)
+
+        except Exception as e:
+            error_msg = f"GitHub ZIP 下载异常: {str(e)}"
+            logger.error(f'{{"event": "github_zip_error", "error": "{str(e)}"}}')
+            return False, error_msg, None
 
     def _parse_repo_url(self, url: str) -> Tuple[str, str]:
         """
