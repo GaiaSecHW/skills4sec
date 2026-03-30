@@ -13,7 +13,9 @@ services:
       - skillhub-network
 
   nginx:
-    build: ./nginx
+    build:
+      context: .
+      dockerfile: nginx/Dockerfile
     container_name: skillhub-nginx
     restart: unless-stopped
     ports:
