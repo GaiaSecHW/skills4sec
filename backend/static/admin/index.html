@@ -355,6 +355,10 @@
                         <div style="font-size: 32px; font-weight: bold; color: #9b59b6;" id="contribTotalSubmissions">0</div>
                         <div style="color: #666; font-size: 13px;">提交总数</div>
                     </div>
+                    <div class="card" style="text-align: center; padding: 20px;">
+                        <div style="font-size: 32px; font-weight: bold; color: #e74c3c;" id="contribTotalFavorites">0</div>
+                        <div style="color: #666; font-size: 13px;">收藏总数</div>
+                    </div>
                 </div>
 
                 <!-- 下载排行 -->
@@ -380,6 +384,27 @@
                                 </tr>
                             </thead>
                             <tbody id="contributionTable"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- 收藏排行 -->
+                <div class="card" style="margin-top: 20px;">
+                    <div class="card-header">
+                        <h3>⭐ 收藏排行 TOP 20</h3>
+                    </div>
+                    <div class="card-body">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th style="width: 60px;">排名</th>
+                                    <th>技能名称</th>
+                                    <th style="width: 100px;">作者</th>
+                                    <th style="width: 120px;">收藏次数</th>
+                                    <th style="width: 100px;">占比</th>
+                                </tr>
+                            </thead>
+                            <tbody id="favoritesTable"></tbody>
                         </table>
                     </div>
                 </div>
@@ -1448,47 +1473,46 @@
         // ============ 贡献看板 ============
 
         async function loadContributionStats() {
-            // 加载统计数据
-            const [skillsRes, usersRes, submissionsRes, statsRes] = await Promise.all([
-                api('/skills?page_size=1'),
+            // 并行加载统计概览 + 下载排行 + 用户数 + 提交统计 + 收藏排行
+            const [summaryRes, statsRes, usersRes, submissionsRes, favoritesRes] = await Promise.all([
+                api('/stats/summary'),
+                api('/stats/top'),
                 api('/admin/users?page=1&page_size=1'),
                 api('/admin/submissions/stats'),
-                api('/stats/top')
+                api('/stats/favorites/top')
             ]);
 
-            // 技能总数
-            if (skillsRes && skillsRes.total !== undefined) {
-                document.getElementById('contribTotalSkills').textContent = skillsRes.total;
+            // 统计卡片
+            if (summaryRes) {
+                document.getElementById('contribTotalSkills').textContent = summaryRes.total_skills || 0;
+                document.getElementById('contribTotalDownloads').textContent = summaryRes.total_downloads || 0;
             }
 
-            // 用户总数
             if (usersRes && usersRes.total !== undefined) {
                 document.getElementById('contribTotalUsers').textContent = usersRes.total;
             }
 
-            // 提交统计
             if (submissionsRes && submissionsRes.success) {
                 const s = submissionsRes.data;
                 document.getElementById('contribTotalSubmissions').textContent = s.total || 0;
             }
 
-            // 下载排行
+            // 下载排行 TOP 20
             if (statsRes) {
                 const totalDownloads = statsRes.total_downloads || 0;
-                document.getElementById('contribTotalDownloads').textContent = totalDownloads;
-
                 const tbody = document.getElementById('contributionTable');
                 const rankings = statsRes.rankings || [];
 
                 if (rankings.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #999;">暂无数据</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #999;">暂无下载数据，用户下载技能后自动统计</td></tr>';
                 } else {
                     tbody.innerHTML = rankings.map(item => {
                         const percent = totalDownloads > 0 ? ((item.downloads / totalDownloads) * 100).toFixed(1) : 0;
                         const rankClass = item.rank <= 3 ? 'badge-warning' : '';
+                        const medal = item.rank === 1 ? '🥇' : item.rank === 2 ? '🥈' : item.rank === 3 ? '🥉' : '';
                         return `
                             <tr>
-                                <td><span class="badge ${rankClass}">${item.rank}</span></td>
+                                <td>${medal || `<span class="badge ${rankClass}">${item.rank}</span>`}</td>
                                 <td>${item.skill_name}</td>
                                 <td>${item.author || '-'}</td>
                                 <td>${item.downloads}</td>
@@ -1506,29 +1530,53 @@
                 }
             }
 
-            // 风险分布 - 从技能列表获取
-            loadRiskDistribution();
+            // 收藏排行 TOP 20
+            if (favoritesRes && favoritesRes.success) {
+                document.getElementById('contribTotalFavorites').textContent = favoritesRes.total_favorites || 0;
+                const favTbody = document.getElementById('favoritesTable');
+                const favRankings = favoritesRes.rankings || [];
 
-            // 分类分布
-            loadCategoryDistribution();
-        }
-
-        async function loadRiskDistribution() {
-            const res = await api('/skills?page_size=100');
-            const container = document.getElementById('riskDistribution');
-            if (!res || !res.items) {
-                container.innerHTML = '<div style="color: #999;">暂无数据</div>';
-                return;
+                if (favRankings.length === 0) {
+                    favTbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #999;">暂无收藏数据</td></tr>';
+                } else {
+                    const totalFavs = favoritesRes.total_favorites || 1;
+                    favTbody.innerHTML = favRankings.map(item => {
+                        const percent = ((item.favorites / totalFavs) * 100).toFixed(1);
+                        const medal = item.rank === 1 ? '🥇' : item.rank === 2 ? '🥈' : item.rank === 3 ? '🥉' : '';
+                        const rankClass = item.rank <= 3 ? 'badge-warning' : '';
+                        return `
+                            <tr>
+                                <td>${medal || `<span class="badge ${rankClass}">${item.rank}</span>`}</td>
+                                <td>${item.skill_name}</td>
+                                <td>${item.author || '-'}</td>
+                                <td>${item.favorites}</td>
+                                <td>
+                                    <div style="display: flex; align-items: center; gap: 8px;">
+                                        <div style="flex: 1; height: 8px; background: #eee; border-radius: 4px; overflow: hidden;">
+                                            <div style="width: ${percent}%; height: 100%; background: linear-gradient(90deg, #e74c3c, #f39c12);"></div>
+                                        </div>
+                                        <span style="font-size: 12px; color: #666;">${percent}%</span>
+                                    </div>
+                                </td>
+                            </tr>
+                        `;
+                    }).join('');
+                }
             }
 
-            const riskCounts = { safe: 0, low: 0, medium: 0, high: 0, critical: 0 };
-            res.items.forEach(skill => {
-                const level = skill.risk_level || 'safe';
-                if (riskCounts.hasOwnProperty(level)) {
-                    riskCounts[level]++;
-                }
-            });
+            // 风险分布 - 从 summary 获取
+            if (summaryRes && summaryRes.risk_distribution) {
+                renderRiskDistribution(summaryRes.risk_distribution);
+            }
 
+            // 分类分布 - 从 summary 获取
+            if (summaryRes && summaryRes.category_distribution) {
+                renderCategoryDistribution(summaryRes.category_distribution);
+            }
+        }
+
+        function renderRiskDistribution(riskCounts) {
+            const container = document.getElementById('riskDistribution');
             const riskLabels = {
                 safe: '🟢 安全',
                 low: '🟡 低风险',
@@ -1536,7 +1584,6 @@
                 high: '🔴 高风险',
                 critical: '⚫ 严重'
             };
-
             const riskColors = {
                 safe: '#27ae60',
                 low: '#f1c40f',
@@ -1544,45 +1591,48 @@
                 high: '#e74c3c',
                 critical: '#2c3e50'
             };
-
             const total = Object.values(riskCounts).reduce((a, b) => a + b, 0);
+
+            if (total === 0) {
+                container.innerHTML = '<div style="color: #999;">暂无数据</div>';
+                return;
+            }
 
             container.innerHTML = Object.entries(riskCounts).map(([level, count]) => {
                 const percent = total > 0 ? ((count / total) * 100).toFixed(1) : 0;
                 return `
                     <div style="display: flex; align-items: center; gap: 10px;">
-                        <span style="min-width: 80px;">${riskLabels[level]}</span>
+                        <span style="min-width: 80px;">${riskLabels[level] || level}</span>
                         <div style="flex: 1; height: 20px; background: #f0f0f0; border-radius: 4px; overflow: hidden;">
-                            <div style="width: ${percent}%; height: 100%; background: ${riskColors[level]};"></div>
+                            <div style="width: ${percent}%; height: 100%; background: ${riskColors[level] || '#999'}; transition: width 0.3s;"></div>
                         </div>
-                        <span style="min-width: 50px; text-align: right;">${count} (${percent}%)</span>
+                        <span style="min-width: 60px; text-align: right;">${count} (${percent}%)</span>
                     </div>
                 `;
             }).join('');
         }
 
-        async function loadCategoryDistribution() {
-            const res = await api('/skills/categories/list');
+        function renderCategoryDistribution(categories) {
             const container = document.getElementById('categoryDistribution');
-            if (!res || !Array.isArray(res)) {
+            if (!categories || categories.length === 0) {
                 container.innerHTML = '<div style="color: #999;">暂无数据</div>';
                 return;
             }
 
-            const total = res.reduce((sum, c) => sum + (c.skill_count || 0), 0);
+            const total = categories.reduce((sum, c) => sum + (c.skill_count || 0), 0);
             const colors = ['#4a90d9', '#27ae60', '#f39c12', '#9b59b6', '#1abc9c', '#e74c3c', '#34495e', '#16a085'];
 
-            container.innerHTML = res.slice(0, 8).map((cat, idx) => {
+            container.innerHTML = categories.slice(0, 10).map((cat, idx) => {
                 const count = cat.skill_count || 0;
                 const percent = total > 0 ? ((count / total) * 100).toFixed(1) : 0;
                 const color = colors[idx % colors.length];
                 return `
                     <div style="display: flex; align-items: center; gap: 10px;">
-                        <span style="min-width: 80px;">${cat.icon || '📁'} ${cat.name}</span>
+                        <span style="min-width: 100px; font-size: 13px;">${cat.icon || '📁'} ${cat.name}</span>
                         <div style="flex: 1; height: 20px; background: #f0f0f0; border-radius: 4px; overflow: hidden;">
-                            <div style="width: ${percent}%; height: 100%; background: ${color};"></div>
+                            <div style="width: ${percent}%; height: 100%; background: ${color}; transition: width 0.3s;"></div>
                         </div>
-                        <span style="min-width: 50px; text-align: right;">${count} (${percent}%)</span>
+                        <span style="min-width: 60px; text-align: right;">${count} (${percent}%)</span>
                     </div>
                 `;
             }).join('');

@@ -285,6 +285,12 @@ input { font: inherit; }
 .skill-card-footer { display: flex; align-items: center; justify-content: space-between; }
 .skill-card-tools { display: flex; gap: 0.25rem; flex-wrap: wrap; }
 
+/* Favorite Button */
+.fav-btn { background: none; border: none; cursor: pointer; font-size: 1.1rem; padding: 2px 4px; color: var(--text-muted); transition: color .2s, transform .2s; line-height: 1; }
+.fav-btn:hover { color: #f59e0b; transform: scale(1.2); }
+.fav-btn-active { color: #f59e0b; }
+.fav-btn-active:hover { color: #d97706; }
+
 /* --- Browse Page Layout --- */
 .browse-layout { display: flex; gap: 2rem; padding-top: 5rem; }
 .browse-sidebar {

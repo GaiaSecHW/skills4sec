@@ -14,6 +14,7 @@ from app.api.audit import router as audit_router
 from app.api.submissions import router as submissions_router
 from app.api.admin import router as admin_router
 from app.api.stats import router as stats_router
+from app.api.favorites import router as favorites_router
 
 # 初始化日志
 setup_harness_logging(level="DEBUG" if settings.DEBUG else "INFO", log_dir="logs", service_name="SecAgentHub", enable_aggregation=True,)
@@ -112,6 +113,7 @@ app.include_router(audit_router, prefix="/api")
 app.include_router(submissions_router, prefix="/api")
 app.include_router(admin_router, prefix="/api")
 app.include_router(stats_router, prefix="/api")
+app.include_router(favorites_router, prefix="/api")
 
 
 @app.get("/api/info")

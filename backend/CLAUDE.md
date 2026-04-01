@@ -3,12 +3,17 @@
 ## 项目启动
 
 ```bash
-# 启动开发服务器（使用 Python 3.11，避免 3.14 兼容性问题）
-py -3.11 main.py
+# 方式一：同时启动 HTTP + HTTPS（推荐）
+py -3.11 run.py
+# HTTP  → http://0.0.0.0:8000
+# HTTPS → https://0.0.0.0:8443
 
-# 或者使用 uvicorn
-py -3.11 -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+# 方式二：仅启动 HTTP
+py -3.11 -m uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
+
+SSL 证书位于 `certs/` 目录（开发用自签名证书）。通过 `.env` 配置：
+`SSL_ENABLED`, `HTTP_PORT`, `HTTPS_PORT`, `SSL_CERTFILE`, `SSL_KEYFILE`
 
 ---
 

@@ -13,7 +13,7 @@ class Settings(BaseSettings):
     # DATABASE_URL: str = "postgres://user:pass@localhost:5432/secagenthub"
 
     # JWT 配置
-    SECRET_KEY: str = "your-secret-key-change-in-production"
+    SECRET_KEY: str = ""
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 360  # 6小时
 
@@ -47,6 +47,13 @@ class Settings(BaseSettings):
 
     # Refresh Token 配置
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
+
+    # SSL 配置
+    SSL_CERTFILE: str = "certs/cert.pem"
+    SSL_KEYFILE: str = "certs/key.pem"
+    SSL_ENABLED: bool = True
+    HTTP_PORT: int = 8000
+    HTTPS_PORT: int = 8443
 
     class Config:
         env_file = ".env"

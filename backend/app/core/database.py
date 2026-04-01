@@ -51,6 +51,7 @@ async def init_db() -> None:
                         "app.models.login_log",
                         "app.models.admin_log",
                         "app.models.submission",
+                        "app.models.favorite",
                     ],
                     "default_connection": "default",
                 }
@@ -70,6 +71,7 @@ async def init_db() -> None:
                     "app.models.login_log",
                     "app.models.admin_log",
                     "app.models.submission",
+                    "app.models.favorite",
                 ]
             },
         )

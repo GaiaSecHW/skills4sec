@@ -5,6 +5,7 @@ from app.models.content import SkillContent, UseCase, PromptTemplate, OutputExam
 from app.models.login_log import LoginLog
 from app.models.admin_log import AdminLog
 from app.models.submission import Submission, SubmissionEvent, SubmissionStatus, SubmissionEventType
+from app.models.favorite import UserFavorite
 
 __all__ = [
     "User",
@@ -23,4 +24,5 @@ __all__ = [
     "SubmissionEvent",
     "SubmissionStatus",
     "SubmissionEventType",
+    "UserFavorite",
 ]

@@ -1,11 +1,10 @@
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Query
 from fastapi.responses import StreamingResponse
 from typing import Optional, List
 from tortoise.functions import Count
 from datetime import datetime
 import zipfile
 import io
-import json
 import os
 
 from app.models.skill import Skill, Category, SkillTag, SkillTagRelation
@@ -19,33 +18,16 @@ from app.schemas.skill import (
     CategoryOut, TagOut
 )
 from app.config import settings
+from app.core.exceptions import NotFoundError, ConflictError, ValidationError
+from app.services.skill_loader import (
+    load_skills_json, find_skill_by_slug, increment_download, validate_slug,
+)
 
 router = APIRouter(prefix="/skills", tags=["skills"])
 
 # 项目根目录
 _PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 SKILLS_DIR = os.path.join(_PROJECT_ROOT, "skills")
-SKILLS_JSON_PATH = os.path.join(_PROJECT_ROOT, "docs", "data", "skills.json")
-
-# skills.json 缓存
-_skills_json_cache: Optional[list] = None
-_skills_json_mtime: float = 0
-
-
-def _load_skills_json() -> list:
-    """读取 skills.json，带简单文件缓存"""
-    global _skills_json_cache, _skills_json_mtime
-    try:
-        mtime = os.path.getmtime(SKILLS_JSON_PATH)
-        if _skills_json_cache is not None and mtime == _skills_json_mtime:
-            return _skills_json_cache
-        with open(SKILLS_JSON_PATH, "r", encoding="utf-8") as f:
-            data = json.load(f)
-        _skills_json_cache = data
-        _skills_json_mtime = mtime
-        return data
-    except (FileNotFoundError, json.JSONDecodeError):
-        return []
 
 
 def _skill_item_to_out(item: dict, index: int) -> dict:
@@ -127,7 +109,7 @@ async def create_skill(skill_data: SkillCreate):
     """创建技能"""
     # 检查 slug 是否已存在
     if await Skill.exists(slug=skill_data.slug):
-        raise HTTPException(status_code=400, detail="Slug already exists")
+        raise ConflictError(message="Slug already exists", detail={"slug": skill_data.slug})
 
     # 获取分类
     category = await get_category_by_slug(skill_data.category) if skill_data.category else None
@@ -240,7 +222,7 @@ async def list_skills(
     source_type: Optional[str] = None,
 ):
     """获取技能列表（支持分页和过滤）- 直接读取 skills.json"""
-    all_skills = _load_skills_json()
+    all_skills = load_skills_json()
 
     # 在内存中过滤
     filtered = []
@@ -283,7 +265,7 @@ async def list_skills(
 @router.get("/{slug}", response_model=SkillDetailOut)
 async def get_skill_detail(slug: str):
     """获取技能详情 - 直接读取 skills.json"""
-    all_skills = _load_skills_json()
+    all_skills = load_skills_json()
 
     skill_item = None
     skill_idx = -1
@@ -294,7 +276,7 @@ async def get_skill_detail(slug: str):
             break
 
     if skill_item is None:
-        raise HTTPException(status_code=404, detail="Skill not found")
+        raise NotFoundError(message="Skill not found", detail={"slug": slug})
 
     base = _skill_item_to_out(skill_item, skill_idx)
 
@@ -344,7 +326,7 @@ async def update_skill(slug: str, skill_data: SkillUpdate):
     """更新技能"""
     skill = await Skill.get_or_none(slug=slug)
     if not skill:
-        raise HTTPException(status_code=404, detail="Skill not found")
+        raise NotFoundError(message="Skill not found", detail={"slug": slug})
 
     update_data = skill_data.model_dump(exclude_unset=True)
 
@@ -387,7 +369,7 @@ async def delete_skill(slug: str):
     """删除技能"""
     skill = await Skill.get_or_none(slug=slug)
     if not skill:
-        raise HTTPException(status_code=404, detail="Skill not found")
+        raise NotFoundError(message="Skill not found", detail={"slug": slug})
 
     await skill.delete()
     return None
@@ -397,18 +379,27 @@ async def delete_skill(slug: str):
 
 @router.get("/categories/list", response_model=List[CategoryOut])
 async def list_categories():
-    """获取所有分类"""
-    categories = await Category.all().order_by("sort_order")
+    """获取所有分类 - 从 skills.json 统计"""
+    from collections import Counter
+    all_skills = load_skills_json()
+
+    # 统计分类分布
+    cat_counter: Counter = Counter()
+    for item in all_skills:
+        if not item.get("is_blocked", False):
+            cat_counter[item.get("category", "uncategorized")] += 1
+
+    # 转为列表，按数量降序
     result = []
-    for c in categories:
-        skill_count = await Skill.filter(category=c).count()
+    for idx, (slug, count) in enumerate(cat_counter.most_common(), 1):
+        cat_name = slug.replace("-", " ").replace("_", " ").title() if slug != "uncategorized" else "未分类"
         result.append(CategoryOut(
-            id=c.id,
-            slug=c.slug,
-            name=c.name,
-            description=c.description,
-            icon=c.icon,
-            skill_count=skill_count,
+            id=idx,
+            slug=slug,
+            name=cat_name,
+            description="",
+            icon="📁",
+            skill_count=count,
         ))
     return result
 
@@ -430,10 +421,16 @@ async def get_popular_tags(limit: int = Query(20, ge=1, le=100)):
 @router.get("/{slug}/download")
 async def download_skill(slug: str):
     """下载技能 ZIP 包"""
+    if not validate_slug(slug):
+        raise ValidationError(message="无效的技能标识", detail={"slug": slug})
+
     skill_dir = os.path.join(SKILLS_DIR, slug)
 
     if not os.path.isdir(skill_dir):
-        raise HTTPException(status_code=404, detail=f"Skill directory not found: {slug}")
+        raise NotFoundError(message="Skill directory not found", detail={"slug": slug})
+
+    # 递增下载计数
+    await increment_download(slug)
 
     # 创建内存中的 ZIP 文件
     zip_buffer = io.BytesIO()
