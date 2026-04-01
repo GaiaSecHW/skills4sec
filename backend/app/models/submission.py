@@ -10,55 +10,44 @@ from typing import Optional
 
 class SubmissionStatus(str, Enum):
     """提交状态枚举"""
-    # 初始阶段
     PENDING = "pending"              # 待处理
-    CREATING_ISSUE = "creating_issue"  # 正在创建Issue
-
-    # Issue 阶段
-    ISSUE_CREATED = "issue_created"   # Issue已创建，等待审批
-    ISSUE_FAILED = "issue_failed"     # Issue创建失败
-    APPROVED = "approved"             # 已审批通过
-    REJECTED = "rejected"             # 已拒绝
-
-    # 处理阶段
-    PROCESSING = "processing"         # 正在处理
-    PROCESS_FAILED = "process_failed" # 处理失败
-
-    # 完成阶段
-    PR_CREATED = "pr_created"         # PR已创建
-    MERGED = "merged"                 # 已合并
-    CLOSED = "closed"                 # 已关闭
+    CREATING_ISSUE = "creating_issue"  # 创建 Issue 中
+    ISSUE_CREATED = "issue_created"  # Issue 已创建
+    ISSUE_FAILED = "issue_failed"      # Issue 创建失败
+    CLONING = "cloning"              # 克隆中
+    GENERATING = "generating"        # 生成报告中
+    APPROVED = "approved"            # 已批准
+    REJECTED = "rejected"            # 已拒绝
+    PROCESSING = "processing"        # 处理中
+    PR_CREATED = "pr_created"        # PR 已创建
+    COMPLETED = "completed"          # 已完成
+    FAILED = "failed"                # 失败（含失败原因）
 
 
 class SubmissionEventType(str, Enum):
     """提交事件类型枚举"""
-    # 创建阶段
+    # 创建
     CREATED = "created"
-    CREATING_ISSUE = "creating_issue"
+
+    # Issue 步骤
     ISSUE_CREATE_SUCCESS = "issue_create_success"
     ISSUE_CREATE_FAILED = "issue_create_failed"
-    RETRY_SCHEDULED = "retry_scheduled"
-    RETRY_SUCCESS = "retry_success"
-    RETRY_FAILED = "retry_failed"
 
-    # 审批阶段
-    APPROVED = "approved"
-    REJECTED = "rejected"
+    # 克隆步骤
+    CLONE_STARTED = "clone_started"
+    CLONE_SUCCESS = "clone_success"
+    CLONE_FAILED = "clone_failed"
 
-    # 处理阶段
-    PROCESSING_STARTED = "processing_started"
-    PROCESSING_PROGRESS = "processing_progress"
-    PROCESSING_SUCCESS = "processing_success"
-    PROCESSING_FAILED = "processing_failed"
+    # 生成步骤
+    GENERATE_STARTED = "generate_started"
+    GENERATE_SUCCESS = "generate_success"
+    GENERATE_FAILED = "generate_failed"
 
-    # 完成阶段
-    PR_CREATED = "pr_created"
-    MERGED = "merged"
-    CLOSED = "closed"
+    # 完成
+    COMPLETED = "completed"
 
-    # 状态同步
-    STATUS_SYNCED = "status_synced"
-    MANUAL_OVERRIDE = "manual_override"
+    # 重试
+    RETRY = "retry"
 
 
 class Submission(Model):
@@ -67,8 +56,15 @@ class Submission(Model):
 
     # 基本信息
     submission_id = fields.CharField(max_length=36, unique=True, index=True, description="UUID")
+
+    # 工作流步骤
+    current_step = fields.CharField(max_length=20, null=True, description="当前步骤")
+    step_details = fields.JSONField(default=dict, description="步骤详情")
+
     name = fields.CharField(max_length=200, description="技能名称")
-    repo_url = fields.CharField(max_length=500, description="仓库地址")
+    repo_url = fields.CharField(max_length=500, null=True, description="仓库地址（ZIP上传时为空）")
+    source_type = fields.CharField(max_length=10, default="git", description="来源类型: git 或 zip")
+    zip_path = fields.CharField(max_length=500, null=True, description="ZIP文件路径（仅ZIP上传时使用）")
     description = fields.TextField(null=True, description="描述")
     category = fields.CharField(max_length=50, null=True, description="分类")
     contact = fields.CharField(max_length=200, null=True, description="联系方式")
@@ -86,26 +82,12 @@ class Submission(Model):
         description="当前状态"
     )
 
-    # Gitea Issue 相关
-    issue_number = fields.IntField(null=True, description="Gitea Issue 编号")
-    issue_url = fields.CharField(max_length=500, null=True, description="Issue 链接")
-    issue_state = fields.CharField(max_length=20, null=True, description="Issue 状态")
-    issue_labels = fields.JSONField(null=True, description="Issue 标签")
-
-    # PR 相关
-    pr_number = fields.IntField(null=True, description="PR 编号")
-    pr_url = fields.CharField(max_length=500, null=True, description="PR 链接")
-    pr_state = fields.CharField(max_length=20, null=True, description="PR 状态")
-    pr_merged = fields.BooleanField(default=False, description="PR 是否已合并")
-
     # 处理结果
     skill_count = fields.IntField(default=0, description="发现的技能数")
     processed_skills = fields.IntField(default=0, description="处理成功的技能数")
     failed_skills = fields.IntField(default=0, description="处理失败的技能数")
     skill_slugs = fields.JSONField(null=True, description="技能slug列表")
     highest_risk = fields.CharField(max_length=20, null=True, description="最高风险等级")
-    workflow_run_id = fields.CharField(max_length=50, null=True, description="Gitea Actions Run ID")
-    workflow_run_url = fields.CharField(max_length=500, null=True, description="Workflow 链接")
 
     # 重试机制
     retry_count = fields.IntField(default=0, description="已重试次数")
@@ -119,18 +101,14 @@ class Submission(Model):
     error_details = fields.JSONField(null=True, description="错误详情")
 
     # 审批信息
-    approved_by = fields.IntField(null=True, description="审批人ID")
-    approved_by_employee_id = fields.CharField(max_length=20, null=True, description="审批人工号")
-    approved_at = fields.DatetimeField(null=True, description="审批时间")
-    rejected_by = fields.IntField(null=True, description="拒绝人ID")
-    rejected_by_employee_id = fields.CharField(max_length=20, null=True, description="拒绝人工号")
-    rejected_at = fields.DatetimeField(null=True, description="拒绝时间")
-    reject_reason = fields.TextField(null=True, description="拒绝原因")
+    review_message = fields.TextField(null=True, description="审批意见（拒绝原因）")
+    reviewed_at = fields.DatetimeField(null=True, description="审批时间")
+    reviewer_id = fields.IntField(null=True, description="审批人ID")
+    reviewer_employee_id = fields.CharField(max_length=20, null=True, description="审批人工号")
 
     # 时间戳
     created_at = fields.DatetimeField(auto_now_add=True)
     updated_at = fields.DatetimeField(auto_now=True)
-    issue_created_at = fields.DatetimeField(null=True, description="Issue创建时间")
     processing_started_at = fields.DatetimeField(null=True, description="处理开始时间")
     processing_completed_at = fields.DatetimeField(null=True, description="处理完成时间")
     completed_at = fields.DatetimeField(null=True, description="最终完成时间")
@@ -150,18 +128,14 @@ class Submission(Model):
     @property
     def is_retryable(self) -> bool:
         """是否可以重试"""
-        return self.status in (
-            SubmissionStatus.ISSUE_FAILED,
-            SubmissionStatus.PROCESS_FAILED
-        ) and self.retry_count < self.max_retries
+        return self.status == SubmissionStatus.FAILED
 
     @property
     def is_terminal(self) -> bool:
         """是否已到达终态"""
         return self.status in (
-            SubmissionStatus.MERGED,
-            SubmissionStatus.CLOSED,
-            SubmissionStatus.REJECTED
+            SubmissionStatus.COMPLETED,
+            SubmissionStatus.FAILED,
         )
 
     @property
@@ -184,10 +158,8 @@ class Submission(Model):
             "contact": self.contact,
             "submitter_employee_id": self.submitter_employee_id,
             "status": self.status.value if isinstance(self.status, SubmissionStatus) else self.status,
-            "issue_number": self.issue_number,
-            "issue_url": self.issue_url,
-            "pr_number": self.pr_number,
-            "pr_url": self.pr_url,
+            "current_step": self.current_step,
+            "step_details": self.step_details,
             "skill_count": self.skill_count,
             "processed_skills": self.processed_skills,
             "failed_skills": self.failed_skills,

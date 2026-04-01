@@ -1,87 +1,16 @@
 """
-Tests for Submission Tasks - 提交定时任务测试
+Tests for Submission Tasks - 提交定时任务测试（极简工作流版本）
 """
 import pytest
 from datetime import datetime, timedelta
-from unittest.mock import patch, AsyncMock, MagicMock
 
 from app.models.submission import Submission, SubmissionEvent, SubmissionStatus, SubmissionEventType
 from app.tasks.submission_tasks import (
-    process_pending_retries,
-    sync_gitea_status,
     cleanup_old_events,
     cleanup_stale_submissions,
     generate_daily_stats,
     get_task_config,
 )
-
-
-class TestProcessPendingRetries:
-    """Test process_pending_retries task"""
-
-    @pytest.mark.asyncio
-    async def test_process_pending_retries_empty(self, db):
-        """Test with no pending retries"""
-        with patch("app.services.retry_service.retry_service") as mock_retry:
-            mock_retry.process_pending_retries = AsyncMock(return_value={
-                "total": 0,
-                "success": 0,
-                "failed": 0,
-                "skipped": 0
-            })
-
-            result = await process_pending_retries()
-
-            assert result["total"] == 0
-
-    @pytest.mark.asyncio
-    async def test_process_pending_retries_with_items(self, db):
-        """Test with pending retries"""
-        with patch("app.services.retry_service.retry_service") as mock_retry:
-            mock_retry.process_pending_retries = AsyncMock(return_value={
-                "total": 3,
-                "success": 2,
-                "failed": 1,
-                "skipped": 0
-            })
-
-            result = await process_pending_retries()
-
-            assert result["total"] == 3
-            assert result["success"] == 2
-
-
-class TestSyncGiteaStatus:
-    """Test sync_gitea_status task"""
-
-    @pytest.mark.asyncio
-    async def test_sync_gitea_status_empty(self, db):
-        """Test with no pending syncs"""
-        with patch("app.services.gitea_sync_service.gitea_sync_service") as mock_sync:
-            mock_sync.sync_all_pending = AsyncMock(return_value={
-                "total": 0,
-                "updated": 0,
-                "errors": 0
-            })
-
-            result = await sync_gitea_status()
-
-            assert result["total"] == 0
-
-    @pytest.mark.asyncio
-    async def test_sync_gitea_status_with_items(self, db):
-        """Test with pending syncs"""
-        with patch("app.services.gitea_sync_service.gitea_sync_service") as mock_sync:
-            mock_sync.sync_all_pending = AsyncMock(return_value={
-                "total": 5,
-                "updated": 4,
-                "errors": 1
-            })
-
-            result = await sync_gitea_status()
-
-            assert result["total"] == 5
-            assert result["updated"] == 4
 
 
 class TestCleanupOldEvents:
@@ -102,7 +31,7 @@ class TestCleanupOldEvents:
             submission_id="cleanup-test",
             name="Cleanup Test",
             repo_url="https://github.com/test/cleanup",
-            status=SubmissionStatus.ISSUE_CREATED,
+            status=SubmissionStatus.COMPLETED,
         )
 
         # Create an old event (95 days ago)
@@ -110,7 +39,7 @@ class TestCleanupOldEvents:
         old_event = await SubmissionEvent.create(
             submission=submission,
             event_type=SubmissionEventType.CREATED,
-            new_status=SubmissionStatus.CREATING_ISSUE,
+            new_status=SubmissionStatus.PENDING,
             message="Old event",
             triggered_by="user",
             created_at=old_time
@@ -127,7 +56,7 @@ class TestCleanupOldEvents:
             submission_id="keep-recent-test",
             name="Keep Recent Test",
             repo_url="https://github.com/test/keep",
-            status=SubmissionStatus.ISSUE_CREATED,
+            status=SubmissionStatus.COMPLETED,
         )
 
         # Create a recent event (1 day ago)
@@ -135,7 +64,7 @@ class TestCleanupOldEvents:
         recent_event = await SubmissionEvent.create(
             submission=submission,
             event_type=SubmissionEventType.CREATED,
-            new_status=SubmissionStatus.CREATING_ISSUE,
+            new_status=SubmissionStatus.PENDING,
             message="Recent event",
             triggered_by="user",
             created_at=recent_time
@@ -161,16 +90,15 @@ class TestCleanupStaleSubmissions:
     @pytest.mark.asyncio
     async def test_cleanup_stale_with_stale_submissions(self, db):
         """Test with stale submissions"""
-        # Create a stale submission (8 days ago, stuck in processing)
+        # Create a stale submission (8 days ago, stuck in processing - beyond 7 day threshold)
         stale_time = datetime.utcnow() - timedelta(days=8)
         stale_submission = await Submission.create(
             submission_id="stale-test",
             name="Stale Test",
             repo_url="https://github.com/test/stale",
-            status=SubmissionStatus.PROCESSING,
+            status=SubmissionStatus.CLONING,
         )
-
-        # Manually update updated_at to simulate stale submission
+        # Manually update updated_at since auto_now=True overrides on create
         await Submission.filter(id=stale_submission.id).update(updated_at=stale_time)
 
         result = await cleanup_stale_submissions()
@@ -179,7 +107,7 @@ class TestCleanupStaleSubmissions:
 
         # Verify status was updated
         await stale_submission.refresh_from_db()
-        assert stale_submission.status == SubmissionStatus.PROCESS_FAILED
+        assert stale_submission.status == SubmissionStatus.FAILED
         assert "超时" in stale_submission.error_message
 
     @pytest.mark.asyncio
@@ -189,30 +117,30 @@ class TestCleanupStaleSubmissions:
             submission_id="recent-processing",
             name="Recent Processing",
             repo_url="https://github.com/test/recent",
-            status=SubmissionStatus.PROCESSING,
+            status=SubmissionStatus.GENERATING,
         )
 
         result = await cleanup_stale_submissions()
 
         await recent_submission.refresh_from_db()
-        assert recent_submission.status == SubmissionStatus.PROCESSING
+        assert recent_submission.status == SubmissionStatus.GENERATING
 
     @pytest.mark.asyncio
     async def test_cleanup_stale_ignores_other_statuses(self, db):
         """Test that non-processing statuses are not affected - 边界值"""
-        stale_time = datetime.utcnow() - timedelta(days=8)
+        stale_time = datetime.utcnow() - timedelta(days=2)
         other_submission = await Submission.create(
             submission_id="stale-other",
             name="Stale Other",
             repo_url="https://github.com/test/other",
-            status=SubmissionStatus.ISSUE_CREATED,  # Not PROCESSING
-            updated_at=stale_time
+            status=SubmissionStatus.COMPLETED,  # Not processing
         )
+        await Submission.filter(id=other_submission.id).update(updated_at=stale_time)
 
         result = await cleanup_stale_submissions()
 
         await other_submission.refresh_from_db()
-        assert other_submission.status == SubmissionStatus.ISSUE_CREATED
+        assert other_submission.status == SubmissionStatus.COMPLETED
 
 
 class TestGenerateDailyStats:
@@ -238,7 +166,7 @@ class TestGenerateDailyStats:
             submission_id="yesterday-sub",
             name="Yesterday Sub",
             repo_url="https://github.com/test/yesterday",
-            status=SubmissionStatus.ISSUE_CREATED,
+            status=SubmissionStatus.COMPLETED,
             created_at=yesterday_mid
         )
 
@@ -255,8 +183,6 @@ class TestTaskConfig:
         """Test getting task configuration"""
         config = get_task_config()
 
-        assert process_pending_retries in config
-        assert sync_gitea_status in config
         assert cleanup_old_events in config
         assert cleanup_stale_submissions in config
         assert generate_daily_stats in config

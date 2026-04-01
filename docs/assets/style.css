@@ -553,6 +553,9 @@ input { font: inherit; }
   outline: none; transition: border-color 0.15s;
 }
 .form-input:focus { border-color: var(--accent); }
+.submit-tab-btn { cursor: pointer; transition: all 0.15s; }
+.submit-tab-btn.active { background: var(--accent) !important; color: #fff !important; border-color: var(--accent) !important; }
+
 .submit-btn {
   display: inline-flex; align-items: center; gap: .5rem;
   width: 100%; justify-content: center;

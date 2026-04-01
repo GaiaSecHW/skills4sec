@@ -13,6 +13,7 @@ from app.api.auth import router as auth_router
 from app.api.audit import router as audit_router
 from app.api.submissions import router as submissions_router
 from app.api.admin import router as admin_router
+from app.api.stats import router as stats_router
 
 # 初始化日志
 setup_harness_logging(level="DEBUG" if settings.DEBUG else "INFO", log_dir="logs", service_name="SecAgentHub", enable_aggregation=True,)
@@ -98,7 +99,7 @@ app.add_middleware(
 # CORS 配置
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # 生产环境应限制具体域名
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -110,11 +111,12 @@ app.include_router(auth_router, prefix="/api")
 app.include_router(audit_router, prefix="/api")
 app.include_router(submissions_router, prefix="/api")
 app.include_router(admin_router, prefix="/api")
+app.include_router(stats_router, prefix="/api")
 
 
-@app.get("/")
-async def root():
-    """API 根路径"""
+@app.get("/api/info")
+async def api_info():
+    """API 信息"""
     return {
         "name": settings.APP_NAME,
         "version": settings.APP_VERSION,
@@ -148,3 +150,9 @@ async def admin_page():
     if os.path.exists(admin_html):
         return FileResponse(admin_html)
     return {"error": "Admin page not found"}
+
+
+# 挂载 docs SPA 前端（技能市场门户，必须在所有路由之后）
+docs_dir = os.path.join(os.path.dirname(__file__), "..", "..", "docs")
+if os.path.exists(docs_dir):
+    app.mount("/", StaticFiles(directory=docs_dir, html=True), name="hub")

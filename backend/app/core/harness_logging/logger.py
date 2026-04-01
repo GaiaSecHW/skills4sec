@@ -16,7 +16,7 @@ span_id_ctx: ContextVar[Optional[str]] = ContextVar("span_id", default=None)
 actor_ctx: ContextVar[Optional[Dict]] = ContextVar("actor", default=None)
 
 # 日志器实例
-_loggers: Dict[str, loguru.Logger] = {}
+_loggers: Dict[str, "loguru.Logger"] = {}  # type: ignore
 
 # 全局聚合器实例
 _aggregator: Optional[LogAggregator] = None
@@ -50,7 +50,7 @@ async def stop_aggregator() -> None:
         _aggregator = None
 
 
-def _get_logger(name: str) -> loguru.Logger:
+def _get_logger(name: str) -> "loguru.Logger":  # type: ignore
     """获取或创建日志器"""
     if name not in _loggers:
         _loggers[name] = loguru.logger.bind(name=name)

@@ -73,6 +73,9 @@ class Skill(Model):
     # SEO
     seo_keywords = fields.JSONField(default=list, description="SEO关键词")
 
+    # 下载统计
+    download_count = fields.IntField(default=0, description="下载次数")
+
     # 时间戳
     generated_at = fields.DatetimeField(null=True, description="生成时间")
     created_at = fields.DatetimeField(auto_now_add=True)

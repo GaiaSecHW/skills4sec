@@ -1,0 +1,15 @@
+# 静态文件 ConfigMap
+# 注意：实际部署时建议使用 PersistentVolume 或对象存储（如 MinIO/S3）
+# 这里仅作为示例，将静态文件打包到 ConfigMap
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: skillhub-static-files
+  namespace: skillhub
+data:
+  # 示例：健康检查页面
+  health: |
+    OK
+  # 更多静态文件需要通过以下方式添加：
+  # kubectl create configmap skillhub-static-files --from-file=docs/ -n skillhub

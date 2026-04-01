@@ -129,6 +129,7 @@
     if (hash.startsWith('agent/')) return { page: 'agent-detail', slug: hash.slice(6) };
     if (hash === 'submit') return { page: 'submit' };
     if (hash === 'my-submissions') return { page: 'my-submissions' };
+    if (hash === 'my-favorites') return { page: 'my-favorites' };
     if (hash === 'schema-spec') return { page: 'schema-spec' };
     if (hash === 'evolution') return { page: 'evolution' };
     if (hash === 'blog' || hash.startsWith('blog?')) return { page: 'blog' };
@@ -212,6 +213,7 @@
     } else if (route.page === 'browse') {
       main.innerHTML = renderBrowsePage();
       bindBrowseEvents();
+      loadAndApplyFavoriteStatus();
     } else if (route.page === 'detail') {
       const skill = SKILLS.find(s => s.slug === route.slug);
       main.innerHTML = skill ? renderDetailPage(skill) : renderNotFound();
@@ -246,6 +248,8 @@
     } else if (route.page === 'my-submissions') {
       main.innerHTML = renderMySubmissionsPage();
       bindMySubmissionsEvents();
+    } else if (route.page === 'my-favorites') {
+      main.innerHTML = renderMyFavoritesPage();
     }
 
     window.scrollTo(0, 0);
@@ -288,10 +292,15 @@
     }).join('');
   }
 
+  // 收藏状态缓存
+  let _favStatusCache = {};
+
   function skillCard(skill, size) {
     const isLarge = size === 'large';
+    const isFav = !!_favStatusCache[skill.slug];
     return `
-<a class="skill-card page-enter" data-href="#skill/${escHtml(skill.slug)}">
+<a class="skill-card page-enter" data-href="#skill/${escHtml(skill.slug)}" style="position:relative">
+  <button class="fav-btn${isFav ? ' fav-btn-active' : ''}" data-slug="${escHtml(skill.slug)}" title="${isFav ? '取消收藏' : '收藏'}" onclick="event.preventDefault();event.stopPropagation();toggleFavorite('${escHtml(skill.slug)}',this)">☆</button>
   <div class="skill-card-header">
     <div class="skill-icon${isLarge ? ' skill-icon-lg' : ''}">${skill.icon || '📦'}</div>
     <div style="flex:1;min-width:0">
@@ -819,6 +828,7 @@
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
         下载 ZIP
       </a>
+      <button class="btn-secondary fav-detail-btn" data-slug="${escHtml(skill.slug)}" onclick="toggleFavorite('${escHtml(skill.slug)}',this)" title="收藏">☆ 收藏</button>
       ${sourceUrl ? `
       <a class="btn-secondary" href="${escHtml(sourceUrl)}" target="_blank" rel="noopener noreferrer">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.3 3.44 9.8 8.2 11.38.6.11.82-.26.82-.57v-2c-3.34.73-4.04-1.61-4.04-1.61-.55-1.39-1.34-1.76-1.34-1.76-1.09-.75.08-.73.08-.73 1.2.08 1.84 1.24 1.84 1.24 1.07 1.83 2.81 1.3 3.5 1 .1-.78.42-1.3.76-1.6-2.67-.3-5.47-1.33-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.12-.3-.54-1.52.12-3.17 0 0 1.01-.32 3.3 1.23a11.5 11.5 0 016 0c2.3-1.55 3.3-1.23 3.3-1.23.66 1.65.24 2.87.12 3.17.77.84 1.24 1.91 1.24 3.22 0 4.61-2.81 5.63-5.48 5.92.43.37.81 1.1.81 2.22v3.29c0 .32.22.69.83.57C20.57 21.8 24 17.3 24 12c0-6.63-5.37-12-12-12z"/></svg>
@@ -895,6 +905,18 @@
 
     const activeTab = document.querySelector('.diff-tab-active');
     if (activeTab) loadDiff(activeTab.dataset.diffSlug, activeTab.dataset.diffFile);
+
+    // 加载收藏状态到详情页按钮
+    const favBtn = document.querySelector('.fav-detail-btn[data-slug]');
+    if (favBtn && Auth.isLoggedIn()) {
+      checkFavoriteStatus([favBtn.dataset.slug]).then(statusMap => {
+        if (statusMap[favBtn.dataset.slug]) {
+          favBtn.classList.add('fav-btn-active');
+          favBtn.textContent = '★ 已收藏';
+          favBtn.title = '取消收藏';
+        }
+      });
+    }
   }
 
   /* ===================== HARNESSES BROWSE PAGE ===================== */
@@ -1219,33 +1241,71 @@
 
   <div class="submit-form">
     <h2 style="font-size:1.125rem;font-weight:600;margin-bottom:1.5rem">填写提交信息</h2>
-    <div class="form-group">
-      <label class="form-label" for="s-name">技能名称 *</label>
-      <input class="form-input" id="s-name" type="text" placeholder="例：git-commit-helper">
+    <div class="submit-source-tabs" style="display:flex;gap:8px;margin-bottom:1.5rem;">
+      <button class="submit-tab-btn active" id="tabGit" onclick="switchSubmitTab('git')" style="flex:1;padding:8px 16px;border:1px solid var(--border);background:var(--bg-secondary);color:var(--text);border-radius:6px;cursor:pointer;">Git 仓库</button>
+      <button class="submit-tab-btn" id="tabZip" onclick="switchSubmitTab('zip')" style="flex:1;padding:8px 16px;border:1px solid var(--border);background:var(--bg-secondary);color:var(--text);border-radius:6px;cursor:pointer;">ZIP 上传</button>
     </div>
-    <div class="form-group">
-      <label class="form-label" for="s-repo">GitHub 仓库地址 *</label>
-      <input class="form-input" id="s-repo" type="url" placeholder="https://github.com/yourname/yourskill">
+
+    <!-- Git 仓库表单 -->
+    <div id="gitForm">
+      <div class="form-group">
+        <label class="form-label" for="s-name">技能名称 *</label>
+        <input class="form-input" id="s-name" type="text" placeholder="例：git-commit-helper">
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="s-repo">GitHub 仓库地址 *</label>
+        <input class="form-input" id="s-repo" type="url" placeholder="https://github.com/yourname/yourskill">
+        <small id="s-repo-hint" style="color:var(--text-muted);font-size:12px;margin-top:4px;display:block;">支持 Git 仓库地址或 GitHub 子目录链接（如 /tree/main/skills/xxx 或 /blob/main/xxx/SKILL.md），系统会自动定位 SKILL.md 所在目录</small>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="s-cat">分类</label>
+        <select class="form-input" id="s-cat">
+          <option value="">请选择分类</option>
+          <option value="productivity">⚡ productivity</option>
+          <option value="documentation">📝 documentation</option>
+          <option value="development">🛠️ development</option>
+          <option value="security">🔒 security</option>
+          <option value="data">📊 data</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="s-desc">简短描述 *</label>
+        <textarea class="form-input" id="s-desc" rows="3" placeholder="一两句话描述技能的用途和亮点…"></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="s-contact">联系方式（可选）</label>
+        <input class="form-input" id="s-contact" type="text" placeholder="GitHub 用户名或邮箱">
+      </div>
     </div>
-    <div class="form-group">
-      <label class="form-label" for="s-cat">分类</label>
-      <select class="form-input" id="s-cat">
-        <option value="">请选择分类</option>
-        <option value="productivity">⚡ productivity</option>
-        <option value="documentation">📝 documentation</option>
-        <option value="development">🛠️ development</option>
-        <option value="security">🔒 security</option>
-        <option value="data">📊 data</option>
-      </select>
+
+    <!-- ZIP 上传表单 -->
+    <div id="zipForm" style="display:none;">
+      <div class="form-group">
+        <label class="form-label" for="s-zip-file">选择 ZIP 文件 *</label>
+        <input class="form-input" id="s-zip-file" type="file" accept=".zip" style="padding:6px;">
+        <small style="color:var(--text-muted);font-size:12px;margin-top:4px;display:block;">ZIP 压缩包需直接包含 SKILL.md 文件（不要有额外的文件夹包裹）</small>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="s-cat-zip">分类</label>
+        <select class="form-input" id="s-cat-zip">
+          <option value="">请选择分类</option>
+          <option value="productivity">⚡ productivity</option>
+          <option value="documentation">📝 documentation</option>
+          <option value="development">🛠️ development</option>
+          <option value="security">🔒 security</option>
+          <option value="data">📊 data</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="s-desc-zip">简短描述 *</label>
+        <textarea class="form-input" id="s-desc-zip" rows="3" placeholder="一两句话描述技能的用途和亮点…"></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="s-contact-zip">联系方式（可选）</label>
+        <input class="form-input" id="s-contact-zip" type="text" placeholder="GitHub 用户名或邮箱">
+      </div>
     </div>
-    <div class="form-group">
-      <label class="form-label" for="s-desc">简短描述 *</label>
-      <textarea class="form-input" id="s-desc" rows="3" placeholder="一两句话描述技能的用途和亮点…"></textarea>
-    </div>
-    <div class="form-group">
-      <label class="form-label" for="s-contact">联系方式（可选）</label>
-      <input class="form-input" id="s-contact" type="text" placeholder="GitHub 用户名或邮箱">
-    </div>
+
     <p id="submit-error" class="text-sm" style="color:var(--danger);display:none;margin-bottom:.75rem"></p>
     <button class="submit-btn" id="submit-btn">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
@@ -1259,56 +1319,129 @@
     const btn = document.getElementById('submit-btn');
     if (!btn) return;
     btn.addEventListener('click', async function () {
-      const name    = document.getElementById('s-name')?.value.trim();
-      const repo    = document.getElementById('s-repo')?.value.trim();
-      const desc    = document.getElementById('s-desc')?.value.trim();
-      const cat     = document.getElementById('s-cat')?.value;
-      const contact = document.getElementById('s-contact')?.value.trim();
-      const errEl   = document.getElementById('submit-error');
-
-      if (!name || !repo || !desc) {
-        if (errEl) { errEl.textContent = '请填写技能名称、仓库地址和描述。'; errEl.style.display = 'block'; }
-        return;
-      }
+      const errEl = document.getElementById('submit-error');
       if (errEl) errEl.style.display = 'none';
 
-      // 显示加载状态
-      const originalText = btn.innerHTML;
-      btn.innerHTML = '<span class="spinner"></span>提交中...';
-      btn.disabled = true;
+      if (submitCurrentTab === 'git') {
+        // Git 仓库提交
+        const name    = document.getElementById('s-name')?.value.trim();
+        const repo    = document.getElementById('s-repo')?.value.trim();
+        const desc    = document.getElementById('s-desc')?.value.trim();
+        const cat     = document.getElementById('s-cat')?.value;
+        const contact = document.getElementById('s-contact')?.value.trim();
 
-      try {
-        const res = await fetch(AppConfig.API_BASE + '/api/submissions', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            name: name,
-            repo_url: repo,
-            description: desc,
-            category: cat || null,
-            contact: contact || null
-          })
-        });
-        const data = await res.json();
-
-        if (data.success) {
-          showSubmitSuccessModal(data);
-          // 清空表单
-          document.getElementById('s-name').value = '';
-          document.getElementById('s-repo').value = '';
-          document.getElementById('s-desc').value = '';
-          document.getElementById('s-cat').value = '';
-          document.getElementById('s-contact').value = '';
-        } else {
-          if (errEl) { errEl.textContent = data.detail || data.message || '提交失败，请稍后重试。'; errEl.style.display = 'block'; }
+        if (!name || !repo || !desc) {
+          if (errEl) { errEl.textContent = '请填写技能名称、仓库地址和描述。'; errEl.style.display = 'block'; }
+          return;
         }
-      } catch (e) {
-        if (errEl) { errEl.textContent = '网络错误: ' + e.message; errEl.style.display = 'block'; }
-      } finally {
-        btn.innerHTML = originalText;
-        btn.disabled = false;
+
+        // 验证 URL 格式 - 支持 /tree/ 和 /blob/，仅阻止 /commit/
+        if (repo.includes('/commit/')) {
+          if (errEl) { errEl.textContent = '不支持 commit 链接，请使用仓库地址或 /tree/、/blob/ 格式'; errEl.style.display = 'block'; }
+          return;
+        }
+
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '<span class="spinner"></span>提交中...';
+        btn.disabled = true;
+
+        try {
+          const res = await Auth.fetchWithAuth(AppConfig.API_BASE + '/api/submissions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              name: name,
+              repo_url: repo,
+              source_type: 'git',
+              description: desc,
+              category: cat || null,
+              contact: contact || null
+            })
+          });
+          const data = await res.json();
+
+          if (data.success) {
+            showSubmitSuccessModal(data);
+            document.getElementById('s-name').value = '';
+            document.getElementById('s-repo').value = '';
+            document.getElementById('s-desc').value = '';
+            document.getElementById('s-cat').value = '';
+            document.getElementById('s-contact').value = '';
+          } else {
+            if (errEl) { errEl.textContent = data.detail || data.message || '提交失败，请稍后重试。'; errEl.style.display = 'block'; }
+          }
+        } catch (e) {
+          if (errEl) { errEl.textContent = '网络错误: ' + e.message; errEl.style.display = 'block'; }
+        } finally {
+          btn.innerHTML = originalText;
+          btn.disabled = false;
+        }
+      } else {
+        // ZIP 上传
+        const fileInput = document.getElementById('s-zip-file');
+        const desc    = document.getElementById('s-desc-zip')?.value.trim();
+        const cat     = document.getElementById('s-cat-zip')?.value;
+        const contact = document.getElementById('s-contact-zip')?.value.trim();
+
+        if (!fileInput?.files?.[0] || !desc) {
+          if (errEl) { errEl.textContent = '请选择 ZIP 文件并填写描述。'; errEl.style.display = 'block'; }
+          return;
+        }
+
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '<span class="spinner"></span>上传中...';
+        btn.disabled = true;
+
+        try {
+          const formData = new FormData();
+          formData.append('file', fileInput.files[0]);
+          formData.append('description', desc);
+          if (cat) formData.append('category', cat);
+          if (contact) formData.append('contact', contact);
+
+          const res = await Auth.fetchWithAuth(AppConfig.API_BASE + '/api/submissions/upload-zip', {
+            method: 'POST',
+            body: formData
+          });
+          const data = await res.json();
+
+          if (data.success) {
+            showSubmitSuccessModal(data);
+            document.getElementById('s-zip-file').value = '';
+            document.getElementById('s-desc-zip').value = '';
+            document.getElementById('s-cat-zip').value = '';
+            document.getElementById('s-contact-zip').value = '';
+          } else {
+            if (errEl) { errEl.textContent = data.detail || data.message || '上传失败，请稍后重试。'; errEl.style.display = 'block'; }
+          }
+        } catch (e) {
+          if (errEl) { errEl.textContent = '网络错误: ' + e.message; errEl.style.display = 'block'; }
+        } finally {
+          btn.innerHTML = originalText;
+          btn.disabled = false;
+        }
       }
     });
+
+    // 实时验证 Git 仓库地址
+    const repoInput = document.getElementById('s-repo');
+    const repoHint = document.getElementById('s-repo-hint');
+    if (repoInput && repoHint) {
+      repoInput.addEventListener('input', function() {
+        const val = repoInput.value.trim();
+        // 支持 /tree/ 和 /blob/ 格式，仅对 /commit/ 显示警告
+        if (val.includes('/commit/')) {
+          repoHint.style.color = 'var(--danger)';
+          repoHint.textContent = '⚠️ 不支持 commit 链接，请使用仓库地址或 /tree/、/blob/ 格式';
+        } else if (val.includes('/tree/') || val.includes('/blob/')) {
+          repoHint.style.color = 'var(--success)';
+          repoHint.textContent = '✓ 支持 GitHub 子目录链接，系统会自动定位 SKILL.md 所在目录';
+        } else {
+          repoHint.style.color = 'var(--text-muted)';
+          repoHint.textContent = '支持 Git 仓库地址或 GitHub 子目录链接（如 /tree/main/skills/xxx 或 /blob/main/xxx/SKILL.md），系统会自动定位 SKILL.md 所在目录';
+        }
+      });
+    }
   }
 
   function showSubmitSuccessModal(data) {
@@ -1817,6 +1950,7 @@
     const hash = location.hash.replace(/^#\/?/, '');
     if (hash === 'submissions' || hash.startsWith('submissions?')) return { page: 'submissions' };
     if (hash === 'my-submissions') return { page: 'my-submissions' };
+    if (hash === 'my-favorites') return { page: 'my-favorites' };
     if (hash.startsWith('submission/')) return { page: 'submission-detail', id: hash.slice(11) };
     return originalGetRoute();
   };
@@ -1872,7 +2006,7 @@
   async function retrySubmission(id) {
     try {
       const res = await Auth.fetchWithAuth(
-        Auth.API_BASE + '/api/admin/submissions/' + id + '/retry',
+        Auth.API_BASE + '/api/admin/submissions/' + id + '/continue',
         { method: 'POST', headers: { 'Content-Type': 'application/json' } }
       );
       return await res.json();
@@ -2056,7 +2190,7 @@
         <td style="padding:1rem">${statusBadge(s.status)}</td>
         <td style="padding:1rem">
           <div style="font-weight:500">${escHtml(s.name)}</div>
-          <div style="font-size:.75rem;color:var(--text-muted)">${escHtml(s.repo_url || '').substring(0, 50)}...</div>
+          <div style="font-size:.75rem;color:var(--text-muted)">${s.source_type === 'zip' ? '📦 ZIP上传' : escHtml(s.repo_url || '').substring(0, 50)}</div>
         </td>
         <td style="padding:1rem">${escHtml(s.submitter_employee_id || '-')}</td>
         <td style="padding:1rem">${riskBadgeSmall(s.highest_risk)}</td>
@@ -2254,7 +2388,7 @@
         <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:1rem">
           <div>
             <h1 style="margin:0;font-size:1.5rem">${escHtml(sub.name)}</h1>
-            <p style="margin:.25rem 0 0;color:var(--text-muted)">${escHtml(sub.repo_url)}</p>
+            <p style="margin:.25rem 0 0;color:var(--text-muted)">${sub.source_type === 'zip' ? '📦 ZIP上传' : escHtml(sub.repo_url || '-')}</p>
           </div>
           ${statusBadge(sub.status)}
         </div>
@@ -2262,8 +2396,8 @@
         <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:1rem;margin-top:1rem">
           <div><strong>提交 ID:</strong> <code>${escHtml(sub.submission_id)}</code></div>
           <div><strong>提交者:</strong> ${escHtml(sub.submitter_employee_id || '-')}</div>
-          <div><strong>Issue:</strong> ${sub.issue_url ? `<a href="${escHtml(sub.issue_url)}" target="_blank">#${sub.issue_number}</a>` : '-'}</div>
-          <div><strong>PR:</strong> ${sub.pr_url ? `<a href="${escHtml(sub.pr_url)}" target="_blank">#${sub.pr_number}</a>` : '-'}</div>
+          ${sub.source_type === 'git' ? `<div><strong>Issue:</strong> ${sub.issue_url ? `<a href="${escHtml(sub.issue_url)}" target="_blank">#${sub.issue_number}</a>` : '-'}</div>
+          <div><strong>PR:</strong> ${sub.pr_url ? `<a href="${escHtml(sub.pr_url)}" target="_blank">#${sub.pr_number}</a>` : '-'}</div>` : ''}
           <div><strong>风险等级:</strong> ${riskBadgeSmall(sub.highest_risk)}</div>
           <div><strong>重试次数:</strong> ${sub.retry_count}/${sub.max_retries}</div>
           <div><strong>创建时间:</strong> ${new Date(sub.created_at).toLocaleString('zh-CN')}</div>
@@ -2278,7 +2412,7 @@
       <!-- 操作按钮 -->
       <div style="display:flex;gap:.5rem">
         ${sub.status === 'issue_failed' || sub.status === 'process_failed' ? `<button class="btn btn-primary" onclick="window.doRetry(${sub.id})">🔄 重试</button>` : ''}
-        ${sub.status === 'issue_created' ? `
+        ${sub.status === 'issue_created' && sub.source_type === 'git' ? `
           <button class="btn btn-primary" onclick="window.doApprove(${sub.id})">✅ 审批通过</button>
           <button class="btn btn-danger" onclick="window.doReject(${sub.id})">❌ 拒绝</button>
         ` : ''}
@@ -2381,25 +2515,174 @@
       return;
     }
 
-    tbody.innerHTML = MySubmissionsData.map(s => `
+    tbody.innerHTML = MySubmissionsData.map(s => {
+      // 状态显示
+      let statusDisplay = statusBadge(s.status);
+      // 如果有审批意见，显示在状态下方
+      if (s.review_message) {
+        statusDisplay += `<div style="font-size:.7rem;color:var(--text-muted);margin-top:.25rem;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escHtml(s.review_message)}">${escHtml(s.review_message)}</div>`;
+      }
+
+      return `
       <tr style="border-bottom:1px solid var(--border)">
-        <td style="padding:1rem">${statusBadge(s.status)}</td>
+        <td style="padding:1rem">${statusDisplay}</td>
         <td style="padding:1rem">
           <div style="font-weight:500">${escHtml(s.name)}</div>
-          <div style="font-size:.75rem;color:var(--text-muted)">${escHtml(s.repo_url || '').substring(0, 50)}${s.repo_url && s.repo_url.length > 50 ? '...' : ''}</div>
+          <div style="font-size:.75rem;color:var(--text-muted)">${s.source_type === 'zip' ? '📦 ZIP上传' : escHtml(s.repo_url || '').substring(0, 50)}${s.repo_url && s.repo_url.length > 50 ? '...' : ''}</div>
         </td>
         <td style="padding:1rem">${escHtml(s.category || '-')}</td>
         <td style="padding:1rem;font-size:.75rem;color:var(--text-muted)">${new Date(s.created_at).toLocaleString('zh-CN')}</td>
         <td style="padding:1rem">
-          ${s.issue_url ? `<a href="${escHtml(s.issue_url)}" target="_blank" class="btn btn-sm btn-secondary">Issue</a>` : ''}
-          ${s.pr_url ? `<a href="${escHtml(s.pr_url)}" target="_blank" class="btn btn-sm btn-secondary" style="margin-left:.5rem">PR</a>` : ''}
+          ${s.source_type === 'git' && s.issue_url ? `<a href="${escHtml(s.issue_url)}" target="_blank" class="btn btn-sm btn-secondary">Issue</a>` : ''}
+          ${s.source_type === 'git' && s.pr_url ? `<a href="${escHtml(s.pr_url)}" target="_blank" class="btn btn-sm btn-secondary" style="margin-left:.5rem">PR</a>` : ''}
         </td>
       </tr>
-    `).join('');
+    `}).join('');
   }
 
   function bindMySubmissionsEvents() {
     // 页面加载时自动加载数据（已在 renderMySubmissionsPage 中通过 setTimeout 调用）
+  }
+
+  /* ===================== MY FAVORITES PAGE ===================== */
+  let MyFavoritesData = [];
+
+  async function loadMyFavorites() {
+    try {
+      const res = await Auth.fetchWithAuth(Auth.API_BASE + '/api/favorites/my');
+      if (res && res.ok) {
+        const data = await res.json();
+        MyFavoritesData = data.data || [];
+        renderMyFavoritesList();
+      }
+    } catch (e) {
+      console.error('Failed to load favorites:', e);
+    }
+  }
+
+  function renderMyFavoritesPage() {
+    setTimeout(loadMyFavorites, 0);
+    return `
+<div style="padding:2rem;max-width:1200px;margin:0 auto">
+  <h1 style="font-size:1.5rem;font-weight:600;margin-bottom:1.5rem">我的收藏</h1>
+  <div id="my-favorites-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:1rem">
+    <div style="padding:2rem;text-align:center;color:var(--text-muted);grid-column:1/-1">加载中...</div>
+  </div>
+</div>`;
+  }
+
+  function renderMyFavoritesList() {
+    const grid = document.getElementById('my-favorites-grid');
+    if (!grid) return;
+
+    if (!MyFavoritesData || MyFavoritesData.length === 0) {
+      grid.innerHTML = '<div style="padding:2rem;text-align:center;color:var(--text-muted);grid-column:1/-1">暂无收藏，去<a href="#browse" style="color:var(--accent)">浏览技能</a>收藏喜欢的技能吧</div>';
+      return;
+    }
+
+    grid.innerHTML = MyFavoritesData.map(fav => `
+      <div class="skill-card" style="cursor:pointer;position:relative" onclick="location.hash='#skill/${escHtml(fav.slug)}'">
+        <div class="skill-card-header">
+          <div class="skill-icon">${fav.icon || '📦'}</div>
+          <div style="flex:1;min-width:0">
+            <div class="skill-name-row">
+              <span class="skill-name text-sm font-semibold line-clamp-1">${escHtml(fav.name)}</span>
+              ${riskBadge(fav.risk_level)}
+            </div>
+            <p class="skill-short-desc line-clamp-1">${escHtml(fav.summary || fav.description || '')}</p>
+            <p class="skill-author text-xs">by ${escHtml(fav.author || 'unknown')}</p>
+          </div>
+        </div>
+        <div class="skill-card-footer">
+          <div class="skill-card-tools">${toolBadges(fav.supported_tools || fav.supported_tools)}</div>
+          <span class="card-category">${escHtml(fav.category || '')}</span>
+        </div>
+        <button class="fav-btn fav-btn-active" data-slug="${escHtml(fav.slug)}" title="取消收藏" style="position:absolute;top:8px;right:8px;background:none;border:none;cursor:pointer;font-size:1.2rem;padding:4px">★</button>
+      </div>
+    `).join('');
+
+    // 绑定取消收藏事件
+    grid.querySelectorAll('.fav-btn').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const slug = btn.dataset.slug;
+        try {
+          const res = await Auth.fetchWithAuth(Auth.API_BASE + '/api/favorites/' + slug, { method: 'DELETE' });
+          if (res && res.ok) {
+            showToast('已取消收藏', 'success');
+            loadMyFavorites();
+          }
+        } catch (err) {
+          console.error('Failed to remove favorite:', err);
+        }
+      });
+    });
+  }
+
+  // 收藏/取消收藏全局方法（供技能卡片调用）
+  window.toggleFavorite = async function(slug, btn) {
+    if (!Auth.isLoggedIn()) {
+      showToast('请先登录', 'warning');
+      return;
+    }
+    const isFav = btn.classList.contains('fav-btn-active');
+    try {
+      const res = await Auth.fetchWithAuth(
+        Auth.API_BASE + '/api/favorites/' + slug,
+        { method: isFav ? 'DELETE' : 'POST' }
+      );
+      if (res && res.ok) {
+        if (isFav) {
+          btn.classList.remove('fav-btn-active');
+          btn.textContent = btn.classList.contains('fav-detail-btn') ? '☆ 收藏' : '☆';
+          btn.title = '收藏';
+          delete _favStatusCache[slug];
+        } else {
+          btn.classList.add('fav-btn-active');
+          btn.textContent = btn.classList.contains('fav-detail-btn') ? '★ 已收藏' : '★';
+          btn.title = '取消收藏';
+          _favStatusCache[slug] = true;
+        }
+        showToast(isFav ? '已取消收藏' : '收藏成功', 'success');
+      }
+    } catch (err) {
+      console.error('Failed to toggle favorite:', err);
+    }
+  };
+
+  // 批量检查收藏状态
+  window.checkFavoriteStatus = async function(slugs) {
+    if (!Auth.isLoggedIn() || !slugs || !slugs.length) return {};
+    try {
+      const res = await Auth.fetchWithAuth(
+        Auth.API_BASE + '/api/favorites/check?slugs=' + slugs.join(',')
+      );
+      if (res && res.ok) {
+        const data = await res.json();
+        return data.data || {};
+      }
+    } catch (e) {
+      console.error('Failed to check favorites:', e);
+    }
+    return {};
+  };
+
+  // 加载并应用收藏状态到页面上的卡片
+  async function loadAndApplyFavoriteStatus() {
+    if (!Auth.isLoggedIn()) return;
+    const cards = document.querySelectorAll('.fav-btn[data-slug]');
+    if (!cards.length) return;
+    const slugs = Array.from(cards).map(b => b.dataset.slug);
+    const statusMap = await checkFavoriteStatus(slugs);
+    _favStatusCache = { ..._favStatusCache, ...statusMap };
+    cards.forEach(btn => {
+      const slug = btn.dataset.slug;
+      if (statusMap[slug]) {
+        btn.classList.add('fav-btn-active');
+        btn.textContent = '★';
+        btn.title = '取消收藏';
+      }
+    });
   }
 
   // 扩展 render 函数
@@ -2417,6 +2700,9 @@
       updateNavActive('');
       main.innerHTML = renderMySubmissionsPage();
       bindMySubmissionsEvents();
+    } else if (route.page === 'my-favorites') {
+      updateNavActive('');
+      main.innerHTML = renderMyFavoritesPage();
     } else if (route.page === 'submission-detail') {
       updateNavActive('submissions');
       main.innerHTML = renderSubmissionDetailPageWrapper(route.id);
@@ -2451,4 +2737,28 @@
 
   // 重新初始化
   updateAuthUI();
+
+  // 暴露 submit tab 切换函数到全局作用域
+  let submitCurrentTab = 'git';
+  window.switchSubmitTab = function(tab) {
+    submitCurrentTab = tab;
+    const tabGit = document.getElementById('tabGit');
+    const tabZip = document.getElementById('tabZip');
+    const gitForm = document.getElementById('gitForm');
+    const zipForm = document.getElementById('zipForm');
+    if (tabGit) tabGit.classList.toggle('active', tab === 'git');
+    if (tabZip) tabZip.classList.toggle('active', tab === 'zip');
+    if (gitForm) gitForm.style.display = tab === 'git' ? 'block' : 'none';
+    if (zipForm) zipForm.style.display = tab === 'zip' ? 'block' : 'none';
+    const btn = document.getElementById('submit-btn');
+    if (btn) {
+      if (tab === 'git') {
+        btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg> 在 GitHub 提交 Issue';
+      } else {
+        btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg> 上传 ZIP';
+      }
+    }
+    const errEl = document.getElementById('submit-error');
+    if (errEl) errEl.style.display = 'none';
+  };
 })();
