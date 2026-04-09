@@ -14,10 +14,17 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       date_tag: ${{ steps.date.outputs.date_tag }}
+      image_registry: ${{ steps.registry.outputs.image_registry }}
     steps:
       - name: Generate date tag
         id: date
         run: echo "date_tag=$(date +'%Y%m%d')" >> $GITHUB_OUTPUT
+
+      - name: Set lowercase registry path
+        id: registry
+        run: echo "image_registry=ghcr.io/${OWNER,,}" >> $GITHUB_OUTPUT
+        env:
+          OWNER: ${{ github.repository_owner }}
 
   build-amd64:
     needs: prepare
@@ -40,14 +47,14 @@ jobs:
         run: |
           docker build \
             --file backend/Dockerfile \
-            --tag ghcr.io/${{ github.repository_owner }}/skillhub-backend:amd64-latest \
-            --tag ghcr.io/${{ github.repository_owner }}/skillhub-backend:amd64-${{ needs.prepare.outputs.date_tag }} \
+            --tag ${{ needs.prepare.outputs.image_registry }}/skillhub-backend:amd64-latest \
+            --tag ${{ needs.prepare.outputs.image_registry }}/skillhub-backend:amd64-${{ needs.prepare.outputs.date_tag }} \
             ./backend
 
       - name: Push amd64 image
         run: |
-          docker push ghcr.io/${{ github.repository_owner }}/skillhub-backend:amd64-latest
-          docker push ghcr.io/${{ github.repository_owner }}/skillhub-backend:amd64-${{ needs.prepare.outputs.date_tag }}
+          docker push ${{ needs.prepare.outputs.image_registry }}/skillhub-backend:amd64-latest
+          docker push ${{ needs.prepare.outputs.image_registry }}/skillhub-backend:amd64-${{ needs.prepare.outputs.date_tag }}
 
   build-arm64:
     needs: prepare
@@ -70,14 +77,14 @@ jobs:
         run: |
           docker build \
             --file backend/Dockerfile \
-            --tag ghcr.io/${{ github.repository_owner }}/skillhub-backend:arm64-latest \
-            --tag ghcr.io/${{ github.repository_owner }}/skillhub-backend:arm64-${{ needs.prepare.outputs.date_tag }} \
+            --tag ${{ needs.prepare.outputs.image_registry }}/skillhub-backend:arm64-latest \
+            --tag ${{ needs.prepare.outputs.image_registry }}/skillhub-backend:arm64-${{ needs.prepare.outputs.date_tag }} \
             ./backend
 
       - name: Push arm64 image
         run: |
-          docker push ghcr.io/${{ github.repository_owner }}/skillhub-backend:arm64-latest
-          docker push ghcr.io/${{ github.repository_owner }}/skillhub-backend:arm64-${{ needs.prepare.outputs.date_tag }}
+          docker push ${{ needs.prepare.outputs.image_registry }}/skillhub-backend:arm64-latest
+          docker push ${{ needs.prepare.outputs.image_registry }}/skillhub-backend:arm64-${{ needs.prepare.outputs.date_tag }}
 
   merge-manifest:
     needs: [prepare, build-amd64, build-arm64]
@@ -95,14 +102,14 @@ jobs:
 
       - name: Create and push multi-arch manifest (latest)
         run: |
-          docker manifest create ghcr.io/${{ github.repository_owner }}/skillhub-backend:latest \
-            --amend ghcr.io/${{ github.repository_owner }}/skillhub-backend:amd64-latest \
-            --amend ghcr.io/${{ github.repository_owner }}/skillhub-backend:arm64-latest
-          docker manifest push ghcr.io/${{ github.repository_owner }}/skillhub-backend:latest
+          docker manifest create ${{ needs.prepare.outputs.image_registry }}/skillhub-backend:latest \
+            --amend ${{ needs.prepare.outputs.image_registry }}/skillhub-backend:amd64-latest \
+            --amend ${{ needs.prepare.outputs.image_registry }}/skillhub-backend:arm64-latest
+          docker manifest push ${{ needs.prepare.outputs.image_registry }}/skillhub-backend:latest
 
       - name: Create and push multi-arch manifest (date tag)
         run: |
-          docker manifest create ghcr.io/${{ github.repository_owner }}/skillhub-backend:${{ needs.prepare.outputs.date_tag }} \
-            --amend ghcr.io/${{ github.repository_owner }}/skillhub-backend:amd64-${{ needs.prepare.outputs.date_tag }} \
-            --amend ghcr.io/${{ github.repository_owner }}/skillhub-backend:arm64-${{ needs.prepare.outputs.date_tag }}
-          docker manifest push ghcr.io/${{ github.repository_owner }}/skillhub-backend:${{ needs.prepare.outputs.date_tag }}
+          docker manifest create ${{ needs.prepare.outputs.image_registry }}/skillhub-backend:${{ needs.prepare.outputs.date_tag }} \
+            --amend ${{ needs.prepare.outputs.image_registry }}/skillhub-backend:amd64-${{ needs.prepare.outputs.date_tag }} \
+            --amend ${{ needs.prepare.outputs.image_registry }}/skillhub-backend:arm64-${{ needs.prepare.outputs.date_tag }}
+          docker manifest push ${{ needs.prepare.outputs.image_registry }}/skillhub-backend:${{ needs.prepare.outputs.date_tag }}
