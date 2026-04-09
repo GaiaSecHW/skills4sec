@@ -1,0 +1,108 @@
+name: build-docker-images
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'backend/**'
+      - '.github/workflows/build-docker-images.yml'
+  workflow_dispatch:
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      date_tag: ${{ steps.date.outputs.date_tag }}
+    steps:
+      - name: Generate date tag
+        id: date
+        run: echo "date_tag=$(date +'%Y%m%d')" >> $GITHUB_OUTPUT
+
+  build-amd64:
+    needs: prepare
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build amd64 image
+        run: |
+          docker build \
+            --file backend/Dockerfile \
+            --tag ghcr.io/${{ github.repository_owner }}/skillhub-backend:amd64-latest \
+            --tag ghcr.io/${{ github.repository_owner }}/skillhub-backend:amd64-${{ needs.prepare.outputs.date_tag }} \
+            ./backend
+
+      - name: Push amd64 image
+        run: |
+          docker push ghcr.io/${{ github.repository_owner }}/skillhub-backend:amd64-latest
+          docker push ghcr.io/${{ github.repository_owner }}/skillhub-backend:amd64-${{ needs.prepare.outputs.date_tag }}
+
+  build-arm64:
+    needs: prepare
+    runs-on: ubuntu-24.04-arm
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build arm64 image
+        run: |
+          docker build \
+            --file backend/Dockerfile \
+            --tag ghcr.io/${{ github.repository_owner }}/skillhub-backend:arm64-latest \
+            --tag ghcr.io/${{ github.repository_owner }}/skillhub-backend:arm64-${{ needs.prepare.outputs.date_tag }} \
+            ./backend
+
+      - name: Push arm64 image
+        run: |
+          docker push ghcr.io/${{ github.repository_owner }}/skillhub-backend:arm64-latest
+          docker push ghcr.io/${{ github.repository_owner }}/skillhub-backend:arm64-${{ needs.prepare.outputs.date_tag }}
+
+  merge-manifest:
+    needs: [prepare, build-amd64, build-arm64]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create and push multi-arch manifest (latest)
+        run: |
+          docker manifest create ghcr.io/${{ github.repository_owner }}/skillhub-backend:latest \
+            --amend ghcr.io/${{ github.repository_owner }}/skillhub-backend:amd64-latest \
+            --amend ghcr.io/${{ github.repository_owner }}/skillhub-backend:arm64-latest
+          docker manifest push ghcr.io/${{ github.repository_owner }}/skillhub-backend:latest
+
+      - name: Create and push multi-arch manifest (date tag)
+        run: |
+          docker manifest create ghcr.io/${{ github.repository_owner }}/skillhub-backend:${{ needs.prepare.outputs.date_tag }} \
+            --amend ghcr.io/${{ github.repository_owner }}/skillhub-backend:amd64-${{ needs.prepare.outputs.date_tag }} \
+            --amend ghcr.io/${{ github.repository_owner }}/skillhub-backend:arm64-${{ needs.prepare.outputs.date_tag }}
+          docker manifest push ghcr.io/${{ github.repository_owner }}/skillhub-backend:${{ needs.prepare.outputs.date_tag }}
