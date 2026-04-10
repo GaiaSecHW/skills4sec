@@ -15,8 +15,8 @@ spec:
     spec:
       containers:
       - name: backend
-        image: skillhub-backend:latest  # 替换为你的镜像地址
-        imagePullPolicy: IfNotPresent
+        image: ghcr.io/gaiasechw/skillhub-backend:latest
+        imagePullPolicy: Always
         ports:
         - containerPort: 8000
         env:
@@ -32,6 +32,27 @@ spec:
               key: secret-key
         - name: DEBUG
           value: "false"
+        - name: GITEA_API_URL
+          value: "http://skillhub-gitea.skillhub.svc.cluster.local:3000/api/v1"
+        - name: GITEA_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: skillhub-secrets
+              key: gitea-token
+        - name: GITEA_REPO
+          value: "admin/skills4sec"
+        - name: SUPER_ADMIN_EMPLOYEE_ID
+          valueFrom:
+            secretKeyRef:
+              name: skillhub-secrets
+              key: super-admin-employee-id
+        - name: SUPER_ADMIN_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: skillhub-secrets
+              key: super-admin-api-key
+        - name: SUPER_ADMIN_NAME
+          value: "系统管理员"
         resources:
           requests:
             memory: "256Mi"

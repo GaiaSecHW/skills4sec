@@ -1,0 +1,86 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: skillhub-gitea
+  namespace: skillhub
+spec:
+  serviceName: skillhub-gitea
+  replicas: 1
+  selector:
+    matchLabels:
+      app: skillhub-gitea
+  template:
+    metadata:
+      labels:
+        app: skillhub-gitea
+    spec:
+      containers:
+      - name: gitea
+        image: gitea/gitea:latest
+        env:
+        - name: GITEA__database__DB_TYPE
+          value: "mysql"
+        - name: GITEA__database__HOST
+          value: "skillhub-mysql.skillhub.svc.cluster.local:3306"
+        - name: GITEA__database__NAME
+          value: "gitea"
+        - name: GITEA__database__USER
+          value: "root"
+        - name: GITEA__database__PASSWD
+          valueFrom:
+            secretKeyRef:
+              name: skillhub-secrets
+              key: mysql-root-password
+        ports:
+        - containerPort: 3000
+          name: http
+        - containerPort: 22
+          name: ssh
+        volumeMounts:
+        - name: gitea-data
+          mountPath: /data
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 3000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 3000
+          initialDelaySeconds: 10
+          periodSeconds: 5
+  volumeClaimTemplates:
+  - metadata:
+      name: gitea-data
+    spec:
+      storageClassName: nfs-storage-192.168.13.66
+      accessModes: ["ReadWriteOnce"]
+      resources:
+        requests:
+          storage: 5Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: skillhub-gitea
+  namespace: skillhub
+spec:
+  selector:
+    app: skillhub-gitea
+  ports:
+  - name: http
+    port: 3000
+    targetPort: 3000
+  - name: ssh
+    port: 22
+    targetPort: 22
+  clusterIP: None

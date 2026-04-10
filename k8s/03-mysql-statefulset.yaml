@@ -1,0 +1,79 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: skillhub-mysql
+  namespace: skillhub
+spec:
+  serviceName: skillhub-mysql
+  replicas: 1
+  selector:
+    matchLabels:
+      app: skillhub-mysql
+  template:
+    metadata:
+      labels:
+        app: skillhub-mysql
+    spec:
+      containers:
+      - name: mysql
+        image: mysql:8.0
+        env:
+        - name: MYSQL_ROOT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: skillhub-secrets
+              key: mysql-root-password
+        - name: MYSQL_DATABASE
+          value: "skills4sec"
+        ports:
+        - containerPort: 3306
+        volumeMounts:
+        - name: mysql-data
+          mountPath: /var/lib/mysql
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "1Gi"
+            cpu: "1000m"
+        livenessProbe:
+          exec:
+            command:
+            - mysqladmin
+            - ping
+            - -h
+            - localhost
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          exec:
+            command:
+            - mysqladmin
+            - ping
+            - -h
+            - localhost
+          initialDelaySeconds: 10
+          periodSeconds: 5
+  volumeClaimTemplates:
+  - metadata:
+      name: mysql-data
+    spec:
+      storageClassName: nfs-storage-192.168.13.66
+      accessModes: ["ReadWriteOnce"]
+      resources:
+        requests:
+          storage: 10Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: skillhub-mysql
+  namespace: skillhub
+spec:
+  selector:
+    app: skillhub-mysql
+  ports:
+  - port: 3306
+    targetPort: 3306
+  clusterIP: None
