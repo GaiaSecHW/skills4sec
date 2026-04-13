@@ -15,6 +15,10 @@ COPY backend/ .
 # 复制前端静态文件（docs -> app 上两级目录对应 docs/）
 COPY docs/ /docs/
 
+# 复制技能文件和报告生成器
+COPY skills/ /skills/
+COPY skill-report-generator/ /skill-report-generator/
+
 # 暴露端口
 EXPOSE 8000
 
