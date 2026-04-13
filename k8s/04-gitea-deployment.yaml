@@ -31,6 +31,12 @@ spec:
             secretKeyRef:
               name: skillhub-secrets
               key: mysql-root-password
+        - name: GITEA__server__ROOT_URL
+          value: "https://gitea.ai.icsl.huawei.com/"
+        - name: GITEA__server__SSH_DOMAIN
+          value: "gitea.ai.icsl.huawei.com"
+        - name: GITEA__server__SSH_PORT
+          value: "30022"
         ports:
         - containerPort: 3000
           name: http
@@ -80,7 +86,18 @@ spec:
   - name: http
     port: 3000
     targetPort: 3000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: skillhub-gitea-ssh
+  namespace: skillhub
+spec:
+  selector:
+    app: skillhub-gitea
+  type: NodePort
+  ports:
   - name: ssh
     port: 22
     targetPort: 22
-  clusterIP: None
+    nodePort: 30022

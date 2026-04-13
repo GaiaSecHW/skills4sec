@@ -4,7 +4,7 @@ metadata:
   name: skillhub-backend
   namespace: skillhub
 spec:
-  replicas: 2
+  replicas: 1
   selector:
     matchLabels:
       app: skillhub-backend

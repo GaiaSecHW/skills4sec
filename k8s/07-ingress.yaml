@@ -10,6 +10,7 @@ spec:
   tls:
   - hosts:
     - skillhub.ai.icsl.huawei.com
+    - gitea.ai.icsl.huawei.com
     secretName: skillhub-tls
   rules:
   - host: skillhub.ai.icsl.huawei.com
@@ -36,3 +37,13 @@ spec:
             name: skillhub-backend
             port:
               number: 8000
+  - host: gitea.ai.icsl.huawei.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: skillhub-gitea
+            port:
+              number: 3000

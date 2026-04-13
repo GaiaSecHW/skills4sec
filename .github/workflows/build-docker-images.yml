@@ -49,7 +49,7 @@ jobs:
             --file backend/Dockerfile \
             --tag ${{ needs.prepare.outputs.image_registry }}/skillhub-backend:amd64-latest \
             --tag ${{ needs.prepare.outputs.image_registry }}/skillhub-backend:amd64-${{ needs.prepare.outputs.date_tag }} \
-            ./backend
+            .
 
       - name: Push amd64 image
         run: |
@@ -79,7 +79,7 @@ jobs:
             --file backend/Dockerfile \
             --tag ${{ needs.prepare.outputs.image_registry }}/skillhub-backend:arm64-latest \
             --tag ${{ needs.prepare.outputs.image_registry }}/skillhub-backend:arm64-${{ needs.prepare.outputs.date_tag }} \
-            ./backend
+            .
 
       - name: Push arm64 image
         run: |
