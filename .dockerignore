@@ -1,0 +1,36 @@
+# Git
+.git
+.gitignore
+
+# Python
+**/__pycache__
+**/*.pyc
+**/*.pyo
+**/venv
+**/.venv
+**/.pytest_cache
+**/.coverage
+**/htmlcov
+**/*.log
+
+# Backend temp
+backend/skills_zip_temp
+backend/skills_download
+backend/.env
+backend/.omc
+
+# Not needed in image
+k8s
+nginx
+agents
+harnesses
+scripts
+packages
+pending
+schemas
+skill-report-generator
+_tmp
+.omc
+.claude
+*.md
+!docs
