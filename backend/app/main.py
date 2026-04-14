@@ -14,6 +14,7 @@ from app.api.audit import router as audit_router
 from app.api.submissions import router as submissions_router
 from app.api.admin import router as admin_router
 from app.api.stats import router as stats_router
+from app.api.icsl_sync import router as icsl_sync_router
 
 # 初始化日志
 setup_harness_logging(level="DEBUG" if settings.DEBUG else "INFO", log_dir="logs", service_name="SecAgentHub", enable_aggregation=True,)
@@ -54,6 +55,24 @@ async def init_super_admin():
         print(f"[Init] 超级管理员已创建: {employee_id}")
 
 
+async def _init_icsl_sync():
+    """Pod 启动时执行 ICSL 初始化同步 (延迟 10s, 等待 Gitea 就绪)"""
+    import asyncio
+    await asyncio.sleep(10)
+    try:
+        from app.core import get_logger as _gl
+        _log = _gl("icsl_init")
+        _log.info('{"event": "icsl_init_sync_start"}')
+        from app.services.icsl_sync_service import icsl_sync_service
+        result = await icsl_sync_service.full_sync()
+        _log.info(f'{{"event": "icsl_init_sync_done", "synced": {result.get("synced", 0)}, '
+                   f'"skipped": {result.get("skipped", 0)}, "errors": {result.get("errors", 0)}}}')
+    except Exception as e:
+        from app.core import get_logger as _gl
+        _log = _gl("icsl_init")
+        _log.error(f'{{"event": "icsl_init_sync_error", "error": "{e}"}}')
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # 启动时初始化数据库
@@ -68,6 +87,12 @@ async def lifespan(app: FastAPI):
     from app.tasks.scheduler import setup_scheduler, start_scheduler
     setup_scheduler()
     start_scheduler()
+
+    # 启动时初始化 ICSL 同步 (延迟执行, 等待 Gitea 就绪)
+    if settings.ICSL_SYNC_ON_STARTUP and settings.ICSL_GITEA_API_URL:
+        import asyncio as _asyncio
+        _asyncio.create_task(_init_icsl_sync())
+
     yield
     # 关闭时停止调度器
     from app.tasks.scheduler import shutdown_scheduler
@@ -112,6 +137,7 @@ app.include_router(audit_router, prefix="/api")
 app.include_router(submissions_router, prefix="/api")
 app.include_router(admin_router, prefix="/api")
 app.include_router(stats_router, prefix="/api")
+app.include_router(icsl_sync_router, prefix="/api")
 
 
 @app.get("/api/info")
@@ -153,6 +179,9 @@ async def admin_page():
 
 
 # 挂载 docs SPA 前端（技能市场门户，必须在所有路由之后）
-docs_dir = os.path.join(os.path.dirname(__file__), "..", "..", "docs")
-if os.path.exists(docs_dir):
-    app.mount("/", StaticFiles(directory=docs_dir, html=True), name="hub")
+# 优先使用 ICSL_DATA_DIR 下的 docs (PVC 持久化), 回退到项目 docs/
+_docs_dir = os.path.join(settings.ICSL_DATA_DIR, "docs") if settings.ICSL_DATA_DIR else None
+if not _docs_dir or not os.path.exists(_docs_dir):
+    _docs_dir = os.path.join(os.path.dirname(__file__), "..", "..", "docs")
+if os.path.exists(_docs_dir):
+    app.mount("/", StaticFiles(directory=_docs_dir, html=True), name="hub")

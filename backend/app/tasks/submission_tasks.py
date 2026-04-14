@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 
 from app.models.submission import Submission, SubmissionEvent, SubmissionStatus, SubmissionEventType
 from app.core import get_logger
+from app.config import settings
 
 logger = get_logger("submission_tasks")
 
@@ -107,6 +108,30 @@ async def generate_daily_stats():
     return stats
 
 
+async def icsl_polling_sync():
+    """
+    ICSL 组织轮询同步 (兜底机制)
+
+    定期扫描 icsl 组织所有仓库, 检查是否有新 tag
+    """
+    from app.config import settings
+
+    if not settings.ICSL_GITEA_API_URL or not settings.ICSL_GITEA_TOKEN:
+        return {"skipped": True, "reason": "ICSL sync not configured"}
+
+    try:
+        from app.services.icsl_sync_service import icsl_sync_service
+        result = await icsl_sync_service.full_sync()
+        logger.info(
+            f'{{"event": "icsl_polling_sync", "synced": {result.get("synced", 0)}, '
+            f'"skipped": {result.get("skipped", 0)}, "errors": {result.get("errors", 0)}}}'
+        )
+        return result
+    except Exception as e:
+        logger.error(f'{{"event": "icsl_polling_sync_error", "error": "{e}"}}')
+        return {"error": str(e)}
+
+
 # ============ 任务调度配置 ============
 
 TASK_SCHEDULE = {
@@ -114,6 +139,7 @@ TASK_SCHEDULE = {
     cleanup_old_events: (3600, "清理过期事件日志"),
     cleanup_stale_submissions: (86400, "清理超时提交"),
     generate_daily_stats: (86400, "生成每日统计"),
+    icsl_polling_sync: (settings.ICSL_SYNC_INTERVAL, "ICSL组织轮询同步"),
 }
 
 

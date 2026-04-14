@@ -28,10 +28,18 @@ class Settings(BaseSettings):
     GITEA_REPO: str = ""  # owner/repo
     GITEA_SKILLS_BASE_URL: str = ""  # 技能仓库浏览地址
 
-    # OpenAI API 配置 (用于技能报告生成)
-    OPENAI_API_KEY: str = ""
-    OPENAI_BASE_URL: str = "https://api.openai.com/v1"
-    OPENAI_MODEL: str = "gpt-4o"
+    # ICSL 组织同步配置 (用于与 icsl Gitea 组织双向同步 skill)
+    ICSL_GITEA_API_URL: str = ""       # K8s 内部 Gitea API 地址
+    ICSL_GITEA_TOKEN: str = ""         # icsl 组织 Token (需 org admin 权限)
+    ICSL_ORG_NAME: str = "icsl"        # 组织名
+    ICSL_SYNC_INTERVAL: int = 300      # 轮询间隔 (秒), 默认 5 分钟
+    ICSL_SYNC_ON_STARTUP: bool = True  # Pod 启动时是否自动全量同步
+    ICSL_DATA_DIR: str = "/data"       # PVC 持久化数据目录
+
+    # 报告生成 API 配置 (用于技能报告生成)
+    REPORT_API_KEY: str = ""
+    REPORT_API_BASE_URL: str = "https://api.openai.com/v1"
+    REPORT_API_MODEL: str = "gpt-4o"
 
     # 超级管理员配置
     SUPER_ADMIN_EMPLOYEE_ID: str = ""

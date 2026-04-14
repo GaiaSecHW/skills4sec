@@ -25,7 +25,13 @@ router = APIRouter(prefix="/skills", tags=["skills"])
 # 项目根目录
 _PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 SKILLS_DIR = os.path.join(_PROJECT_ROOT, "skills")
-SKILLS_JSON_PATH = os.path.join(_PROJECT_ROOT, "docs", "data", "skills.json")
+
+# skills.json 路径: 优先使用 ICSL_DATA_DIR (PVC), 回退到项目目录
+_ICSL_DATA_DIR = os.environ.get("ICSL_DATA_DIR", "")
+if _ICSL_DATA_DIR:
+    SKILLS_JSON_PATH = os.path.join(_ICSL_DATA_DIR, "docs", "data", "skills.json")
+else:
+    SKILLS_JSON_PATH = os.path.join(_PROJECT_ROOT, "docs", "data", "skills.json")
 
 # skills.json 缓存
 _skills_json_cache: Optional[list] = None

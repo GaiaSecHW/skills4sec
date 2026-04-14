@@ -549,9 +549,9 @@ class WorkflowService:
             import sys
             env = {
                 **os.environ,
-                "OPENAI_API_KEY": settings.OPENAI_API_KEY or "",
-                "OPENAI_BASE_URL": settings.OPENAI_BASE_URL or "https://api.openai.com/v1",
-                "OPENAI_MODEL": settings.OPENAI_MODEL or "gpt-4o",
+                "OPENAI_API_KEY": settings.REPORT_API_KEY or "",
+                "OPENAI_BASE_URL": settings.REPORT_API_BASE_URL or "https://api.openai.com/v1",
+                "OPENAI_MODEL": settings.REPORT_API_MODEL or "gpt-4o",
                 "GITEA_SKILLS_BASE_URL": settings.GITEA_SKILLS_BASE_URL,
             }
             # 构建生成器命令

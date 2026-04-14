@@ -68,6 +68,25 @@ spec:
             secretKeyRef:
               name: skillhub-secrets
               key: report-api-model
+        # ICSL 组织同步配置
+        - name: ICSL_GITEA_API_URL
+          value: "http://skillhub-gitea.skillhub.svc.cluster.local:3000/api/v1"
+        - name: ICSL_GITEA_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: skillhub-secrets
+              key: icsl-gitea-token
+        - name: ICSL_ORG_NAME
+          value: "icsl"
+        - name: ICSL_SYNC_INTERVAL
+          value: "300"
+        - name: ICSL_SYNC_ON_STARTUP
+          value: "true"
+        - name: ICSL_DATA_DIR
+          value: "/data"
+        volumeMounts:
+        - name: skill-data
+          mountPath: /data
         resources:
           requests:
             memory: "256Mi"
@@ -87,6 +106,10 @@ spec:
             port: 8000
           initialDelaySeconds: 5
           periodSeconds: 5
+      volumes:
+      - name: skill-data
+        persistentVolumeClaim:
+          claimName: skillhub-data
 ---
 apiVersion: v1
 kind: Service
