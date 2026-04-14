@@ -31,7 +31,13 @@ class ICSLSyncService:
         self.api_url = settings.ICSL_GITEA_API_URL
         self.token = settings.ICSL_GITEA_TOKEN
         self.org_name = settings.ICSL_ORG_NAME
-        self.data_dir = Path(settings.ICSL_DATA_DIR)
+
+        # data_dir: 配置了 ICSL_DATA_DIR 用该路径, 否则用项目根目录下的 data/
+        if settings.ICSL_DATA_DIR:
+            self.data_dir = Path(settings.ICSL_DATA_DIR)
+        else:
+            _project_root = Path(__file__).resolve().parent.parent.parent.parent
+            self.data_dir = _project_root / "data"
 
         # 关键目录
         self.skills_dir = self.data_dir / "skills"
@@ -43,9 +49,10 @@ class ICSLSyncService:
         # 同步状态文件
         self.sync_state_file = self.data_dir / "sync_state.json"
 
-        # 确保目录存在
-        self.skills_dir.mkdir(parents=True, exist_ok=True)
-        self.docs_data_dir.mkdir(parents=True, exist_ok=True)
+        # 确保目录存在 (仅在配置了 ICSL 同步时创建)
+        if self._is_configured():
+            self.skills_dir.mkdir(parents=True, exist_ok=True)
+            self.docs_data_dir.mkdir(parents=True, exist_ok=True)
 
         # Gitea clone 基地址 (从 API URL 推导)
         # http://xxx:3000/api/v1 -> http://xxx:3000

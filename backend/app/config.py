@@ -34,7 +34,7 @@ class Settings(BaseSettings):
     ICSL_ORG_NAME: str = "icsl"        # 组织名
     ICSL_SYNC_INTERVAL: int = 300      # 轮询间隔 (秒), 默认 5 分钟
     ICSL_SYNC_ON_STARTUP: bool = True  # Pod 启动时是否自动全量同步
-    ICSL_DATA_DIR: str = "/data"       # PVC 持久化数据目录
+    ICSL_DATA_DIR: str = ""            # PVC 持久化数据目录 (K8s 设为 /data, 本地留空即可)
 
     # 报告生成 API 配置 (用于技能报告生成)
     REPORT_API_KEY: str = ""

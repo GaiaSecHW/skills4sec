@@ -252,9 +252,10 @@ async def submit_skill(
             triggered_by="system"
         )
 
-        # 安排自动重试
-        from app.services.retry_service import retry_service
-        await retry_service.schedule_retry(submission, message)
+        # 安排自动重试 (retry_service 暂未实现, 跳过)
+        # TODO: 实现 retry_service 后取消注释
+        # from app.services.retry_service import retry_service
+        # await retry_service.schedule_retry(submission, message)
 
         logger.warning("Issue 创建失败", event="issue_failed", business={"submission_id": submission.submission_id, "error": message})
 

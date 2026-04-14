@@ -179,9 +179,11 @@ async def admin_page():
 
 
 # 挂载 docs SPA 前端（技能市场门户，必须在所有路由之后）
-# 优先使用 ICSL_DATA_DIR 下的 docs (PVC 持久化), 回退到项目 docs/
-_docs_dir = os.path.join(settings.ICSL_DATA_DIR, "docs") if settings.ICSL_DATA_DIR else None
-if not _docs_dir or not os.path.exists(_docs_dir):
+# 挂载 docs SPA 前端（技能市场门户，必须在所有路由之后）
+# 配置了 ICSL_DATA_DIR 且目录存在时用 PVC 数据, 否则用项目自带 docs/
+if settings.ICSL_DATA_DIR and os.path.exists(os.path.join(settings.ICSL_DATA_DIR, "docs")):
+    _docs_dir = os.path.join(settings.ICSL_DATA_DIR, "docs")
+else:
     _docs_dir = os.path.join(os.path.dirname(__file__), "..", "..", "docs")
 if os.path.exists(_docs_dir):
     app.mount("/", StaticFiles(directory=_docs_dir, html=True), name="hub")
