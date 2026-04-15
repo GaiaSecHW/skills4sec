@@ -3,7 +3,7 @@
   "meta": {
     "generated_at": "2026-01-17T08:10:11.580Z",
     "slug": "skill-installer",
-    "source_url": "https://github.com/openai/codex/tree/main/codex-rs/core/src/skills/assets/samples/skill-installer",
+    "source_url": "http://gitea.ai.icsl.huawei.com/icsl/skill-installer",
     "source_ref": "main",
     "model": "claude",
     "analysis_version": "3.0.0",

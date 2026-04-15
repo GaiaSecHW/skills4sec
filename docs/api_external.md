@@ -12,6 +12,12 @@
 - [技能分类](#4-技能分类列表)
 - [热门标签](#5-热门标签)
 - [下载排行统计](#6-下载排行统计)
+- [用户认证](#7-用户认证)
+- [技能上传（Git URL）](#8-技能上传git-url)
+- [技能上传（ZIP 文件）](#9-技能上传zip-文件)
+- [查询提交状态](#10-查询提交状态)
+- [我的提交记录](#11-我的提交记录)
+- [上传流程总览](#12-上传流程总览)
 
 ---
 
@@ -386,9 +392,324 @@ http://{host}:{port}/api
 
 ---
 
+## 7. 用户认证
+
+上传技能前需要先登录获取 JWT Token，后续上传接口需要在 `Authorization` 请求头中携带 Token。
+
+**接口地址：** `POST /api/auth/login`
+
+**请求体：**
+
+```json
+{
+  "employee_id": "工号",
+  "api_key": "API密钥"
+}
+```
+
+**响应示例：**
+
+```json
+{
+  "access_token": "eyJhbGciOiJIUzI1NiIs...",
+  "token_type": "bearer",
+  "user": {
+    "id": 1,
+    "employee_id": "10001",
+    "role": "user"
+  }
+}
+```
+
+> 登录成功后，将 `access_token` 用于后续所有需要认证的接口：`Authorization: Bearer <access_token>`
+
+---
+
+## 8. 技能上传（Git URL）
+
+通过 Git 仓库地址提交技能，系统会自动克隆仓库并生成安全报告。
+
+**接口地址：** `POST /api/submissions`
+
+**权限：** 需要用户登录（JWT Token）
+
+**请求头：**
+
+```
+Authorization: Bearer <access_token>
+Content-Type: application/json
+```
+
+**请求体：**
+
+```json
+{
+  "name": "my-security-skill",
+  "repo_url": "https://github.com/user/skill-repo",
+  "description": "技能描述信息",
+  "category": "security",
+  "contact": "联系方式（可选）"
+}
+```
+
+**请求参数：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| name | string | 是 | 技能名称，1-200字符 |
+| repo_url | string | 是 | Git 仓库地址，最大500字符 |
+| description | string | 否 | 技能描述，最大2000字符 |
+| category | string | 否 | 分类slug |
+| contact | string | 否 | 联系方式 |
+
+**响应示例（成功）：**
+
+```json
+{
+  "success": true,
+  "message": "技能提交成功！请等待审核。",
+  "submission_id": "uuid-string",
+  "issue_url": "https://gitea.example.com/owner/repo/issues/42",
+  "issue_number": 42
+}
+```
+
+**响应示例（Issue 创建暂时失败）：**
+
+```json
+{
+  "success": true,
+  "message": "技能已提交，但 Issue 创建暂时失败。系统会自动重试，请稍后查看状态。",
+  "submission_id": "uuid-string"
+}
+```
+
+**错误响应：**
+
+| 状态码 | 说明 |
+|--------|------|
+| 401 | 未登录或 Token 过期 |
+| 422 | 参数验证失败 |
+| 500 | 服务未配置 Gitea Token |
+
+---
+
+## 9. 技能上传（ZIP 文件）
+
+通过上传 ZIP 压缩包提交技能，ZIP 内必须包含 `SKILL.md` 文件。
+
+**接口地址：** `POST /api/submissions/upload-zip`
+
+**权限：** 需要用户登录（JWT Token）
+
+**请求头：**
+
+```
+Authorization: Bearer <access_token>
+Content-Type: multipart/form-data
+```
+
+**请求参数（FormData）：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| file | File | 是 | ZIP 压缩包文件 |
+| name | string | 否 | 技能名称（不填则从 SKILL.md 标题自动提取） |
+| description | string | 否 | 技能描述 |
+| category | string | 否 | 分类slug |
+| contact | string | 否 | 联系方式 |
+
+**ZIP 文件要求：**
+
+- 文件扩展名必须为 `.zip`
+- ZIP 内必须包含 `SKILL.md` 文件（可在子目录中）
+- 系统会自动从 `SKILL.md` 的第一行 `# 标题` 提取技能名称
+
+**响应示例：**
+
+```json
+{
+  "success": true,
+  "message": "ZIP 上传成功，工作流已启动",
+  "data": {
+    "submission_id": "uuid-string",
+    "name": "my-skill-name",
+    "status": "pending"
+  }
+}
+```
+
+**错误响应：**
+
+| 状态码 | 说明 |
+|--------|------|
+| 401 | 未登录或 Token 过期 |
+| 422 | 非ZIP文件 / ZIP内无SKILL.md / 无效ZIP文件 |
+
+**调用示例（curl）：**
+
+```bash
+curl -X POST http://localhost:8000/api/submissions/upload-zip \
+  -H "Authorization: Bearer <access_token>" \
+  -F "file=@/path/to/skill-package.zip" \
+  -F "name=my-skill" \
+  -F "description=技能描述"
+```
+
+---
+
+## 10. 查询提交状态
+
+查询技能提交的当前处理状态，无需认证。
+
+**接口地址：** `GET /api/submissions/{submission_id}/status`
+
+**路径参数：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| submission_id | string | 是 | 提交时返回的 UUID |
+
+**响应示例：**
+
+```json
+{
+  "success": true,
+  "data": {
+    "submission_id": "uuid-string",
+    "name": "my-security-skill",
+    "status": "completed",
+    "issue_number": 42,
+    "issue_url": "https://gitea.example.com/owner/repo/issues/42",
+    "pr_number": null,
+    "pr_url": null,
+    "error_message": null,
+    "created_at": "2026-04-15T10:00:00",
+    "updated_at": "2026-04-15T10:01:30"
+  }
+}
+```
+
+**状态值说明：**
+
+| 状态 | 说明 |
+|------|------|
+| pending | 等待处理（ZIP 上传初始状态） |
+| creating_issue | 正在创建 Gitea Issue |
+| issue_created | Issue 创建成功 |
+| issue_failed | Issue 创建失败（系统自动重试） |
+| cloning | 正在克隆仓库 / 解压 ZIP |
+| clone_completed | 克隆/解压完成 |
+| clone_failed | 克隆/解压失败 |
+| generating | 正在生成安全报告 |
+| completed | 处理完成 |
+| failed | 处理失败 |
+
+---
+
+## 11. 我的提交记录
+
+获取当前登录用户的提交历史记录。
+
+**接口地址：** `GET /api/submissions/my`
+
+**权限：** 需要用户登录（JWT Token）
+
+**请求头：**
+
+```
+Authorization: Bearer <access_token>
+```
+
+**响应示例：**
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "submission_id": "uuid-string",
+      "name": "my-security-skill",
+      "status": "completed",
+      "repo_url": "https://github.com/user/skill-repo",
+      "source_type": "git",
+      "issue_url": "https://gitea.example.com/owner/repo/issues/42",
+      "created_at": "2026-04-15T10:00:00",
+      "updated_at": "2026-04-15T10:01:30"
+    }
+  ]
+}
+```
+
+---
+
+## 12. 上传流程总览
+
+### 方式一：Git URL 上传
+
+```
+用户登录 → POST /api/auth/login → 获取 JWT Token
+    │
+    ▼
+提交 Git URL → POST /api/submissions
+    │
+    ├── 后端自动创建 Gitea Issue（pending-approval 标签）
+    │
+    ├── 启动后台工作流：
+    │   │
+    │   ├── Step 1: 克隆仓库（git clone / GitHub ZIP API）
+    │   │      └── 验证 SKILL.md 存在
+    │   │
+    │   ├── Step 1.5: 复制到 skills_download/git/{name}/
+    │   │
+    │   └── Step 2: 执行 skill-report-generator 生成安全报告
+    │          └── 输出 skill-report.json
+    │
+    └── 返回 submission_id → 用户轮询状态
+         └── GET /api/submissions/{id}/status
+```
+
+### 方式二：ZIP 文件上传
+
+```
+用户登录 → POST /api/auth/login → 获取 JWT Token
+    │
+    ▼
+上传 ZIP → POST /api/submissions/upload-zip
+    │
+    ├── 验证文件类型（.zip）
+    ├── 保存到 skills_zip_temp/{uuid}.zip
+    ├── 验证 ZIP 内含 SKILL.md
+    └── 从 SKILL.md 标题提取技能名称
+    │
+    ▼
+启动后台工作流：
+    │
+    ├── Step 1: 解压 ZIP → skills_download/zip/{name}/
+    │      └── 递归查找 SKILL.md
+    │
+    ├── Step 1.5: 复制到 skills_download/git/{name}/
+    │
+    └── Step 2: 执行 skill-report-generator 生成安全报告
+           └── 输出 skill-report.json
+    │
+    ▼
+返回 submission_id → 用户轮询状态
+ └── GET /api/submissions/{id}/status
+```
+
+### 失败重试机制
+
+- Issue 创建失败：自动重试，间隔 60s → 300s → 900s（指数退避）
+- 工作流步骤失败：管理员可通过后台接口手动重试单步或继续流程
+- 定时任务 `process_pending_retries` 每 60 秒扫描待重试的提交
+
+---
+
 ## 接口变更日志
 
 | 日期 | 版本 | 变更说明 |
 |------|------|---------|
+| 2026-04-15 | v1.2 | 新增用户认证、技能上传（Git URL / ZIP）、提交状态查询、我的提交记录、上传流程总览文档 |
 | 2026-03-30 | v1.1 | 技能列表、详情、下载接口改为直接读取 skills.json 和 skills 目录，不再依赖数据库 |
 | 2026-03-30 | v1.0 | 初始版本，包含技能CRUD、下载、统计接口 |

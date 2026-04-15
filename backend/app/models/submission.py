@@ -25,11 +25,17 @@ class SubmissionStatus(str, Enum):
     AUDIT_FAILED = "audit_failed"     # 审计失败
     NEEDS_REVIEW = "needs_review"     # 需要人工审核
 
+    # 工作流阶段
+    CLONING = "cloning"               # 正在克隆/解压
+    GENERATING = "generating"         # 正在生成报告
+
     # 处理阶段
     PROCESSING = "processing"         # 正在处理
     PROCESS_FAILED = "process_failed" # 处理失败
 
     # 完成阶段
+    COMPLETED = "completed"           # 工作流完成
+    FAILED = "failed"                 # 失败
     PR_CREATED = "pr_created"         # PR已创建
     MERGED = "merged"                 # 已合并
     CLOSED = "closed"                 # 已关闭
@@ -46,6 +52,16 @@ class SubmissionEventType(str, Enum):
     RETRY_SUCCESS = "retry_success"
     RETRY_FAILED = "retry_failed"
 
+    # 克隆阶段
+    CLONE_STARTED = "clone_started"
+    CLONE_SUCCESS = "clone_success"
+    CLONE_FAILED = "clone_failed"
+
+    # 报告生成阶段
+    GENERATE_STARTED = "generate_started"
+    GENERATE_SUCCESS = "generate_success"
+    GENERATE_FAILED = "generate_failed"
+
     # 审批阶段
     APPROVED = "approved"
     REJECTED = "rejected"
@@ -57,6 +73,7 @@ class SubmissionEventType(str, Enum):
     PROCESSING_FAILED = "processing_failed"
 
     # 完成阶段
+    COMPLETED = "completed"
     PR_CREATED = "pr_created"
     MERGED = "merged"
     CLOSED = "closed"
@@ -73,7 +90,9 @@ class Submission(Model):
     # 基本信息
     submission_id = fields.CharField(max_length=36, unique=True, index=True, description="UUID")
     name = fields.CharField(max_length=200, description="技能名称")
-    repo_url = fields.CharField(max_length=500, description="仓库地址")
+    repo_url = fields.CharField(max_length=500, null=True, description="仓库地址")
+    source_type = fields.CharField(max_length=20, default="git", description="来源类型: git/zip")
+    zip_path = fields.CharField(max_length=500, null=True, description="ZIP文件路径")
     description = fields.TextField(null=True, description="描述")
     category = fields.CharField(max_length=50, null=True, description="分类")
     contact = fields.CharField(max_length=200, null=True, description="联系方式")
@@ -90,6 +109,8 @@ class Submission(Model):
         default=SubmissionStatus.PENDING,
         description="当前状态"
     )
+    current_step = fields.CharField(max_length=50, null=True, description="当前步骤")
+    step_details = fields.JSONField(null=True, description="步骤详情")
 
     # Gitea Issue 相关
     issue_number = fields.IntField(null=True, description="Gitea Issue 编号")
@@ -131,6 +152,10 @@ class Submission(Model):
     rejected_by_employee_id = fields.CharField(max_length=20, null=True, description="拒绝人工号")
     rejected_at = fields.DatetimeField(null=True, description="拒绝时间")
     reject_reason = fields.TextField(null=True, description="拒绝原因")
+    review_message = fields.TextField(null=True, description="审核消息")
+    reviewed_at = fields.DatetimeField(null=True, description="审核时间")
+    reviewer_id = fields.IntField(null=True, description="审核人ID")
+    reviewer_employee_id = fields.CharField(max_length=20, null=True, description="审核人工号")
 
     # 时间戳
     created_at = fields.DatetimeField(auto_now_add=True)

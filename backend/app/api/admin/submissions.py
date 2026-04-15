@@ -496,7 +496,7 @@ async def retry_step(
     # 记录重试事件
     await SubmissionEvent.create(
         submission=submission,
-        event_type=SubmissionEventType.RETRY,
+        event_type=SubmissionEventType.MANUAL_OVERRIDE,
         message=f"管理员 {admin.employee_id} 重试步骤: {data.step}",
         details={"step": data.step},
         actor_id=admin.id,
@@ -569,7 +569,7 @@ async def continue_workflow(
     # 记录继续事件
     await SubmissionEvent.create(
         submission=submission,
-        event_type=SubmissionEventType.RETRY,
+        event_type=SubmissionEventType.MANUAL_OVERRIDE,
         message=f"管理员 {admin.employee_id} 继续工作流 (从 {current_status.value})",
         details={"from_status": current_status.value, "step": next_step},
         actor_id=admin.id,
@@ -651,7 +651,7 @@ async def approve_submission(
     # 记录事件
     await SubmissionEvent.create(
         submission=submission,
-        event_type=SubmissionEventType.RETRY,  # 复用，表示状态变更
+        event_type=SubmissionEventType.APPROVED,
         old_status=submission.status,
         new_status=SubmissionStatus.APPROVED,
         message=f"管理员 {admin.employee_id} 审批通过",
@@ -691,7 +691,7 @@ async def reject_submission(
     # 记录事件
     await SubmissionEvent.create(
         submission=submission,
-        event_type=SubmissionEventType.RETRY,
+        event_type=SubmissionEventType.REJECTED,
         old_status=old_status,
         new_status=SubmissionStatus.REJECTED,
         message=f"管理员 {admin.employee_id} 审批拒绝: {data.message or '无原因'}",

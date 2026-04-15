@@ -33,6 +33,11 @@ class Settings(BaseSettings):
     OPENAI_BASE_URL: str = "https://api.openai.com/v1"
     OPENAI_MODEL: str = "gpt-4o"
 
+    # 报告生成 API 配置 (兼容火山引擎等)
+    REPORT_API_BASE_URL: str = ""
+    REPORT_API_KEY: str = ""
+    REPORT_API_MODEL: str = ""
+
     # 超级管理员配置
     SUPER_ADMIN_EMPLOYEE_ID: str = ""
     SUPER_ADMIN_API_KEY: str = ""

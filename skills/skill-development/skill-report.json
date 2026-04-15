@@ -3,7 +3,7 @@
   "meta": {
     "generated_at": "2026-01-17T08:09:28.698Z",
     "slug": "skill-development",
-    "source_url": "https://github.com/anthropics/claude-code/tree/main/plugins/plugin-dev/skills/skill-development",
+    "source_url": "http://gitea.ai.icsl.huawei.com/icsl/skill-development",
     "source_ref": "main",
     "model": "claude",
     "analysis_version": "3.0.0",

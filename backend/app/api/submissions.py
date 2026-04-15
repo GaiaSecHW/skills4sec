@@ -71,7 +71,7 @@ async def create_gitea_issue(submission: Submission) -> tuple[bool, str, Optiona
 
     body = build_issue_body(submission)
 
-    async with httpx.AsyncClient(timeout=30.0, trust_env=False) as client:
+    async with httpx.AsyncClient(timeout=30.0, trust_env=False, follow_redirects=True, verify=False) as client:
         try:
             response = await client.post(
                 f"{GITEA_API_URL}/repos/{GITEA_REPO}/issues",

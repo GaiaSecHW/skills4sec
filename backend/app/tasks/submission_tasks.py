@@ -10,6 +10,134 @@ from app.core import get_logger
 logger = get_logger("submission_tasks")
 
 
+async def process_pending_retries():
+    """
+    处理待重试的提交
+
+    每分钟调用一次，查找 next_retry_at 已过期且未达最大重试次数的提交
+    """
+    now = datetime.utcnow()
+
+    retryable = await Submission.filter(
+        next_retry_at__lte=now,
+        retry_count__lt=3,
+        status__in=[
+            SubmissionStatus.ISSUE_FAILED,
+            SubmissionStatus.PROCESS_FAILED,
+        ],
+    ).all()
+
+    if not retryable:
+        return {"retried": 0}
+
+    retried = 0
+    for submission in retryable:
+        try:
+            from app.services.workflow_service import workflow_service
+
+            success, message = await workflow_service.start_workflow(submission)
+
+            if success:
+                submission.retry_count += 1
+                submission.next_retry_at = None
+                await submission.save()
+
+                await SubmissionEvent.create(
+                    submission=submission,
+                    event_type=SubmissionEventType.RETRY_SUCCESS,
+                    new_status=submission.status,
+                    message=f"重试成功: {message}",
+                    triggered_by="scheduler",
+                )
+            else:
+                # 工作流再次失败，交由 retry_service 安排下次重试
+                from app.services.retry_service import retry_service
+                await retry_service.schedule_retry(submission, message)
+
+            retried += 1
+        except Exception as e:
+            logger.exception(
+                f"Retry failed for submission {submission.submission_id}: {e}",
+            )
+
+    if retried > 0:
+        logger.info(f"Processed {retried} pending retries")
+
+    return {"retried": retried}
+
+
+async def sync_gitea_status():
+    """
+    从 Gitea 同步提交状态
+
+    每5分钟调用一次，检查已创建 Issue/PR 的提交状态
+    """
+    from app.config import settings
+    import httpx
+
+    gitea_url = settings.GITEA_API_URL
+    gitea_token = settings.GITEA_TOKEN
+    gitea_repo = settings.GITEA_REPO
+
+    if not gitea_token or not gitea_url:
+        return {"synced": 0, "reason": "Gitea not configured"}
+
+    # 查找有待同步状态的提交（有 issue_number 但未终态）
+    active_submissions = await Submission.filter(
+        issue_number__isnull=False,
+        status__in=[
+            SubmissionStatus.ISSUE_CREATED,
+            SubmissionStatus.APPROVED,
+            SubmissionStatus.PROCESSING,
+            SubmissionStatus.PR_CREATED,
+        ],
+    ).limit(50).all()
+
+    synced = 0
+    async with httpx.AsyncClient(timeout=15, trust_env=False, follow_redirects=True, verify=False) as client:
+        for sub in active_submissions:
+            try:
+                resp = await client.get(
+                    f"{gitea_url}/repos/{gitea_repo}/issues/{sub.issue_number}",
+                    headers={"Authorization": f"token {gitea_token}"},
+                )
+                if resp.status_code != 200:
+                    continue
+
+                issue_data = resp.json()
+                issue_state = issue_data.get("state", "")
+
+                labels = [l.get("name", "") for l in issue_data.get("labels", [])]
+
+                old_status = sub.status
+
+                if issue_state == "closed":
+                    if "approved" in labels:
+                        sub.status = SubmissionStatus.APPROVED
+                    else:
+                        sub.status = SubmissionStatus.REJECTED
+                    await sub.save()
+
+                    await SubmissionEvent.create(
+                        submission=sub,
+                        event_type=SubmissionEventType.STATUS_SYNCED,
+                        old_status=old_status,
+                        new_status=sub.status,
+                        message=f"Gitea Issue #{sub.issue_number} 已关闭",
+                        details={"issue_state": issue_state, "labels": labels},
+                        triggered_by="scheduler",
+                    )
+                    synced += 1
+
+            except Exception as e:
+                logger.warning(f"Failed to sync submission {sub.submission_id}: {e}")
+
+    if synced > 0:
+        logger.info(f"Synced {synced} submission statuses from Gitea")
+
+    return {"synced": synced}
+
+
 async def cleanup_old_events():
     """
     清理过期的事件日志
@@ -54,7 +182,7 @@ async def cleanup_stale_submissions():
 
             await SubmissionEvent.create(
                 submission=submission,
-                event_type=SubmissionEventType.RETRY,
+                event_type=SubmissionEventType.RETRY_FAILED,
                 old_status=status_value,
                 new_status=SubmissionStatus.FAILED,
                 message="系统标记为处理超时",
@@ -111,6 +239,7 @@ async def generate_daily_stats():
 
 TASK_SCHEDULE = {
     # 任务函数: (间隔秒数, 描述)
+    process_pending_retries: (60, "处理待重试提交"),
     cleanup_old_events: (3600, "清理过期事件日志"),
     cleanup_stale_submissions: (86400, "清理超时提交"),
     generate_daily_stats: (86400, "生成每日统计"),

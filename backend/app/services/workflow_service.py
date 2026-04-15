@@ -177,8 +177,9 @@ class WorkflowService:
             return await self.clone_repo(submission)
         elif step == WorkflowStep.GENERATING:
             if not local_path:
-                # 从 step_details 获取路径
-                local_path = submission.step_details.get("cloning", {}).get("local_path")
+                # 优先使用 git_copy 的目标路径（SKILL.md 已在根目录）
+                git_copy_info = submission.step_details.get("git_copy", {})
+                local_path = git_copy_info.get("target_path") or submission.step_details.get("cloning", {}).get("local_path")
             if not local_path:
                 return False, "缺少本地路径信息"
             return await self.generate_report(submission, local_path)
@@ -201,7 +202,9 @@ class WorkflowService:
         # 如果克隆完成，自动继续生成
         cloning_info = submission.step_details.get("cloning", {})
         if cloning_info.get("status") == "completed":
-            local_path = cloning_info.get("local_path")
+            # 优先使用 git_copy 的目标路径（SKILL.md 已在根目录）
+            git_copy_info = submission.step_details.get("git_copy", {})
+            local_path = git_copy_info.get("target_path") or cloning_info.get("local_path")
             if local_path:
                 # 步骤 2: 生成报告
                 success, message = await self.generate_report(submission, local_path)
@@ -339,24 +342,6 @@ class WorkflowService:
                     )
                     return False, message, None
 
-                submission.step_details["cloning"] = {
-                    "status": "completed",
-                    "local_path": str(local_path),
-                    "author": author,
-                    "repo": repo,
-                    "folder_path": folder_path,
-                    "duration": time.time() - start_time
-                }
-                await submission.save()
-
-                await SubmissionEvent.create(
-                    submission=submission,
-                    event_type=SubmissionEventType.CLONE_SUCCESS,
-                    message=f"稀疏克隆完成 ({time.time() - start_time:.2f}s)",
-                    details={"local_path": str(local_path), "folder_path": folder_path, "duration": time.time() - start_time},
-                    triggered_by="workflow_service"
-                )
-
                 # 验证 SKILL.md 是否存在（支持子目录）
                 skill_dir = self._find_skill_dir(local_path, folder_path)
                 if skill_dir is None:
@@ -384,6 +369,26 @@ class WorkflowService:
                     local_path = skill_dir
 
                 duration = time.time() - start_time
+
+                # 在 _find_skill_dir 修正路径后保存，确保 step_details 存的是 SKILL.md 所在目录
+                submission.step_details["cloning"] = {
+                    "status": "completed",
+                    "local_path": str(local_path),
+                    "author": author,
+                    "repo": repo,
+                    "folder_path": folder_path,
+                    "duration": duration
+                }
+                await submission.save()
+
+                await SubmissionEvent.create(
+                    submission=submission,
+                    event_type=SubmissionEventType.CLONE_SUCCESS,
+                    message=f"稀疏克隆完成 ({duration:.2f}s)",
+                    details={"local_path": str(local_path), "folder_path": folder_path, "duration": duration},
+                    triggered_by="workflow_service"
+                )
+
                 return True, f"稀疏克隆完成 ({duration:.2f}s)", str(local_path)
 
             # 普通 URL - 直接克隆
@@ -427,23 +432,6 @@ class WorkflowService:
             # 成功
             logger.info(f"Clone completed in {duration:.2f}s")
 
-            submission.step_details["cloning"] = {
-                "status": "completed",
-                "local_path": str(local_path),
-                "author": author,
-                "repo": repo,
-                "duration": duration
-            }
-            await submission.save()
-
-            await SubmissionEvent.create(
-                submission=submission,
-                event_type=SubmissionEventType.CLONE_SUCCESS,
-                message=f"克隆完成 ({duration:.2f}s)",
-                details={"local_path": str(local_path), "duration": duration},
-                triggered_by="workflow_service"
-            )
-
             # 验证 SKILL.md 是否存在（支持子目录）
             skill_dir = self._find_skill_dir(local_path)
             if skill_dir is None:
@@ -469,6 +457,24 @@ class WorkflowService:
             if skill_dir != local_path:
                 logger.info(f"SKILL.md found in subdirectory: {skill_dir}")
                 local_path = skill_dir
+
+            # 在 _find_skill_dir 修正路径后保存，确保 step_details 存的是 SKILL.md 所在目录
+            submission.step_details["cloning"] = {
+                "status": "completed",
+                "local_path": str(local_path),
+                "author": author,
+                "repo": repo,
+                "duration": duration
+            }
+            await submission.save()
+
+            await SubmissionEvent.create(
+                submission=submission,
+                event_type=SubmissionEventType.CLONE_SUCCESS,
+                message=f"克隆完成 ({duration:.2f}s)",
+                details={"local_path": str(local_path), "duration": duration},
+                triggered_by="workflow_service"
+            )
 
             return True, f"克隆完成 ({duration:.2f}s)", str(local_path)
 
@@ -553,6 +559,10 @@ class WorkflowService:
                 "OPENAI_BASE_URL": settings.OPENAI_BASE_URL or "https://api.openai.com/v1",
                 "OPENAI_MODEL": settings.OPENAI_MODEL or "gpt-4o",
                 "GITEA_SKILLS_BASE_URL": settings.GITEA_SKILLS_BASE_URL,
+                # generate.py 的 config.yaml 使用 REPORT_API_* 变量
+                "REPORT_API_BASE_URL": settings.REPORT_API_BASE_URL or "",
+                "REPORT_API_KEY": settings.REPORT_API_KEY or "",
+                "REPORT_API_MODEL": settings.REPORT_API_MODEL or "",
             }
             # 构建生成器命令
             cmd = [sys.executable, str(self.GENERATOR_PATH), "--input", local_path]
@@ -575,7 +585,8 @@ class WorkflowService:
             submission = await Submission.get(id=submission_id)
 
             if returncode != 0:
-                error_msg = f"生成报告失败: {stderr[:500]}"
+                error_detail = (stderr + stdout)[:500] if stdout else stderr[:500]
+                error_msg = f"生成报告失败: {error_detail}"
                 logger.error(error_msg)
 
                 submission.status = SubmissionStatus.FAILED
@@ -600,7 +611,8 @@ class WorkflowService:
             # 检查报告文件是否生成
             report_path = Path(local_path) / "skill-report.json"
             if not report_path.exists():
-                error_msg = "报告文件未生成: skill-report.json"
+                error_detail = (stdout or "")[:300]
+                error_msg = f"报告文件未生成: skill-report.json, generate.py 输出: {error_detail}"
                 logger.error(error_msg)
 
                 submission.status = SubmissionStatus.FAILED

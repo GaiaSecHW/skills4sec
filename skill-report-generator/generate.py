@@ -724,8 +724,8 @@ def generate_report(skill_dir: Path, config: dict, client: Optional[OpenAI] = No
 
     # 7. 获取来源信息
     if not source_url:
-        base_url = os.environ.get("GITEA_SKILLS_BASE_URL", "http://172.28.95.77:3000/admin/skills__hub/src/branch/main")
-        source_url = f"{base_url}/{skill_data.get('name', skill_dir.name)}"
+        base_url = os.environ.get("GITEA_SKILLS_BASE_URL", "http://gitea.ai.icsl.huawei.com/icsl")
+        source_url = f"{base_url}/{slug}"
 
     # 8. 组装完整报告
     now = datetime.now(timezone.utc)
@@ -918,6 +918,11 @@ def main():
     table.add_row("Success", f"[green]{success_count}[/green]")
     table.add_row("Errors", f"[red]{error_count}[/red]" if error_count else f"[green]{error_count}[/green]")
     console.print(table)
+
+    # 所有 skill 都失败时返回非零退出码
+    if success_count == 0 and error_count > 0:
+        console.print("[red]All skills failed to generate reports[/red]")
+        sys.exit(1)
 
 
 if __name__ == "__main__":
