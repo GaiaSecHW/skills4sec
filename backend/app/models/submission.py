@@ -123,6 +123,12 @@ class Submission(Model):
     error_message = fields.TextField(null=True, description="错误信息")
     error_details = fields.JSONField(null=True, description="错误详情")
 
+    # 工作流详情
+    source_type = fields.CharField(max_length=20, null=True, description="来源类型(git/zip)")
+    zip_path = fields.CharField(max_length=500, null=True, description="ZIP文件路径")
+    current_step = fields.CharField(max_length=50, null=True, description="当前步骤")
+    step_details = fields.JSONField(null=True, description="各步骤详情")
+
     # 审批信息
     approved_by = fields.IntField(null=True, description="审批人ID")
     approved_by_employee_id = fields.CharField(max_length=20, null=True, description="审批人工号")
@@ -131,6 +137,11 @@ class Submission(Model):
     rejected_by_employee_id = fields.CharField(max_length=20, null=True, description="拒绝人工号")
     rejected_at = fields.DatetimeField(null=True, description="拒绝时间")
     reject_reason = fields.TextField(null=True, description="拒绝原因")
+
+    # 通用审核信息 (审批/拒绝共用)
+    review_message = fields.TextField(null=True, description="审核备注")
+    reviewed_at = fields.DatetimeField(null=True, description="审核时间")
+    reviewer_employee_id = fields.CharField(max_length=20, null=True, description="审核人工号")
 
     # 时间戳
     created_at = fields.DatetimeField(auto_now_add=True)
