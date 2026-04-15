@@ -40,7 +40,9 @@ spec:
               name: skillhub-secrets
               key: gitea-token
         - name: GITEA_REPO
-          value: "admin/skills4sec"
+          value: "gitea/skills__hub"
+        - name: GITEA_SKILLS_BASE_URL
+          value: "http://gitea.ai.icsl.huawei.com/icsl"
         - name: SUPER_ADMIN_EMPLOYEE_ID
           valueFrom:
             secretKeyRef:

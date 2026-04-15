@@ -7,6 +7,19 @@
 - (可选) Helm 3.x
 - (可选) cert-manager 用于 HTTPS
 
+## 文件结构
+
+```
+k8s/
+├── 02-namespace.yaml           # 命名空间
+├── 03-mysql-statefulset.yaml   # MySQL StatefulSet + Service
+├── 04-gitea-deployment.yaml    # Gitea Deployment + Service
+├── 05-backend-deployment.yaml  # 后端 Deployment + Service
+├── 06-secrets.yaml             # Secrets (Token/密钥)
+├── 07-ingress.yaml             # Ingress 配置
+└── README.md                   # 本文档
+```
+
 ## 快速部署
 
 ### 1. 创建命名空间
@@ -18,61 +31,49 @@ kubectl apply -f 02-namespace.yaml
 ### 2. 创建 Secrets
 
 ```bash
-# 方式一：直接应用（需要先修改 06-secrets.yaml 中的值）
+# 先修改 06-secrets.yaml 中的值，然后应用
 kubectl apply -f 06-secrets.yaml
-
-# 方式二：从命令行创建
-kubectl create secret generic skillhub-secrets \
-  --from-literal=database-url='mysql://root:password@mysql:3306/skills2' \
-  --from-literal=secret-key='your-secret-key' \
-  -n skillhub
 ```
 
-### 3. 部署后端
+### 3. 部署 MySQL
+
+```bash
+kubectl apply -f 03-mysql-statefulset.yaml
+```
+
+### 4. 部署 Gitea
+
+```bash
+kubectl apply -f 04-gitea-deployment.yaml
+```
+
+### 5. 部署后端
 
 ```bash
 # 先构建并推送镜像
 docker build -t your-registry/skillhub-backend:latest ./backend
 docker push your-registry/skillhub-backend:latest
 
-# 修改 03-backend-deployment.yaml 中的镜像地址后部署
-kubectl apply -f 03-backend-deployment.yaml
+# 修改 05-backend-deployment.yaml 中的镜像地址后部署
+kubectl apply -f 05-backend-deployment.yaml
 ```
 
-### 4. 配置 Nginx
+### 6. 配置 Ingress (可选)
 
 ```bash
-# 应用 Nginx 配置
-kubectl apply -f 01-configmap.yaml
-
-# 上传静态文件到 ConfigMap
-kubectl create configmap skillhub-static-files \
-  --from-file=../docs/ \
-  -n skillhub \
-  --dry-run=client -o yaml | kubectl apply -f -
-
-# 部署 Nginx
-kubectl apply -f 04-nginx-deployment.yaml
-```
-
-### 5. 配置 Ingress (可选)
-
-```bash
-# 修改 05-ingress.yaml 中的域名后应用
-kubectl apply -f 05-ingress.yaml
+# 修改 07-ingress.yaml 中的域名后应用
+kubectl apply -f 07-ingress.yaml
 ```
 
 ## 一键部署
 
 ```bash
-# 按顺序应用所有配置
 kubectl apply -f 02-namespace.yaml
 kubectl apply -f 06-secrets.yaml
-kubectl apply -f 01-configmap.yaml
-kubectl apply -f 03-backend-deployment.yaml
-kubectl apply -f 07-static-files-configmap.yaml
-kubectl apply -f 04-nginx-deployment.yaml
-kubectl apply -f 05-ingress.yaml
+kubectl apply -f 03-mysql-statefulset.yaml
+kubectl apply -f 04-gitea-deployment.yaml
+kubectl apply -f 05-backend-deployment.yaml
+kubectl apply -f 07-ingress.yaml
 ```
 
 ## 验证部署
@@ -89,11 +90,6 @@ kubectl get ingress -n skillhub
 
 # 查看日志
 kubectl logs -f deployment/skillhub-backend -n skillhub
-kubectl logs -f deployment/skillhub-nginx -n skillhub
-
-# 端口转发测试
-kubectl port-forward svc/skillhub-nginx 8080:80 -n skillhub
-# 访问 http://localhost:8080
 ```
 
 ## 常用命令
@@ -118,7 +114,7 @@ kubectl delete namespace skillhub
 ## 生产环境建议
 
 1. **镜像仓库**：使用私有镜像仓库（Harbor/阿里云 ACR）
-2. **持久化存储**：静态文件使用 PVC 或对象存储
+2. **持久化存储**：MySQL 使用 PVC，静态文件使用 PVC 或对象存储
 3. **HTTPS**：配置 cert-manager 自动签发证书
 4. **监控**：集成 Prometheus + Grafana
 5. **日志**：集成 ELK/Loki
@@ -145,18 +141,4 @@ spec:
       target:
         type: Utilization
         averageUtilization: 70
-```
-
-## 文件结构
-
-```
-k8s/
-├── 01-configmap.yaml           # Nginx 配置
-├── 02-namespace.yaml           # 命名空间
-├── 03-backend-deployment.yaml  # 后端 Deployment + Service
-├── 04-nginx-deployment.yaml    # Nginx Deployment + Service
-├── 05-ingress.yaml             # Ingress 配置
-├── 06-secrets.yaml             # Secrets
-├── 07-static-files-configmap.yaml  # 静态文件 ConfigMap
-└── README.md                   # 本文档
 ```
