@@ -766,8 +766,8 @@
         <p class="text-sm text-muted">${escHtml(u.description || '')}</p>
       </div>`).join('');
 
-    // 构建安装命令: npx skills add <repo_url> --skill <slug>
-    const installCmd = `npx skills add ${AppConfig.SKILLS_REPO_URL} --skill ${skill.slug}`;
+    // 构建安装命令: npx skills add <gitea_org_url>/<slug> --skill <slug>
+    const installCmd = `npx skills add ${AppConfig.SKILLS_GITEA_URL}/${skill.slug} --skill ${skill.slug}`;
 
     const prompts = (skill.prompt_templates || []).map(p => `
       <div style="padding:1rem;border:1px solid var(--border);border-radius:var(--radius);margin-bottom:.75rem">
@@ -1149,7 +1149,7 @@
 
     const skillCmd = agent.skill
       ? (agent.skill.type === 'github'
-          ? `npx skills add ${AppConfig.SKILLS_REPO_URL} --skill ${escHtml(agent.skill.name || agent.skill.source || '')}`
+          ? `npx skills add ${AppConfig.SKILLS_GITEA_URL}/${escHtml(agent.skill.name || agent.skill.source || '')} --skill ${escHtml(agent.skill.name || agent.skill.source || '')}`
           : `npx ${escHtml(agent.skill.package || agent.skill.source || '')}`)
       : '';
 

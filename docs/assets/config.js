@@ -5,8 +5,8 @@
  *   - 开发环境: http://localhost:8000
  *   - 生产环境: 空字符串（使用相对路径）
  *
- * SKILLS_REPO_URL: 技能仓库地址
- *   - 用于 npx skills add 命令
+ * SKILLS_GITEA_URL: 技能 Gitea 组织地址
+ *   - 每个技能一个独立仓库，拼接 /{skill-slug} 得到完整仓库 URL
  */
 const AppConfig = {
   // 根据运行环境自动判断 API 基础路径
@@ -15,6 +15,6 @@ const AppConfig = {
     ? 'http://localhost:8000'
     : '',
 
-  // 技能仓库地址（支持 GitHub / Gitea）
-  SKILLS_REPO_URL: 'http://localhost:3000/admin/skills4sec'
+  // 技能 Gitea 组织地址（每个技能一个独立仓库，拼接 /{skill-slug} 得到完整仓库 URL）
+  SKILLS_GITEA_URL: 'http://gitea.ai.icsl.huawei.com/icsl'
 };
